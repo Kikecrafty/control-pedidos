@@ -30,7 +30,7 @@ export default function Login() {
     <div className="login-page">
       <form onSubmit={iniciarSesion} className="login-card">
         <h1>Control de Pedidos</h1>
-        <p>Administra tus pedidos de SHEIN</p>
+        <p>Administra pedidos de importaciones y catálogo</p>
 
         <label>Correo</label>
         <input
