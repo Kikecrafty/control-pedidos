@@ -3,7 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import { procesarMiPlanVencido } from './lib/planes'
 
+import Landing from './pages/Landing'
 import Login from './pages/Login'
+import ActualizarPassword from './pages/ActualizarPassword'
 import Dashboard from './pages/Dashboard'
 import Clientes from './pages/Clientes'
 import Pedidos from './pages/Pedidos'
@@ -80,15 +82,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<Landing session={session} />} />
         <Route path="/seguimiento/:token" element={<Seguimiento />} />
+        <Route path="/actualizar-password" element={<ActualizarPassword />} />
 
         <Route
           path="/login"
-          element={!session ? <Login /> : <Navigate to="/" replace />}
+          element={!session ? <Login /> : <Navigate to="/panel" replace />}
         />
 
         <Route
-          path="/"
+          path="/panel"
           element={
             <ProtectedRoute session={session}>
               <Dashboard />

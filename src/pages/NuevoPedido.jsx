@@ -6,6 +6,17 @@ import Toast from '../components/Toast'
 import PlanLimitNotice from '../components/PlanLimitNotice'
 import { cargarEstadoPlan, estaBloqueadoPorPlan, puedeCrearPedido } from '../lib/planes'
 
+const crearProductoVacio = () => ({
+  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  nombre_producto: '',
+  link_shein: '',
+  talla: '',
+  color: '',
+  cantidad: 1,
+  precio_shein: '',
+  precio_venta: ''
+})
+
 export default function NuevoPedido() {
   const [clientes, setClientes] = useState([])
   const [estadoPlan, setEstadoPlan] = useState(null)
@@ -28,14 +39,7 @@ export default function NuevoPedido() {
   const [tracking, setTracking] = useState('')
   const [notas, setNotas] = useState('')
   const [toast, setToast] = useState(null)
-
-  const [nombreProducto, setNombreProducto] = useState('')
-  const [linkShein, setLinkShein] = useState('')
-  const [talla, setTalla] = useState('')
-  const [color, setColor] = useState('')
-  const [cantidad, setCantidad] = useState(1)
-  const [precioShein, setPrecioShein] = useState('')
-  const [precioVenta, setPrecioVenta] = useState('')
+  const [productos, setProductos] = useState(() => [crearProductoVacio()])
   const [anticipo, setAnticipo] = useState('')
 
   const plataformas = [
@@ -48,8 +52,6 @@ export default function NuevoPedido() {
 
   const estadosPedido = [
     'Cotizado',
-    'Pendiente de pago',
-    'Pagado por cliente',
     'Comprado en plataforma',
     'En camino',
     'Recibido',
@@ -250,6 +252,72 @@ export default function NuevoPedido() {
     return data
   }
 
+  const actualizarProducto = (id, campo, valor) => {
+    setProductos((actuales) =>
+      actuales.map((producto) =>
+        producto.id === id
+          ? { ...producto, [campo]: valor }
+          : producto
+      )
+    )
+  }
+
+  const agregarProducto = () => {
+    if (bloquearSiNoPuede()) return
+    setProductos((actuales) => [...actuales, crearProductoVacio()])
+  }
+
+  const eliminarProducto = (id) => {
+    setProductos((actuales) => {
+      if (actuales.length <= 1) return actuales
+      return actuales.filter((producto) => producto.id !== id)
+    })
+  }
+
+  const obtenerProductosParaGuardar = () => {
+    const productosListos = []
+
+    for (let index = 0; index < productos.length; index += 1) {
+      const producto = productos[index]
+      const numeroProducto = index + 1
+      const nombreProducto = producto.nombre_producto.trim()
+      const cantidadTexto = String(producto.cantidad ?? '').trim()
+      const costoTexto = String(producto.precio_shein ?? '').trim()
+      const ventaTexto = String(producto.precio_venta ?? '').trim()
+      const cant = Number(cantidadTexto)
+      const costoUnitario = Number(costoTexto)
+      const ventaUnitario = Number(ventaTexto)
+
+      if (!nombreProducto) {
+        throw new Error(`Escribe el nombre del producto ${numeroProducto}`)
+      }
+
+      if (!cantidadTexto || !Number.isFinite(cant) || cant <= 0) {
+        throw new Error(`Escribe una cantidad válida en el producto ${numeroProducto}`)
+      }
+
+      if (!costoTexto || !Number.isFinite(costoUnitario) || costoUnitario < 0) {
+        throw new Error(`Escribe el costo de plataforma del producto ${numeroProducto}`)
+      }
+
+      if (!ventaTexto || !Number.isFinite(ventaUnitario) || ventaUnitario < 0) {
+        throw new Error(`Escribe el precio de venta del producto ${numeroProducto}`)
+      }
+
+      productosListos.push({
+        nombre_producto: nombreProducto,
+        link_shein: producto.link_shein.trim(),
+        talla: producto.talla.trim(),
+        color: producto.color.trim(),
+        cantidad: cant,
+        precio_shein: costoUnitario,
+        precio_venta: ventaUnitario
+      })
+    }
+
+    return productosListos
+  }
+
   const guardarPedido = async (e) => {
     e.preventDefault()
 
@@ -264,13 +332,35 @@ export default function NuevoPedido() {
       return
     }
 
-    const cant = Number(cantidad)
-    const sheinUnitario = Number(precioShein)
-    const ventaUnitario = Number(precioVenta)
+    let productosParaGuardar = []
+
+    try {
+      productosParaGuardar = obtenerProductosParaGuardar()
+    } catch (error) {
+      mostrarToast(error.message, 'error')
+      return
+    }
+
+    const totalShein = productosParaGuardar.reduce((total, producto) => {
+      return total + (Number(producto.precio_shein || 0) * Number(producto.cantidad || 0))
+    }, 0)
+
+    const totalCliente = productosParaGuardar.reduce((total, producto) => {
+      return total + (Number(producto.precio_venta || 0) * Number(producto.cantidad || 0))
+    }, 0)
+
     const pagoInicial = Number(anticipo || 0)
 
-    const totalShein = sheinUnitario * cant
-    const totalCliente = ventaUnitario * cant
+    if (!Number.isFinite(pagoInicial) || pagoInicial < 0) {
+      mostrarToast('Escribe un anticipo válido', 'error')
+      return
+    }
+
+    if (pagoInicial > totalCliente) {
+      mostrarToast('El anticipo no puede ser mayor al total del cliente', 'error')
+      return
+    }
+
     const restante = totalCliente - pagoInicial
     const ganancia = totalCliente - totalShein
 
@@ -314,22 +404,16 @@ export default function NuevoPedido() {
 
     const { error: errorProducto } = await supabase
       .from('productos_pedido')
-      .insert([
-        {
+      .insert(
+        productosParaGuardar.map((producto) => ({
           pedido_id: pedido.id,
-          nombre_producto: nombreProducto,
-          link_shein: linkShein,
-          talla,
-          color,
-          cantidad: cant,
-          precio_shein: sheinUnitario,
-          precio_venta: ventaUnitario
-        }
-      ])
+          ...producto
+        }))
+      )
 
     if (errorProducto) {
       console.log(errorProducto)
-      mostrarToast('El pedido se creó, pero hubo error al guardar el producto', 'error')
+      mostrarToast('El pedido se creó, pero hubo error al guardar los productos', 'error')
       return
     }
 
@@ -354,8 +438,14 @@ export default function NuevoPedido() {
     }, 900)
   }
 
-  const totalSheinPreview = Number(precioShein || 0) * Number(cantidad || 0)
-  const totalClientePreview = Number(precioVenta || 0) * Number(cantidad || 0)
+  const totalSheinPreview = productos.reduce((total, producto) => {
+    return total + (Number(producto.precio_shein || 0) * Number(producto.cantidad || 0))
+  }, 0)
+
+  const totalClientePreview = productos.reduce((total, producto) => {
+    return total + (Number(producto.precio_venta || 0) * Number(producto.cantidad || 0))
+  }, 0)
+
   const gananciaPreview = totalClientePreview - totalSheinPreview
   const restantePreview = totalClientePreview - Number(anticipo || 0)
 
@@ -375,9 +465,8 @@ export default function NuevoPedido() {
         <form onSubmit={guardarClienteNuevo}>
           <div className="modal-form-grid">
             <div className="form-field">
-              <label>Nombre del cliente</label>
+              <label>Nombre del cliente*</label>
               <input
-                placeholder="Ej. María Fernanda"
                 value={nuevoCliente.nombre}
                 onChange={(e) =>
                   setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
@@ -387,11 +476,10 @@ export default function NuevoPedido() {
             </div>
 
             <div className="form-field">
-              <label>Teléfono</label>
+              <label>Teléfono*</label>
               <div className="phone-field">
                 <span>+52</span>
                 <input
-                  placeholder="10 dígitos"
                   value={nuevoCliente.telefono}
                   onChange={(e) =>
                     setNuevoCliente({
@@ -399,6 +487,7 @@ export default function NuevoPedido() {
                       telefono: normalizarTelefono(e.target.value)
                     })
                   }
+                  inputMode="numeric"
                   required
                 />
               </div>
@@ -407,7 +496,6 @@ export default function NuevoPedido() {
             <div className="form-field">
               <label>Dirección</label>
               <input
-                placeholder="Ciudad o domicilio"
                 value={nuevoCliente.direccion}
                 onChange={(e) =>
                   setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })
@@ -418,7 +506,6 @@ export default function NuevoPedido() {
             <div className="form-field">
               <label>Notas</label>
               <textarea
-                placeholder="Dato importante"
                 value={nuevoCliente.notas}
                 onChange={(e) =>
                   setNuevoCliente({ ...nuevoCliente, notas: e.target.value })
@@ -460,7 +547,7 @@ export default function NuevoPedido() {
 
         <div className="form-grid">
           <div className="form-field">
-            <label>Plataforma</label>
+            <label>Plataforma*</label>
             <select
               value={plataforma}
               onChange={(e) => setPlataforma(e.target.value)}
@@ -473,11 +560,10 @@ export default function NuevoPedido() {
           </div>
 
           <div className="form-field client-search" ref={buscadorClienteRef}>
-            <label>Cliente</label>
+            <label>Cliente*</label>
 
             <div className="client-search-box">
               <input
-                placeholder="Busca nombre, teléfono o ciudad"
                 value={clienteBusqueda}
                 onFocus={() => setMostrarSugerencias(true)}
                 onChange={(e) => {
@@ -486,6 +572,7 @@ export default function NuevoPedido() {
                   setMostrarSugerencias(true)
                 }}
                 autoComplete="off"
+                required
               />
 
               {clienteSeleccionado && (
@@ -551,10 +638,11 @@ export default function NuevoPedido() {
           </div>
 
           <div className="form-field">
-            <label>Estado del pedido</label>
+            <label>Estado del pedido*</label>
             <select
               value={estado}
               onChange={(e) => setEstado(e.target.value)}
+              required
             >
               {estadosPedido.map((estado) => (
                 <option key={estado}>{estado}</option>
@@ -565,7 +653,6 @@ export default function NuevoPedido() {
           <div className="form-field">
             <label>Tracking / guía</label>
             <input
-              placeholder="Número de guía"
               value={tracking}
               onChange={(e) => setTracking(e.target.value)}
             />
@@ -574,95 +661,125 @@ export default function NuevoPedido() {
           <div className="form-field">
             <label>Notas del pedido</label>
             <input
-              placeholder="Dato del pedido"
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
             />
           </div>
         </div>
 
-        <h2>Producto</h2>
-
-        <div className="form-grid">
-          <div className="form-field">
-            <label>Nombre del producto</label>
-            <input
-              placeholder="Ej. Blusa negra"
-              value={nombreProducto}
-              onChange={(e) => setNombreProducto(e.target.value)}
-              required
-            />
+        <div className="products-section-header">
+          <div>
+            <h2>Productos</h2>
+            <p>Agrega uno o varios productos dentro de la misma orden.</p>
           </div>
 
-          <div className="form-field">
-            <label>Link del producto</label>
-            <input
-              placeholder="Pega el enlace"
-              value={linkShein}
-              onChange={(e) => setLinkShein(e.target.value)}
-            />
-          </div>
+          <button
+            type="button"
+            className="btn btn-light-bordered btn-add-product"
+            onClick={agregarProducto}
+            disabled={bloqueado}
+          >
+            + Agregar otro producto
+          </button>
+        </div>
 
-          <div className="form-field">
-            <label>Talla</label>
-            <input
-              placeholder="Ej. M"
-              value={talla}
-              onChange={(e) => setTalla(e.target.value)}
-            />
-          </div>
+        <div className="order-products-list">
+          {productos.map((producto, index) => (
+            <div className="product-order-card" key={producto.id}>
+              <div className="product-order-card-header">
+                <h3>Producto {index + 1}</h3>
 
-          <div className="form-field">
-            <label>Color</label>
-            <input
-              placeholder="Ej. Negro"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-            />
-          </div>
+                {productos.length > 1 && (
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-small"
+                    onClick={() => eliminarProducto(producto.id)}
+                  >
+                    Quitar
+                  </button>
+                )}
+              </div>
 
-          <div className="form-field">
-            <label>Cantidad</label>
-            <input
-              type="number"
-              min="1"
-              placeholder="Ej. 1"
-              value={cantidad}
-              onChange={(e) => setCantidad(e.target.value)}
-              required
-            />
-          </div>
+              <div className="form-grid">
+                <div className="form-field">
+                  <label>Nombre del producto*</label>
+                  <input
+                    value={producto.nombre_producto}
+                    onChange={(e) => actualizarProducto(producto.id, 'nombre_producto', e.target.value)}
+                    required
+                  />
+                </div>
 
-          <div className="form-field">
-            <label>Costo plataforma unitario</label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Lo que te cuesta"
-              value={precioShein}
-              onChange={(e) => setPrecioShein(e.target.value)}
-              required
-            />
-          </div>
+                <div className="form-field">
+                  <label>Link del producto</label>
+                  <input
+                    value={producto.link_shein}
+                    onChange={(e) => actualizarProducto(producto.id, 'link_shein', e.target.value)}
+                  />
+                </div>
 
-          <div className="form-field">
-            <label>Precio venta unitario</label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Lo que cobrarás"
-              value={precioVenta}
-              onChange={(e) => setPrecioVenta(e.target.value)}
-              required
-            />
-          </div>
+                <div className="form-field">
+                  <label>Talla</label>
+                  <input
+                    value={producto.talla}
+                    onChange={(e) => actualizarProducto(producto.id, 'talla', e.target.value)}
+                  />
+                </div>
 
+                <div className="form-field">
+                  <label>Color</label>
+                  <input
+                    value={producto.color}
+                    onChange={(e) => actualizarProducto(producto.id, 'color', e.target.value)}
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label>Cantidad*</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={producto.cantidad}
+                    onChange={(e) => actualizarProducto(producto.id, 'cantidad', e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label>Costo plataforma unitario*</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={producto.precio_shein}
+                    onChange={(e) => actualizarProducto(producto.id, 'precio_shein', e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label>Precio venta unitario*</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={producto.precio_venta}
+                    onChange={(e) => actualizarProducto(producto.id, 'precio_venta', e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="form-grid order-payment-grid">
           <div className="form-field">
             <label>Anticipo</label>
             <input
               type="number"
               step="0.01"
-              placeholder="Pago inicial"
+              min="0"
               value={anticipo}
               onChange={(e) => setAnticipo(e.target.value)}
             />

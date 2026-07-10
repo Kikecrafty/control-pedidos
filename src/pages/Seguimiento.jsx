@@ -14,15 +14,62 @@ export default function Seguimiento() {
 
   const normalizarEstado = (estado) => {
     if (estado === 'Comprado en SHEIN') return 'Comprado en plataforma'
+    if (estado === 'Pendiente de pago') return 'Cotizado'
+    if (estado === 'Pagado por cliente') return 'Cotizado'
     return estado || 'Cotizado'
+  }
+
+  const estaPagadoPorCliente = () => {
+    return (
+      Number(pedido?.total_cliente || 0) > 0 &&
+      Number(pedido?.restante || 0) <= 0 &&
+      !['Cancelado', 'Devuelto'].includes(normalizarEstado(pedido?.estado))
+    )
+  }
+
+  const obtenerEstadoPago = () => {
+    if (esEstadoReembolso(pedido?.estado)) {
+      return { tipo: 'refund', texto: 'Reembolso' }
+    }
+
+    const total = Number(pedido?.total_cliente || 0)
+    const pagado = Number(pedido?.anticipo || 0)
+    const restante = Number(pedido?.restante || 0)
+
+    if (total > 0 && (restante <= 0 || pagado >= total)) {
+      return { tipo: 'paid', texto: 'Pagado por cliente' }
+    }
+
+    if (pagado > 0) {
+      return { tipo: 'partial', texto: 'Pagado parcialmente' }
+    }
+
+    return { tipo: 'pending', texto: 'Pendiente' }
+  }
+
+  const renderPagoBadge = () => {
+    const estadoPago = obtenerEstadoPago()
+
+    if (estadoPago.tipo === 'refund') {
+      return <span className="refund-status-badge refund-status-badge-small">Reembolso</span>
+    }
+
+    return (
+      <span className={`payment-status-badge payment-status-${estadoPago.tipo} payment-status-badge-small`}>
+        <i /> {estadoPago.texto}
+      </span>
+    )
+  }
+
+  const esEstadoReembolso = (estado) => {
+    const estadoNormal = normalizarEstado(estado)
+    return estadoNormal === 'Cancelado' || estadoNormal === 'Devuelto'
   }
 
   const estadoClase = (estado) => {
     const estadoNormal = normalizarEstado(estado)
 
     if (estadoNormal === 'Cotizado') return 'badge-gray'
-    if (estadoNormal === 'Pendiente de pago') return 'badge-yellow'
-    if (estadoNormal === 'Pagado por cliente') return 'badge-blue'
     if (estadoNormal === 'Comprado en plataforma') return 'badge-dark'
     if (estadoNormal === 'En camino') return 'badge-purple'
     if (estadoNormal === 'Recibido') return 'badge-green-soft'
@@ -93,9 +140,13 @@ export default function Seguimiento() {
             <p>{pedido.plataforma || 'Plataforma'} · {pedido.cliente_nombre || 'Cliente'}</p>
           </div>
 
-          <span className={`badge ${estadoClase(pedido.estado)}`}>
-            {normalizarEstado(pedido.estado)}
-          </span>
+          <div className="mobile-card-badges">
+            <span className={`badge ${estadoClase(pedido.estado)}`}>
+              {normalizarEstado(pedido.estado)}
+            </span>
+
+            {renderPagoBadge()}
+          </div>
         </div>
 
         <div className="tracking-summary-grid">

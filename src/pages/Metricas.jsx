@@ -5,8 +5,6 @@ import { supabase } from '../supabaseClient'
 const plataformas = ['SHEIN', 'Temu', 'AliExpress', 'Catálogo', 'Otro']
 const estados = [
   'Cotizado',
-  'Pendiente de pago',
-  'Pagado por cliente',
   'Comprado en plataforma',
   'En camino',
   'Recibido',
@@ -28,10 +26,21 @@ const number = (valor) => {
   return Number(valor || 0).toLocaleString('es-MX')
 }
 
+const normalizarEstado = (estado) => {
+  if (estado === 'Comprado en SHEIN') return 'Comprado en plataforma'
+  if (estado === 'Pendiente de pago') return 'Cotizado'
+  if (estado === 'Pagado por cliente') return 'Cotizado'
+  return estado || 'Cotizado'
+}
+
 const fechaPedido = (pedido) => {
   const raw = pedido?.fecha_pedido || pedido?.creado_en
   const fecha = raw ? new Date(raw) : new Date()
   return Number.isNaN(fecha.getTime()) ? new Date() : fecha
+}
+
+const pedidoCuentaComoVenta = (pedido) => {
+  return !['Cancelado', 'Devuelto'].includes(normalizarEstado(pedido?.estado))
 }
 
 const inicioDia = (fecha) => {
@@ -360,7 +369,7 @@ export default function Metricas() {
     if (perfilData?.plan_actual === 'pro' || perfilData?.es_admin) {
       const { data: pedidosData, error } = await supabase
         .from('pedidos')
-        .select('id, codigo, estado, plataforma, fecha_pedido, total_cliente, anticipo, restante, ganancia, creado_en, clientes(nombre)')
+        .select('id, codigo, estado, plataforma, fecha_pedido, total_cliente, anticipo, restante, ganancia, reembolso, creado_en, clientes(nombre)')
         .order('creado_en', { ascending: false })
 
       if (error) {
@@ -413,17 +422,18 @@ export default function Metricas() {
       return coincidePlataforma && coincideInicio && coincideFin
     })
 
-    const totalVendido = filtrados.reduce((sum, pedido) => sum + Number(pedido.total_cliente || 0), 0)
-    const ganancia = filtrados.reduce((sum, pedido) => sum + Number(pedido.ganancia || 0), 0)
-    const pendiente = filtrados.reduce((sum, pedido) => sum + Number(pedido.restante || 0), 0)
-    const pagado = filtrados.reduce((sum, pedido) => sum + Number(pedido.anticipo || 0), 0)
-    const entregados = filtrados.filter((pedido) => pedido.estado === 'Entregado').length
-    const cancelados = filtrados.filter((pedido) => pedido.estado === 'Cancelado' || pedido.estado === 'Devuelto').length
-    const activos = filtrados.filter((pedido) => !['Entregado', 'Cancelado', 'Devuelto'].includes(pedido.estado)).length
-    const ticketPromedio = filtrados.length ? totalVendido / filtrados.length : 0
+    const pedidosVenta = filtrados.filter(pedidoCuentaComoVenta)
+    const totalVendido = pedidosVenta.reduce((sum, pedido) => sum + Number(pedido.total_cliente || 0), 0)
+    const ganancia = pedidosVenta.reduce((sum, pedido) => sum + Number(pedido.ganancia || 0), 0)
+    const pendiente = pedidosVenta.reduce((sum, pedido) => sum + Number(pedido.restante || 0), 0)
+    const pagado = pedidosVenta.reduce((sum, pedido) => sum + Number(pedido.anticipo || 0), 0)
+    const entregados = filtrados.filter((pedido) => normalizarEstado(pedido.estado) === 'Entregado').length
+    const cancelados = filtrados.filter((pedido) => ['Cancelado', 'Devuelto'].includes(normalizarEstado(pedido.estado))).length
+    const activos = filtrados.filter((pedido) => !['Entregado', 'Cancelado', 'Devuelto'].includes(normalizarEstado(pedido.estado))).length
+    const ticketPromedio = pedidosVenta.length ? totalVendido / pedidosVenta.length : 0
     const margen = totalVendido ? (ganancia / totalVendido) * 100 : 0
 
-    const ventasPorPeriodo = agruparVentasPorRango(filtrados, inicio, fin)
+    const ventasPorPeriodo = agruparVentasPorRango(pedidosVenta, inicio, fin)
 
     const porPlataforma = plataformas
       .map((plataforma) => ({
@@ -435,14 +445,14 @@ export default function Metricas() {
     const porEstado = estados
       .map((estado) => ({
         label: estado,
-        valor: filtrados.filter((pedido) => pedido.estado === estado).length
+        valor: filtrados.filter((pedido) => normalizarEstado(pedido.estado) === estado).length
       }))
       .filter((item) => item.valor > 0)
 
     const ventasPorPlataforma = plataformas
       .map((plataforma) => ({
         label: plataforma,
-        valor: filtrados
+        valor: pedidosVenta
           .filter((pedido) => (pedido.plataforma || 'SHEIN') === plataforma)
           .reduce((sum, pedido) => sum + Number(pedido.total_cliente || 0), 0)
       }))
@@ -451,7 +461,7 @@ export default function Metricas() {
 
     const clientesMap = new Map()
 
-    filtrados.forEach((pedido) => {
+    pedidosVenta.forEach((pedido) => {
       const nombre = pedido.clientes?.nombre || 'Cliente sin nombre'
       const actual = clientesMap.get(nombre) || { nombre, pedidos: 0, vendido: 0, ganancia: 0 }
       actual.pedidos += 1
@@ -701,7 +711,7 @@ export default function Metricas() {
                 <strong>{pedido.codigo}</strong>
                 <span>{pedido.clientes?.nombre || 'Sin cliente'}</span>
                 <span>{pedido.plataforma || 'SHEIN'}</span>
-                <span>{pedido.estado}</span>
+                <span>{normalizarEstado(pedido.estado)}</span>
                 <b>{money(pedido.total_cliente)}</b>
               </div>
             ))}

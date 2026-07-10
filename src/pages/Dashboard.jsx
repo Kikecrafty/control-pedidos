@@ -5,10 +5,62 @@ import Layout from '../components/Layout'
 import PlanLimitNotice from '../components/PlanLimitNotice'
 import { cargarEstadoPlan, puedeCrearPedido } from '../lib/planes'
 
+const obtenerIdUsuarioCache = () => {
+  if (typeof window === 'undefined') return 'sin_usuario'
+
+  try {
+    const llaves = Object.keys(localStorage)
+    const llaveAuth = llaves.find((llave) => llave.startsWith('sb-') && llave.endsWith('-auth-token'))
+
+    if (llaveAuth) {
+      const valor = JSON.parse(localStorage.getItem(llaveAuth) || '{}')
+      const userId = valor?.user?.id || valor?.currentSession?.user?.id
+      if (userId) return userId
+    }
+  } catch (error) {
+    console.log(error)
+  }
+
+  return localStorage.getItem('control_pedidos_usuario_cache') || 'sin_usuario'
+}
+
+const cacheKeyDashboard = () => `control_pedidos_dashboard_cache_${obtenerIdUsuarioCache()}`
+
+const leerDashboardCache = () => {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const guardado = localStorage.getItem(cacheKeyDashboard())
+    return guardado ? JSON.parse(guardado) : null
+  } catch (error) {
+    console.log(error)
+    return null
+  }
+}
+
+const guardarDashboardCache = (datos) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    const userId = obtenerIdUsuarioCache()
+    localStorage.setItem('control_pedidos_usuario_cache', userId)
+    localStorage.setItem(
+      cacheKeyDashboard(),
+      JSON.stringify({
+        ...datos,
+        guardado_en: new Date().toISOString()
+      })
+    )
+  } catch (error) {
+    console.log(error)
+  }
+}
+
 export default function Dashboard() {
-  const [clientes, setClientes] = useState([])
-  const [pedidos, setPedidos] = useState([])
-  const [estadoPlan, setEstadoPlan] = useState(null)
+  const cacheInicial = leerDashboardCache()
+  const [clientes, setClientes] = useState(() => cacheInicial?.clientes || [])
+  const [pedidos, setPedidos] = useState(() => cacheInicial?.pedidos || [])
+  const [estadoPlan, setEstadoPlan] = useState(() => cacheInicial?.estadoPlan || null)
 
   useEffect(() => {
     cargarDatos()
@@ -44,8 +96,17 @@ export default function Dashboard() {
       return
     }
 
-    setClientes(clientesData || [])
-    setPedidos(pedidosData || [])
+    const clientesFinal = clientesData || []
+    const pedidosFinal = pedidosData || []
+
+    setClientes(clientesFinal)
+    setPedidos(pedidosFinal)
+
+    guardarDashboardCache({
+      clientes: clientesFinal,
+      pedidos: pedidosFinal,
+      estadoPlan: estado
+    })
   }
 
   const contarEstado = (estado) => {

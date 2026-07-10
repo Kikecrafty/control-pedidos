@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
@@ -16,6 +16,22 @@ export default function DetallePedido() {
   const [productos, setProductos] = useState([])
   const [pagos, setPagos] = useState([])
   const [toast, setToast] = useState(null)
+  const accionEnProcesoRef = useRef(false)
+  const [accionEnProceso, setAccionEnProceso] = useState('')
+
+  const iniciarAccion = (mensaje = 'Procesando...') => {
+    if (accionEnProcesoRef.current) return false
+    accionEnProcesoRef.current = true
+    setAccionEnProceso(mensaje)
+    return true
+  }
+
+  const finalizarAccion = () => {
+    accionEnProcesoRef.current = false
+    setAccionEnProceso('')
+  }
+
+  const estaProcesando = Boolean(accionEnProceso)
 
   const [modalPedido, setModalPedido] = useState(false)
   const [modalProducto, setModalProducto] = useState(false)
@@ -23,6 +39,10 @@ export default function DetallePedido() {
 
   const [modalMensajeEstado, setModalMensajeEstado] = useState(false)
   const [pedidoMensajeEstado, setPedidoMensajeEstado] = useState(null)
+  const [modalConfirmarEntrega, setModalConfirmarEntrega] = useState(false)
+  const [entregaPendiente, setEntregaPendiente] = useState(null)
+  const [modalConfirmarProducto, setModalConfirmarProducto] = useState(false)
+  const [productoEntregaPendiente, setProductoEntregaPendiente] = useState(null)
 
   const [clienteIdPedido, setClienteIdPedido] = useState('')
   const [plataformaPedido, setPlataformaPedido] = useState('SHEIN')
@@ -54,8 +74,6 @@ export default function DetallePedido() {
 
   const estadosPedido = [
     'Cotizado',
-    'Pendiente de pago',
-    'Pagado por cliente',
     'Comprado en plataforma',
     'En camino',
     'Recibido',
@@ -88,6 +106,8 @@ export default function DetallePedido() {
 
   const normalizarEstado = (estado) => {
     if (estado === 'Comprado en SHEIN') return 'Comprado en plataforma'
+    if (estado === 'Pendiente de pago') return 'Cotizado'
+    if (estado === 'Pagado por cliente') return 'Cotizado'
     return estado || 'Cotizado'
   }
 
@@ -95,8 +115,6 @@ export default function DetallePedido() {
     const estadoNormal = normalizarEstado(estado)
 
     if (estadoNormal === 'Cotizado') return 'badge-gray'
-    if (estadoNormal === 'Pendiente de pago') return 'badge-yellow'
-    if (estadoNormal === 'Pagado por cliente') return 'badge-blue'
     if (estadoNormal === 'Comprado en plataforma') return 'badge-dark'
     if (estadoNormal === 'En camino') return 'badge-purple'
     if (estadoNormal === 'Recibido') return 'badge-green-soft'
@@ -105,6 +123,82 @@ export default function DetallePedido() {
     if (estadoNormal === 'Devuelto') return 'badge-red-strong'
 
     return 'badge-gray'
+  }
+
+  const esEstadoReembolso = (estado) => {
+    const estadoNormal = normalizarEstado(estado)
+    return estadoNormal === 'Cancelado' || estadoNormal === 'Devuelto'
+  }
+
+  const estaPagadoPorCliente = (pedidoBase = pedido) => {
+    return (
+      Number(pedidoBase?.total_cliente || 0) > 0 &&
+      Number(pedidoBase?.restante || 0) <= 0 &&
+      !['Cancelado', 'Devuelto'].includes(normalizarEstado(pedidoBase?.estado))
+    )
+  }
+
+  const obtenerEstadoPago = (pedidoBase = pedido) => {
+    if (esEstadoReembolso(pedidoBase?.estado)) {
+      return { tipo: 'refund', texto: 'Reembolso' }
+    }
+
+    const total = Number(pedidoBase?.total_cliente || 0)
+    const pagado = Number(pedidoBase?.anticipo || 0)
+    const restante = Number(pedidoBase?.restante || 0)
+
+    if (total > 0 && (restante <= 0 || pagado >= total)) {
+      return { tipo: 'paid', texto: 'Pagado por cliente' }
+    }
+
+    if (pagado > 0) {
+      return { tipo: 'partial', texto: 'Pagado parcialmente' }
+    }
+
+    return { tipo: 'pending', texto: 'Pendiente' }
+  }
+
+  const renderPagoBadge = (pedidoBase = pedido, compacto = false) => {
+    const estadoPago = obtenerEstadoPago(pedidoBase)
+
+    if (estadoPago.tipo === 'refund') {
+      return (
+        <span className={compacto ? 'refund-status-badge refund-status-badge-small' : 'refund-status-badge'}>
+          Reembolso
+        </span>
+      )
+    }
+
+    return (
+      <span className={`payment-status-badge payment-status-${estadoPago.tipo} ${compacto ? 'payment-status-badge-small' : ''}`}>
+        <i /> {estadoPago.texto}
+      </span>
+    )
+  }
+
+  const totalProductoVenta = (producto) => {
+    return Number(producto?.precio_venta || 0) * Number(producto?.cantidad || 0)
+  }
+
+  const productoEntregado = (producto) => producto?.entregado === true
+  const productoPagado = (producto) => producto?.pagado_cliente === true || productoEntregado(producto)
+
+  const obtenerBasePublica = () => {
+    const configurada = import.meta.env.VITE_PUBLIC_APP_URL
+
+    if (configurada) {
+      return configurada.replace(/\/$/, '')
+    }
+
+    if (typeof window === 'undefined') return ''
+
+    const origin = window.location.origin
+
+    if (origin.includes('localhost')) {
+      return 'https://control-pedidos.pages.dev'
+    }
+
+    return origin
   }
 
   const cargarTodo = async () => {
@@ -202,16 +296,36 @@ export default function DetallePedido() {
     if (bloquearSiNoPuede()) return
 
     const estadoAnterior = normalizarEstado(pedido.estado)
+    const estadoNuevo = normalizarEstado(estadoPedido)
+
+    const payloadPedido = {
+      cliente_id: clienteIdPedido || null,
+      plataforma: plataformaPedido,
+      estado: estadoNuevo,
+      tracking: trackingPedido,
+      notas: notasPedido,
+      reembolso: false,
+      reembolso_monto: 0
+    }
+
+    if (estadoAnterior !== estadoNuevo && estadoNuevo === 'Entregado') {
+      setEntregaPendiente({
+        payload: payloadPedido,
+        montoRestante: Math.max(Number(pedido.restante || 0), 0)
+      })
+      setModalPedido(false)
+      setModalConfirmarEntrega(true)
+      return
+    }
+
+    if (esEstadoReembolso(estadoNuevo)) {
+      payloadPedido.reembolso = true
+      payloadPedido.reembolso_monto = Number(pedido.anticipo || 0)
+    }
 
     const { error } = await supabase
       .from('pedidos')
-      .update({
-        cliente_id: clienteIdPedido || null,
-        plataforma: plataformaPedido,
-        estado: estadoPedido,
-        tracking: trackingPedido,
-        notas: notasPedido
-      })
+      .update(payloadPedido)
       .eq('id', id)
 
     if (error) {
@@ -224,21 +338,261 @@ export default function DetallePedido() {
 
     const pedidoActualizado = {
       ...pedido,
-      cliente_id: clienteIdPedido || null,
-      plataforma: plataformaPedido,
-      estado: estadoPedido,
-      tracking: trackingPedido,
-      notas: notasPedido,
+      ...payloadPedido,
       clientes: clienteSeleccionado || pedido.clientes
     }
 
     setModalPedido(false)
     await cargarTodo()
-    mostrarToast('Pedido actualizado correctamente')
+    mostrarToast(esEstadoReembolso(estadoNuevo) ? 'Pedido marcado como reembolso' : 'Pedido actualizado correctamente')
 
-    if (estadoAnterior !== estadoPedido) {
+    if (estadoAnterior !== estadoNuevo) {
       setPedidoMensajeEstado(pedidoActualizado)
       setModalMensajeEstado(true)
+    }
+  }
+
+  const confirmarEntregaPedido = async () => {
+    if (bloquearSiNoPuede()) return
+    if (!iniciarAccion('Confirmando entrega...')) return
+
+    try {
+      const { data: pedidoActual, error: errorPedidoActual } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (errorPedidoActual) {
+        console.log(errorPedidoActual)
+        mostrarToast('No se pudo validar el pedido', 'error')
+        return
+      }
+
+      if (normalizarEstado(pedidoActual?.estado) === 'Entregado' && Number(pedidoActual?.restante || 0) <= 0) {
+        setModalConfirmarEntrega(false)
+        setEntregaPendiente(null)
+        await cargarTodo()
+        mostrarToast('Este pedido ya estaba entregado')
+        return
+      }
+
+      const montoRestante = Math.max(Number(pedidoActual?.restante || entregaPendiente?.montoRestante || pedido?.restante || 0), 0)
+      const ahora = new Date().toISOString()
+      const etiquetaPago = `[entrega-pedido:${id}]`
+
+      if (montoRestante > 0) {
+        const { data: pagoExistente } = await supabase
+          .from('pagos')
+          .select('id')
+          .eq('pedido_id', id)
+          .ilike('notas', `%${etiquetaPago}%`)
+          .limit(1)
+
+        if (!pagoExistente?.length) {
+          const { error: errorPago } = await supabase
+            .from('pagos')
+            .insert([
+              {
+                pedido_id: id,
+                monto: montoRestante,
+                metodo_pago: 'Entrega',
+                notas: `Pago restante al entregar pedido ${etiquetaPago}`,
+                tipo: 'pago'
+              }
+            ])
+
+          if (errorPago) {
+            console.log(errorPago)
+            mostrarToast('No se pudo registrar el pago restante', 'error')
+            return
+          }
+        }
+      }
+
+      const { error: errorProductos } = await supabase
+        .from('productos_pedido')
+        .update({
+          entregado: true,
+          entregado_en: ahora,
+          pagado_cliente: true,
+          pagado_en: ahora
+        })
+        .eq('pedido_id', id)
+
+      if (errorProductos) {
+        console.log(errorProductos)
+        mostrarToast('No se pudieron marcar los productos como entregados', 'error')
+        return
+      }
+
+      await recalcularPedido()
+
+      const payload = entregaPendiente?.payload || {
+        cliente_id: pedidoActual.cliente_id,
+        plataforma: pedidoActual.plataforma || 'SHEIN',
+        tracking: pedidoActual.tracking || '',
+        notas: pedidoActual.notas || ''
+      }
+
+      const { error } = await supabase
+        .from('pedidos')
+        .update({
+          ...payload,
+          estado: 'Entregado',
+          reembolso: false,
+          reembolso_monto: 0
+        })
+        .eq('id', id)
+
+      if (error) {
+        console.log(error)
+        mostrarToast('No se pudo confirmar la entrega', 'error')
+        return
+      }
+
+      const pedidoActualizado = {
+        ...pedidoActual,
+        ...payload,
+        estado: 'Entregado',
+        anticipo: Number(pedidoActual.anticipo || 0) + montoRestante,
+        restante: 0,
+        reembolso: false,
+        reembolso_monto: 0
+      }
+
+      setModalConfirmarEntrega(false)
+      setEntregaPendiente(null)
+      await cargarTodo()
+      mostrarToast(montoRestante > 0 ? 'Entrega confirmada y restante registrado' : 'Entrega confirmada')
+      setPedidoMensajeEstado(pedidoActualizado)
+      setModalMensajeEstado(true)
+    } finally {
+      finalizarAccion()
+    }
+  }
+
+  const abrirConfirmarEntregaProducto = (producto) => {
+    if (accionEnProcesoRef.current) return
+    if (bloquearSiNoPuede()) return
+    if (productoEntregado(producto)) return
+
+    const productosPendientesDespues = productos.filter((item) => item.id !== producto.id && !productoEntregado(item)).length
+    const esUltimoProductoPendiente = productosPendientesDespues === 0
+    const restantePedido = Math.max(Number(pedido?.restante || 0), 0)
+    const montoProducto = totalProductoVenta(producto)
+    const montoACobrar = esUltimoProductoPendiente ? restantePedido : Math.min(montoProducto, restantePedido)
+
+    setProductoEntregaPendiente({
+      producto,
+      montoACobrar,
+      esUltimoProductoPendiente
+    })
+    setModalConfirmarProducto(true)
+  }
+
+  const confirmarEntregaProducto = async () => {
+    if (bloquearSiNoPuede()) return
+    if (!productoEntregaPendiente?.producto) return
+    if (!iniciarAccion('Confirmando producto...')) return
+
+    try {
+      const productoOriginal = productoEntregaPendiente.producto
+      const ahora = new Date().toISOString()
+
+      const { data: productoMarcado, error: errorProducto } = await supabase
+        .from('productos_pedido')
+        .update({
+          entregado: true,
+          entregado_en: ahora,
+          pagado_cliente: true,
+          pagado_en: ahora
+        })
+        .eq('id', productoOriginal.id)
+        .or('entregado.is.null,entregado.eq.false')
+        .select('*')
+        .maybeSingle()
+
+      if (errorProducto) {
+        console.log(errorProducto)
+        mostrarToast('No se pudo marcar el producto como entregado', 'error')
+        return
+      }
+
+      if (!productoMarcado) {
+        setModalConfirmarProducto(false)
+        setProductoEntregaPendiente(null)
+        await cargarTodo()
+        mostrarToast('Este producto ya estaba entregado')
+        return
+      }
+
+      const { data: pedidoActual } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      const { data: productosActuales } = await supabase
+        .from('productos_pedido')
+        .select('id, entregado, precio_venta, cantidad')
+        .eq('pedido_id', id)
+
+      const productosPendientes = (productosActuales || []).filter((item) => item.id !== productoMarcado.id && item.entregado !== true)
+      const esUltimoProductoPendiente = productosPendientes.length === 0
+      const restanteActual = Math.max(Number(pedidoActual?.restante || pedido?.restante || 0), 0)
+      const montoProducto = totalProductoVenta(productoMarcado)
+      const montoACobrar = esUltimoProductoPendiente ? restanteActual : Math.min(montoProducto, restanteActual)
+      const etiquetaPago = `[producto:${productoMarcado.id}]`
+
+      if (montoACobrar > 0) {
+        const { data: pagoExistente } = await supabase
+          .from('pagos')
+          .select('id')
+          .eq('pedido_id', id)
+          .ilike('notas', `%${etiquetaPago}%`)
+          .limit(1)
+
+        if (!pagoExistente?.length) {
+          const { error: errorPago } = await supabase
+            .from('pagos')
+            .insert([
+              {
+                pedido_id: id,
+                monto: montoACobrar,
+                metodo_pago: 'Entrega producto',
+                notas: `Pago al entregar: ${productoMarcado.nombre_producto || 'producto'} ${etiquetaPago}`,
+                tipo: 'pago'
+              }
+            ])
+
+          if (errorPago) {
+            console.log(errorPago)
+            mostrarToast('No se pudo registrar el pago del producto', 'error')
+            return
+          }
+        }
+      }
+
+      await recalcularPedido()
+
+      if (esUltimoProductoPendiente) {
+        await supabase
+          .from('pedidos')
+          .update({
+            estado: 'Entregado',
+            reembolso: false,
+            reembolso_monto: 0
+          })
+          .eq('id', id)
+      }
+
+      setModalConfirmarProducto(false)
+      setProductoEntregaPendiente(null)
+      await cargarTodo()
+      mostrarToast(montoACobrar > 0 ? 'Producto entregado y pago registrado' : 'Producto entregado')
+    } finally {
+      finalizarAccion()
     }
   }
 
@@ -281,51 +635,56 @@ export default function DetallePedido() {
     e.preventDefault()
 
     if (bloquearSiNoPuede()) return
+    if (!iniciarAccion(productoEditando ? 'Guardando cambios...' : 'Guardando producto...')) return
 
-    const payload = {
-      pedido_id: id,
-      nombre_producto: nombreProducto,
-      link_shein: linkShein,
-      talla,
-      color,
-      cantidad: Number(cantidad),
-      precio_shein: Number(precioShein),
-      precio_venta: Number(precioVenta)
-    }
+    try {
+      const payload = {
+        pedido_id: id,
+        nombre_producto: nombreProducto,
+        link_shein: linkShein,
+        talla,
+        color,
+        cantidad: Number(cantidad),
+        precio_shein: Number(precioShein),
+        precio_venta: Number(precioVenta)
+      }
 
-    if (productoEditando) {
+      if (productoEditando) {
+        const { error } = await supabase
+          .from('productos_pedido')
+          .update(payload)
+          .eq('id', productoEditando.id)
+
+        if (error) {
+          console.log(error)
+          mostrarToast('Error al actualizar producto', 'error')
+          return
+        }
+
+        cerrarModalProducto()
+        await recalcularPedido()
+        await cargarTodo()
+        mostrarToast('Producto actualizado correctamente')
+        return
+      }
+
       const { error } = await supabase
         .from('productos_pedido')
-        .update(payload)
-        .eq('id', productoEditando.id)
+        .insert([payload])
 
       if (error) {
         console.log(error)
-        mostrarToast('Error al actualizar producto', 'error')
+        mostrarToast('Error al agregar producto', 'error')
         return
       }
 
       cerrarModalProducto()
       await recalcularPedido()
       await cargarTodo()
-      mostrarToast('Producto actualizado correctamente')
-      return
+      mostrarToast('Producto agregado correctamente')
+    } finally {
+      finalizarAccion()
     }
-
-    const { error } = await supabase
-      .from('productos_pedido')
-      .insert([payload])
-
-    if (error) {
-      console.log(error)
-      mostrarToast('Error al agregar producto', 'error')
-      return
-    }
-
-    cerrarModalProducto()
-    await recalcularPedido()
-    await cargarTodo()
-    mostrarToast('Producto agregado correctamente')
   }
 
   const eliminarProducto = async (productoId) => {
@@ -333,21 +692,26 @@ export default function DetallePedido() {
 
     const confirmar = confirm('¿Eliminar este producto?')
     if (!confirmar) return
+    if (!iniciarAccion('Eliminando producto...')) return
 
-    const { error } = await supabase
-      .from('productos_pedido')
-      .delete()
-      .eq('id', productoId)
+    try {
+      const { error } = await supabase
+        .from('productos_pedido')
+        .delete()
+        .eq('id', productoId)
 
-    if (error) {
-      console.log(error)
-      mostrarToast('Error al eliminar producto', 'error')
-      return
+      if (error) {
+        console.log(error)
+        mostrarToast('Error al eliminar producto', 'error')
+        return
+      }
+
+      await recalcularPedido()
+      await cargarTodo()
+      mostrarToast('Producto eliminado correctamente')
+    } finally {
+      finalizarAccion()
     }
-
-    await recalcularPedido()
-    await cargarTodo()
-    mostrarToast('Producto eliminado correctamente')
   }
 
   const limpiarPago = () => {
@@ -381,47 +745,52 @@ export default function DetallePedido() {
     e.preventDefault()
 
     if (bloquearSiNoPuede()) return
+    if (!iniciarAccion(pagoEditando ? 'Guardando pago...' : 'Agregando pago...')) return
 
-    const payload = {
-      pedido_id: id,
-      monto: Number(montoPago),
-      metodo_pago: metodoPago,
-      notas: notasPago
-    }
+    try {
+      const payload = {
+        pedido_id: id,
+        monto: Number(montoPago),
+        metodo_pago: metodoPago,
+        notas: notasPago
+      }
 
-    if (pagoEditando) {
+      if (pagoEditando) {
+        const { error } = await supabase
+          .from('pagos')
+          .update(payload)
+          .eq('id', pagoEditando.id)
+
+        if (error) {
+          console.log(error)
+          mostrarToast('Error al actualizar pago', 'error')
+          return
+        }
+
+        cerrarModalPago()
+        await recalcularPedido()
+        await cargarTodo()
+        mostrarToast('Pago actualizado correctamente')
+        return
+      }
+
       const { error } = await supabase
         .from('pagos')
-        .update(payload)
-        .eq('id', pagoEditando.id)
+        .insert([payload])
 
       if (error) {
         console.log(error)
-        mostrarToast('Error al actualizar pago', 'error')
+        mostrarToast('Error al agregar pago', 'error')
         return
       }
 
       cerrarModalPago()
       await recalcularPedido()
       await cargarTodo()
-      mostrarToast('Pago actualizado correctamente')
-      return
+      mostrarToast('Pago agregado correctamente')
+    } finally {
+      finalizarAccion()
     }
-
-    const { error } = await supabase
-      .from('pagos')
-      .insert([payload])
-
-    if (error) {
-      console.log(error)
-      mostrarToast('Error al agregar pago', 'error')
-      return
-    }
-
-    cerrarModalPago()
-    await recalcularPedido()
-    await cargarTodo()
-    mostrarToast('Pago agregado correctamente')
   }
 
   const eliminarPago = async (pagoId) => {
@@ -429,22 +798,28 @@ export default function DetallePedido() {
 
     const confirmar = confirm('¿Eliminar este pago?')
     if (!confirmar) return
+    if (!iniciarAccion('Eliminando pago...')) return
 
-    const { error } = await supabase
-      .from('pagos')
-      .delete()
-      .eq('id', pagoId)
+    try {
+      const { error } = await supabase
+        .from('pagos')
+        .delete()
+        .eq('id', pagoId)
 
-    if (error) {
-      console.log(error)
-      mostrarToast('Error al eliminar pago', 'error')
-      return
+      if (error) {
+        console.log(error)
+        mostrarToast('Error al eliminar pago', 'error')
+        return
+      }
+
+      await recalcularPedido()
+      await cargarTodo()
+      mostrarToast('Pago eliminado correctamente')
+    } finally {
+      finalizarAccion()
     }
-
-    await recalcularPedido()
-    await cargarTodo()
-    mostrarToast('Pago eliminado correctamente')
   }
+
 
 
 
@@ -467,7 +842,7 @@ export default function DetallePedido() {
 
   const obtenerUrlSeguimiento = () => {
     if (!pedido?.public_token) return ''
-    return `${window.location.origin}/seguimiento/${pedido.public_token}`
+    return `${obtenerBasePublica()}/seguimiento/${pedido.public_token}`
   }
 
   const copiarLinkSeguimiento = async () => {
@@ -505,7 +880,7 @@ Total: ${total}
 Pagado: ${pagado}
 Restante: ${restante}${url ? `
 
-Puedes consultarlo aquí:
+Link de seguimiento:
 ${url}` : ''}`
   }
 
@@ -519,7 +894,7 @@ ${url}` : ''}`
     const restante = formatearDinero(pedidoBase?.restante)
     const tracking = pedidoBase?.tracking || ''
     const url = pedidoBase?.public_token
-      ? `${window.location.origin}/seguimiento/${pedidoBase.public_token}`
+      ? `${obtenerBasePublica()}/seguimiento/${pedidoBase.public_token}`
       : ''
     const lineaSeguimiento = url ? `
 
@@ -534,20 +909,6 @@ Total: ${total}
 Restante: ${restante}${lineaSeguimiento}`
     }
 
-    if (estado === 'Pendiente de pago') {
-      return `Hola ${nombre}, tu pedido ${codigo} está pendiente de pago.
-
-Total: ${total}
-Pagado: ${pagado}
-Restante pendiente: ${restante}${lineaSeguimiento}`
-    }
-
-    if (estado === 'Pagado por cliente') {
-      return `Hola ${nombre}, recibimos tu pago del pedido ${codigo}.
-
-Pagado hasta ahora: ${pagado}
-Restante pendiente: ${restante}${lineaSeguimiento}`
-    }
 
     if (estado === 'Comprado en plataforma') {
       return `Hola ${nombre}, tu pedido ${codigo} ya fue comprado en plataforma.
@@ -645,6 +1006,8 @@ Estado actual: ${estado}${lineaSeguimiento}`
     )
   }
 
+  const pedidoConReembolso = esEstadoReembolso(pedido.estado)
+
   return (
     <Layout>
       <Toast
@@ -664,6 +1027,8 @@ Estado actual: ${estado}${lineaSeguimiento}`
             {normalizarEstado(pedido.estado)}
           </span>
 
+          {renderPagoBadge()}
+
           <button className="btn btn-light-bordered" onClick={copiarLinkSeguimiento}>
             Copiar seguimiento
           </button>
@@ -672,7 +1037,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
             Enviar seguimiento
           </button>
 
-          <button className="btn btn-light-bordered" onClick={abrirEditarPedido} disabled={bloqueado}>
+          <button className="btn btn-light-bordered" onClick={abrirEditarPedido} disabled={bloqueado || estaProcesando}>
             Editar pedido
           </button>
         </div>
@@ -680,7 +1045,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
 
       <PlanLimitNotice estadoPlan={estadoPlan} compacto />
 
-      <div className="cards-grid detail-summary-grid">
+      <div className={`cards-grid detail-summary-grid ${pedidoConReembolso ? 'refund-censored-surface' : ''}`}>
         <div className="card">
           <span>Plataforma</span>
           <strong>{pedido.plataforma || 'SHEIN'}</strong>
@@ -719,12 +1084,12 @@ Estado actual: ${estado}${lineaSeguimiento}`
           <p className="muted">Productos agregados al pedido</p>
         </div>
 
-        <button className="btn btn-primary" onClick={abrirAgregarProducto} disabled={bloqueado}>
+        <button className="btn btn-primary" onClick={abrirAgregarProducto} disabled={bloqueado || estaProcesando}>
           Agregar producto
         </button>
       </div>
 
-      <div className="table-card desktop-table">
+      <div className={`table-card desktop-table ${pedidoConReembolso ? 'refund-censored-surface' : ''}`}>
         <table>
           <thead>
             <tr>
@@ -735,13 +1100,14 @@ Estado actual: ${estado}${lineaSeguimiento}`
               <th>Costo plataforma</th>
               <th>Precio venta</th>
               <th>Link</th>
+              <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
 
           <tbody>
             {productos.map((producto) => (
-              <tr key={producto.id}>
+              <tr key={producto.id} className={pedidoConReembolso ? 'refund-censored-row' : ''}>
                 <td>{producto.nombre_producto}</td>
                 <td>{producto.talla || '-'}</td>
                 <td>{producto.color || '-'}</td>
@@ -749,17 +1115,34 @@ Estado actual: ${estado}${lineaSeguimiento}`
                 <td>${Number(producto.precio_shein || 0).toFixed(2)}</td>
                 <td>${Number(producto.precio_venta || 0).toFixed(2)}</td>
                 <td>
-                  {producto.link_shein && (
+                  {producto.link_shein ? (
                     <a href={producto.link_shein} target="_blank" rel="noreferrer">
                       Abrir
                     </a>
-                  )}
+                  ) : '-'}
                 </td>
-                <td className="actions">
+                <td>
+                  <div className="product-status-pills">
+                    {productoPagado(producto) && <span className="mini-status-pill mini-status-paid">Pagado</span>}
+                    {productoEntregado(producto) && <span className="mini-status-pill mini-status-delivered">Entregado</span>}
+                    {!productoPagado(producto) && !productoEntregado(producto) && <span className="mini-status-pill">Pendiente</span>}
+                  </div>
+                </td>
+                <td className="actions product-actions-inline">
+                  {!productoEntregado(producto) && (
+                    <button
+                      onClick={() => abrirConfirmarEntregaProducto(producto)}
+                      className="btn btn-success btn-small"
+                      disabled={bloqueado || estaProcesando}
+                    >
+                      Entregado
+                    </button>
+                  )}
+
                   <button
                     onClick={() => abrirEditarProducto(producto)}
                     className="btn btn-light-bordered btn-small"
-                    disabled={bloqueado}
+                    disabled={bloqueado || estaProcesando}
                   >
                     Editar
                   </button>
@@ -767,7 +1150,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
                   <button
                     onClick={() => eliminarProducto(producto.id)}
                     className="btn btn-danger btn-small"
-                    disabled={bloqueado}
+                    disabled={bloqueado || estaProcesando}
                   >
                     Eliminar
                   </button>
@@ -777,7 +1160,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
 
             {productos.length === 0 && (
               <tr>
-                <td colSpan="8">Este pedido todavía no tiene productos.</td>
+                <td colSpan="9">Este pedido todavía no tiene productos.</td>
               </tr>
             )}
           </tbody>
@@ -786,11 +1169,16 @@ Estado actual: ${estado}${lineaSeguimiento}`
 
       <div className="mobile-list detail-mobile-list">
         {productos.map((producto) => (
-          <div className="mobile-card" key={producto.id}>
+          <div className={`mobile-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} key={producto.id}>
             <div className="mobile-card-header">
               <div>
                 <h3>{producto.nombre_producto}</h3>
                 <p>{producto.talla || 'Sin talla'} · {producto.color || 'Sin color'}</p>
+              </div>
+              <div className="product-status-pills product-status-pills-mobile">
+                {productoPagado(producto) && <span className="mini-status-pill mini-status-paid">Pagado</span>}
+                {productoEntregado(producto) && <span className="mini-status-pill mini-status-delivered">Entregado</span>}
+                {!productoPagado(producto) && !productoEntregado(producto) && <span className="mini-status-pill">Pendiente</span>}
               </div>
             </div>
 
@@ -814,6 +1202,16 @@ Estado actual: ${estado}${lineaSeguimiento}`
             </div>
 
             <div className="mobile-card-actions multi-actions">
+              {!productoEntregado(producto) && (
+                <button
+                  onClick={() => abrirConfirmarEntregaProducto(producto)}
+                  className="btn btn-success"
+                  disabled={bloqueado || estaProcesando}
+                >
+                  Entregado
+                </button>
+              )}
+
               {producto.link_shein && (
                 <a
                   href={producto.link_shein}
@@ -828,7 +1226,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
               <button
                 onClick={() => abrirEditarProducto(producto)}
                 className="btn btn-light-bordered"
-                disabled={bloqueado}
+                disabled={bloqueado || estaProcesando}
               >
                 Editar
               </button>
@@ -836,7 +1234,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
               <button
                 onClick={() => eliminarProducto(producto.id)}
                 className="btn btn-danger"
-                disabled={bloqueado}
+                disabled={bloqueado || estaProcesando}
               >
                 Eliminar
               </button>
@@ -857,12 +1255,12 @@ Estado actual: ${estado}${lineaSeguimiento}`
           <p className="muted">Pagos y abonos del pedido</p>
         </div>
 
-        <button className="btn btn-primary" onClick={abrirAgregarPago} disabled={bloqueado}>
+        <button className="btn btn-primary" onClick={abrirAgregarPago} disabled={bloqueado || estaProcesando}>
           Agregar pago
         </button>
       </div>
 
-      <div className="table-card desktop-table">
+      <div className={`table-card desktop-table ${pedidoConReembolso ? 'refund-censored-surface' : ''}`}>
         <table>
           <thead>
             <tr>
@@ -876,7 +1274,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
 
           <tbody>
             {pagos.map((pago) => (
-              <tr key={pago.id}>
+              <tr key={pago.id} className={pedidoConReembolso ? 'refund-censored-row' : ''}>
                 <td>${Number(pago.monto || 0).toFixed(2)}</td>
                 <td>{pago.metodo_pago || '-'}</td>
                 <td>{pago.fecha_pago}</td>
@@ -885,7 +1283,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
                   <button
                     onClick={() => abrirEditarPago(pago)}
                     className="btn btn-light-bordered btn-small"
-                    disabled={bloqueado}
+                    disabled={bloqueado || estaProcesando}
                   >
                     Editar
                   </button>
@@ -893,7 +1291,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
                   <button
                     onClick={() => eliminarPago(pago.id)}
                     className="btn btn-danger btn-small"
-                    disabled={bloqueado}
+                    disabled={bloqueado || estaProcesando}
                   >
                     Eliminar
                   </button>
@@ -912,7 +1310,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
 
       <div className="mobile-list detail-mobile-list">
         {pagos.map((pago) => (
-          <div className="mobile-card" key={pago.id}>
+          <div className={`mobile-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} key={pago.id}>
             <div className="mobile-card-header">
               <div>
                 <h3>${Number(pago.monto || 0).toFixed(2)}</h3>
@@ -931,7 +1329,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
               <button
                 onClick={() => abrirEditarPago(pago)}
                 className="btn btn-light-bordered"
-                disabled={bloqueado}
+                disabled={bloqueado || estaProcesando}
               >
                 Editar
               </button>
@@ -939,7 +1337,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
               <button
                 onClick={() => eliminarPago(pago.id)}
                 className="btn btn-danger"
-                disabled={bloqueado}
+                disabled={bloqueado || estaProcesando}
               >
                 Eliminar
               </button>
@@ -961,49 +1359,63 @@ Estado actual: ${estado}${lineaSeguimiento}`
       >
         <form onSubmit={guardarPedidoGeneral}>
           <div className="modal-form-grid">
-            <select
-              value={plataformaPedido}
-              onChange={(e) => setPlataformaPedido(e.target.value)}
-              required
-            >
-              {plataformas.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
+            <label className="form-field">
+              <span>Plataforma*</span>
+              <select
+                value={plataformaPedido}
+                onChange={(e) => setPlataformaPedido(e.target.value)}
+                required
+              >
+                {plataformas.map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
+              </select>
+            </label>
 
-            <select
-              value={clienteIdPedido}
-              onChange={(e) => setClienteIdPedido(e.target.value)}
-              required
-            >
-              <option value="">Selecciona cliente</option>
-              {clientes.map((cliente) => (
-                <option key={cliente.id} value={cliente.id}>
-                  {cliente.nombre}
-                </option>
-              ))}
-            </select>
+            <label className="form-field">
+              <span>Cliente*</span>
+              <select
+                value={clienteIdPedido}
+                onChange={(e) => setClienteIdPedido(e.target.value)}
+                required
+              >
+                <option value="">Selecciona cliente</option>
+                {clientes.map((cliente) => (
+                  <option key={cliente.id} value={cliente.id}>
+                    {cliente.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-            <select
-              value={estadoPedido}
-              onChange={(e) => setEstadoPedido(e.target.value)}
-            >
-              {estadosPedido.map((estado) => (
-                <option key={estado}>{estado}</option>
-              ))}
-            </select>
+            <label className="form-field">
+              <span>Estado del pedido*</span>
+              <select
+                value={estadoPedido}
+                onChange={(e) => setEstadoPedido(e.target.value)}
+                required
+              >
+                {estadosPedido.map((estado) => (
+                  <option key={estado}>{estado}</option>
+                ))}
+              </select>
+            </label>
 
-            <input
-              placeholder="Tracking / guía"
-              value={trackingPedido}
-              onChange={(e) => setTrackingPedido(e.target.value)}
-            />
+            <label className="form-field">
+              <span>Tracking / guía</span>
+              <input
+                value={trackingPedido}
+                onChange={(e) => setTrackingPedido(e.target.value)}
+              />
+            </label>
 
-            <input
-              placeholder="Notas del pedido"
-              value={notasPedido}
-              onChange={(e) => setNotasPedido(e.target.value)}
-            />
+            <label className="form-field">
+              <span>Notas del pedido</span>
+              <input
+                value={notasPedido}
+                onChange={(e) => setNotasPedido(e.target.value)}
+              />
+            </label>
           </div>
 
           <div className="modal-actions">
@@ -1015,8 +1427,8 @@ Estado actual: ${estado}${lineaSeguimiento}`
               Cancelar
             </button>
 
-            <button className="btn btn-primary" disabled={bloqueado}>
-              Guardar cambios
+            <button className="btn btn-primary" disabled={bloqueado || estaProcesando}>
+              {accionEnProceso || 'Guardar cambios'}
             </button>
           </div>
         </form>
@@ -1029,57 +1441,73 @@ Estado actual: ${estado}${lineaSeguimiento}`
       >
         <form onSubmit={guardarProducto}>
           <div className="modal-form-grid">
-            <input
-              placeholder="Nombre producto"
-              value={nombreProducto}
-              onChange={(e) => setNombreProducto(e.target.value)}
-              required
-            />
+            <label className="form-field">
+              <span>Nombre producto*</span>
+              <input
+                value={nombreProducto}
+                onChange={(e) => setNombreProducto(e.target.value)}
+                required
+              />
+            </label>
 
-            <input
-              placeholder="Link del producto"
-              value={linkShein}
-              onChange={(e) => setLinkShein(e.target.value)}
-            />
+            <label className="form-field">
+              <span>Link del producto</span>
+              <input
+                value={linkShein}
+                onChange={(e) => setLinkShein(e.target.value)}
+              />
+            </label>
 
-            <input
-              placeholder="Talla"
-              value={talla}
-              onChange={(e) => setTalla(e.target.value)}
-            />
+            <label className="form-field">
+              <span>Talla</span>
+              <input
+                value={talla}
+                onChange={(e) => setTalla(e.target.value)}
+              />
+            </label>
 
-            <input
-              placeholder="Color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-            />
+            <label className="form-field">
+              <span>Color</span>
+              <input
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+              />
+            </label>
 
-            <input
-              type="number"
-              min="1"
-              placeholder="Cantidad"
-              value={cantidad}
-              onChange={(e) => setCantidad(e.target.value)}
-              required
-            />
+            <label className="form-field">
+              <span>Cantidad*</span>
+              <input
+                type="number"
+                min="1"
+                value={cantidad}
+                onChange={(e) => setCantidad(e.target.value)}
+                required
+              />
+            </label>
 
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Costo plataforma"
-              value={precioShein}
-              onChange={(e) => setPrecioShein(e.target.value)}
-              required
-            />
+            <label className="form-field">
+              <span>Costo plataforma*</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={precioShein}
+                onChange={(e) => setPrecioShein(e.target.value)}
+                required
+              />
+            </label>
 
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Precio venta"
-              value={precioVenta}
-              onChange={(e) => setPrecioVenta(e.target.value)}
-              required
-            />
+            <label className="form-field">
+              <span>Precio venta*</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={precioVenta}
+                onChange={(e) => setPrecioVenta(e.target.value)}
+                required
+              />
+            </label>
           </div>
 
           <div className="modal-actions">
@@ -1091,8 +1519,8 @@ Estado actual: ${estado}${lineaSeguimiento}`
               Cancelar
             </button>
 
-            <button className="btn btn-primary" disabled={bloqueado}>
-              {productoEditando ? 'Guardar cambios' : 'Guardar producto'}
+            <button className="btn btn-primary" disabled={bloqueado || estaProcesando}>
+              {accionEnProceso || (productoEditando ? 'Guardar cambios' : 'Guardar producto')}
             </button>
           </div>
         </form>
@@ -1105,26 +1533,33 @@ Estado actual: ${estado}${lineaSeguimiento}`
       >
         <form onSubmit={guardarPago}>
           <div className="modal-form-grid">
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Monto"
-              value={montoPago}
-              onChange={(e) => setMontoPago(e.target.value)}
-              required
-            />
+            <label className="form-field">
+              <span>Monto*</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={montoPago}
+                onChange={(e) => setMontoPago(e.target.value)}
+                required
+              />
+            </label>
 
-            <input
-              placeholder="Método de pago"
-              value={metodoPago}
-              onChange={(e) => setMetodoPago(e.target.value)}
-            />
+            <label className="form-field">
+              <span>Método de pago</span>
+              <input
+                value={metodoPago}
+                onChange={(e) => setMetodoPago(e.target.value)}
+              />
+            </label>
 
-            <input
-              placeholder="Notas"
-              value={notasPago}
-              onChange={(e) => setNotasPago(e.target.value)}
-            />
+            <label className="form-field">
+              <span>Notas</span>
+              <input
+                value={notasPago}
+                onChange={(e) => setNotasPago(e.target.value)}
+              />
+            </label>
           </div>
 
           <div className="modal-actions">
@@ -1136,11 +1571,108 @@ Estado actual: ${estado}${lineaSeguimiento}`
               Cancelar
             </button>
 
-            <button className="btn btn-primary" disabled={bloqueado}>
-              {pagoEditando ? 'Guardar cambios' : 'Guardar pago'}
+            <button className="btn btn-primary" disabled={bloqueado || estaProcesando}>
+              {accionEnProceso || (pagoEditando ? 'Guardar cambios' : 'Guardar pago')}
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        abierto={modalConfirmarEntrega}
+        titulo="Confirmar entrega"
+        onClose={() => {
+          setModalConfirmarEntrega(false)
+          setEntregaPendiente(null)
+        }}
+      >
+        <div className="confirm-delivery-modal">
+          <p className="muted">
+            Se marcará el pedido como entregado. Si todavía hay saldo pendiente, se registrará automáticamente como pago de entrega.
+          </p>
+
+          <div className="confirm-delivery-amount">
+            <span>Restante a cobrar</span>
+            <strong>{formatearDinero(entregaPendiente?.montoRestante || pedido?.restante || 0)}</strong>
+          </div>
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn btn-light-bordered"
+              onClick={() => {
+                setModalConfirmarEntrega(false)
+                setEntregaPendiente(null)
+              }}
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={confirmarEntregaPedido}
+              disabled={bloqueado || estaProcesando}
+            >
+              {accionEnProceso || 'Confirmar entrega'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        abierto={modalConfirmarProducto}
+        titulo="Confirmar producto entregado"
+        onClose={() => {
+          setModalConfirmarProducto(false)
+          setProductoEntregaPendiente(null)
+        }}
+      >
+        {productoEntregaPendiente?.producto && (
+          <div className="confirm-delivery-modal">
+            <p className="muted">
+              Se marcará este producto como pagado y entregado. Si corresponde, se registrará el pago pendiente.
+            </p>
+
+            <div className="confirm-delivery-product">
+              <span>Producto</span>
+              <strong>{productoEntregaPendiente.producto.nombre_producto}</strong>
+            </div>
+
+            <div className="confirm-delivery-amount">
+              <span>Monto a registrar</span>
+              <strong>{formatearDinero(productoEntregaPendiente.montoACobrar)}</strong>
+            </div>
+
+            {productoEntregaPendiente.esUltimoProductoPendiente && (
+              <p className="muted">
+                Este es el último producto pendiente. Al confirmar, el pedido también quedará como entregado.
+              </p>
+            )}
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-light-bordered"
+                onClick={() => {
+                  setModalConfirmarProducto(false)
+                  setProductoEntregaPendiente(null)
+                }}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={confirmarEntregaProducto}
+                disabled={bloqueado || estaProcesando}
+              >
+                {accionEnProceso || 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <Modal

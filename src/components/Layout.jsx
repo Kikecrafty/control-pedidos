@@ -11,15 +11,60 @@ const plataformas = [
   'Otro'
 ]
 
+const PERFIL_CACHE_KEY = 'control_pedidos_perfil_cache'
+
+const leerPerfilCache = () => {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const guardado = localStorage.getItem(PERFIL_CACHE_KEY)
+    return guardado ? JSON.parse(guardado) : null
+  } catch {
+    return null
+  }
+}
+
+const guardarPerfilCache = (perfil) => {
+  if (typeof window === 'undefined' || !perfil) return
+
+  try {
+    localStorage.setItem(PERFIL_CACHE_KEY, JSON.stringify(perfil))
+  } catch {
+    // Si el navegador no permite guardar, simplemente seguimos sin cache.
+  }
+}
+
+const ocultarImagenRota = (event) => {
+  event.currentTarget.style.display = 'none'
+}
+
+const borrarPerfilCache = () => {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(PERFIL_CACHE_KEY)
+}
+
 const obtenerPlataformaInicial = () => {
   if (typeof window === 'undefined') return 'SHEIN'
-  return localStorage.getItem('plataforma_predeterminada') || 'SHEIN'
+
+  const perfilCache = leerPerfilCache()
+
+  return (
+    perfilCache?.plataforma_predeterminada ||
+    localStorage.getItem('plataforma_predeterminada') ||
+    'SHEIN'
+  )
 }
 
 export default function Layout({ children }) {
+  const perfilCacheInicial = useMemo(() => leerPerfilCache(), [])
+
   const [drawerAbierto, setDrawerAbierto] = useState(false)
-  const [usuario, setUsuario] = useState(null)
-  const [perfil, setPerfil] = useState(null)
+  const [usuario, setUsuario] = useState(() => {
+    if (!perfilCacheInicial?.correo) return null
+    return { id: perfilCacheInicial.user_id, email: perfilCacheInicial.correo }
+  })
+  const [perfil, setPerfil] = useState(perfilCacheInicial)
+  const [perfilCargando, setPerfilCargando] = useState(!perfilCacheInicial)
   const [plataformaPredeterminada, setPlataformaPredeterminada] = useState(obtenerPlataformaInicial)
 
   useEffect(() => {
@@ -53,36 +98,68 @@ export default function Layout({ children }) {
   }, [])
 
   const cargarCuenta = async () => {
+    const cacheActual = leerPerfilCache()
+
+    if (cacheActual) {
+      setPerfil(cacheActual)
+      setUsuario((actual) => actual || { id: cacheActual.user_id, email: cacheActual.correo })
+      setPlataformaPredeterminada(cacheActual.plataforma_predeterminada || 'SHEIN')
+    } else {
+      setPerfilCargando(true)
+    }
+
     const { data } = await supabase.auth.getUser()
     const user = data?.user || null
     setUsuario(user)
 
-    if (!user) return
+    if (!user) {
+      setPerfil(null)
+      setPerfilCargando(false)
+      borrarPerfilCache()
+      return
+    }
+
+    // Si el cache pertenece a otra cuenta, no lo usamos.
+    if (cacheActual?.user_id && cacheActual.user_id !== user.id) {
+      setPerfil(null)
+      setPerfilCargando(true)
+    }
 
     const perfilData = await cargarEstadoPlan()
-    setPerfil(perfilData)
 
-    if (perfilData?.plataforma_predeterminada) {
-      setPlataformaPredeterminada(perfilData.plataforma_predeterminada)
-      localStorage.setItem('plataforma_predeterminada', perfilData.plataforma_predeterminada)
+    if (perfilData) {
+      setPerfil(perfilData)
+      guardarPerfilCache(perfilData)
+
+      if (perfilData.plataforma_predeterminada) {
+        setPlataformaPredeterminada(perfilData.plataforma_predeterminada)
+        localStorage.setItem('plataforma_predeterminada', perfilData.plataforma_predeterminada)
+      }
     }
+
+    setPerfilCargando(false)
   }
 
   const datosCuenta = useMemo(() => {
     const email = perfil?.correo || usuario?.email || 'Sin correo registrado'
     const nombreDesdeCorreo = email.includes('@') ? email.split('@')[0] : 'Usuario'
 
+    const hayPerfil = Boolean(perfil)
+
     return {
-      nombre: perfil?.nombre || nombreDesdeCorreo || 'Usuario',
-      email,
-      plan: nombrePlan(perfil?.plan_actual),
+      nombre: hayPerfil ? (perfil?.nombre || nombreDesdeCorreo || 'Usuario') : 'Cargando cuenta...',
+      email: hayPerfil ? email : 'Sincronizando datos...',
+      plan: hayPerfil ? nombrePlan(perfil?.plan_actual) : 'Cargando...',
       esAdmin: perfil?.es_admin === true,
       bloqueada: perfil?.cuenta_bloqueada === true || perfil?.limite_alcanzado === true || perfil?.plan_vencido === true,
-      uso: resumenUsoPlan(perfil)
+      uso: hayPerfil ? resumenUsoPlan(perfil) : 'Cargando plan...',
+      cargandoSinCache: perfilCargando && !hayPerfil
     }
-  }, [perfil, usuario])
+  }, [perfil, usuario, perfilCargando])
 
   const cerrarSesion = async () => {
+    borrarPerfilCache()
+    localStorage.removeItem('plataforma_predeterminada')
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
@@ -90,6 +167,16 @@ export default function Layout({ children }) {
   const cambiarPlataformaPredeterminada = async (valor) => {
     setPlataformaPredeterminada(valor)
     localStorage.setItem('plataforma_predeterminada', valor)
+
+    const perfilActualizado = perfil ? {
+      ...perfil,
+      plataforma_predeterminada: valor
+    } : perfil
+
+    if (perfilActualizado) {
+      setPerfil(perfilActualizado)
+      guardarPerfilCache(perfilActualizado)
+    }
 
     window.dispatchEvent(
       new CustomEvent('plataformaPredeterminadaCambiada', {
@@ -105,11 +192,6 @@ export default function Layout({ children }) {
       console.log(error)
       return
     }
-
-    setPerfil((actual) => actual ? {
-      ...actual,
-      plataforma_predeterminada: valor
-    } : actual)
   }
 
   const navClass = ({ isActive }) => {
@@ -150,6 +232,7 @@ export default function Layout({ children }) {
         <select
           value={plataformaPredeterminada}
           onChange={(e) => cambiarPlataformaPredeterminada(e.target.value)}
+          disabled={datosCuenta.cargandoSinCache}
         >
           {plataformas.map((item) => (
             <option key={item}>{item}</option>
@@ -163,15 +246,21 @@ export default function Layout({ children }) {
     <div className="app-layout">
       <aside className="sidebar desktop-sidebar">
         <div>
-          <div className="brand">
-            <h2>Control Pedidos</h2>
+          <div className="brand ordely-sidebar-brand">
+            <div className="ordely-sidebar-brand-main">
+              <img src="/brand/ordely-icon.png" alt="" className="ordely-sidebar-icon" onError={ocultarImagenRota} />
+              <div>
+                <strong>Ordely</strong>
+                <span>Pedidos claros</span>
+              </div>
+            </div>
             <p>{datosCuenta.nombre} / {datosCuenta.plan}</p>
           </div>
 
           <CuentaPanel />
 
           <nav className="nav">
-            <NavLink to="/" className={navClass}>Panel</NavLink>
+            <NavLink to="/panel" className={navClass}>Panel</NavLink>
             <NavLink to="/clientes" className={navClass}>Clientes</NavLink>
             <NavLink to="/pedidos" className={navClass}>Pedidos</NavLink>
             <NavLink to="/nuevo-pedido" className={navClass}>Nuevo pedido</NavLink>
@@ -199,9 +288,12 @@ export default function Layout({ children }) {
           ☰
         </button>
 
-        <div className="mobile-brand-account">
-          <strong>Control Pedidos</strong>
-          <span>{datosCuenta.nombre}</span>
+        <div className="mobile-brand-account ordely-mobile-brand-account">
+          <img src="/brand/ordely-icon.png" alt="" className="ordely-mobile-icon" onError={ocultarImagenRota} />
+          <div>
+            <strong>Ordely</strong>
+            <span>{datosCuenta.nombre}</span>
+          </div>
         </div>
 
         <span className={datosCuenta.bloqueada ? 'mobile-plan-chip mobile-plan-chip-warning' : 'mobile-plan-chip'}>
@@ -219,10 +311,13 @@ export default function Layout({ children }) {
       )}
 
       <aside className={`mobile-drawer ${drawerAbierto ? 'mobile-drawer-open' : ''}`}>
-        <div className="mobile-drawer-header">
+        <div className="mobile-drawer-header ordely-drawer-brand">
           <div>
-            <strong>Control Pedidos</strong>
-            <span>Importaciones y catálogo</span>
+            <img src="/brand/ordely-icon.png" alt="" className="ordely-drawer-icon" onError={ocultarImagenRota} />
+            <div>
+              <strong>Ordely</strong>
+              <span>Importaciones y catálogo</span>
+            </div>
           </div>
 
           <button
@@ -238,7 +333,7 @@ export default function Layout({ children }) {
         <CuentaPanel compacto />
 
         <nav className="drawer-nav">
-          <NavLink to="/" className={navClass} onClick={cerrarDrawer}>Panel</NavLink>
+          <NavLink to="/panel" className={navClass} onClick={cerrarDrawer}>Panel</NavLink>
           <NavLink to="/clientes" className={navClass} onClick={cerrarDrawer}>Clientes</NavLink>
           <NavLink to="/pedidos" className={navClass} onClick={cerrarDrawer}>Pedidos</NavLink>
           <NavLink to="/nuevo-pedido" className={navClass} onClick={cerrarDrawer}>Nuevo pedido</NavLink>
@@ -260,7 +355,7 @@ export default function Layout({ children }) {
       </main>
 
       <nav className="bottom-nav bottom-nav-five">
-        <NavLink to="/" className={bottomNavClass}>
+        <NavLink to="/panel" className={bottomNavClass}>
           <span>Panel</span>
         </NavLink>
 

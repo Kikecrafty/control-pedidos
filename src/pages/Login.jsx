@@ -1,61 +1,527 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 
+const ocultarImagenRota = (event) => {
+  event.currentTarget.style.display = 'none'
+  event.currentTarget.parentElement?.classList.add('ordely-logo-error')
+}
+
 export default function Login() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const modoInicial = searchParams.get('modo') === 'registro' ? 'registro' : 'login'
+
+  const registroEnProceso = useRef(false)
+  const loginEnProceso = useRef(false)
+
+  const [modo, setModo] = useState(modoInicial)
+  const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [cargando, setCargando] = useState(false)
+  const [recuperandoPassword, setRecuperandoPassword] = useState(false)
   const [error, setError] = useState('')
+  const [mensaje, setMensaje] = useState('')
+  const [registroCompletado, setRegistroCompletado] = useState(false)
+  const [mostrarReenviarConfirmacion, setMostrarReenviarConfirmacion] = useState(false)
+
+
+  useEffect(() => {
+    setModo(searchParams.get('modo') === 'registro' ? 'registro' : 'login')
+  }, [searchParams])
+
+  const cambiarModo = (nuevoModo) => {
+    registroEnProceso.current = false
+    loginEnProceso.current = false
+    setModo(nuevoModo)
+    setError('')
+    setMensaje('')
+    setMostrarReenviarConfirmacion(false)
+    setRegistroCompletado(false)
+    setSearchParams(nuevoModo === 'registro' ? { modo: 'registro' } : {})
+  }
+
+  const limpiarTexto = (valor) => String(valor || '').trim()
+
+  const interpretarEstadoCorreo = (data) => {
+    const fila = Array.isArray(data) ? data[0] : data
+
+    if (!fila) return null
+
+    return {
+      existe: fila.existe === true,
+      confirmado: fila.confirmado === true
+    }
+  }
+
+  const verificarEstadoCorreo = async (correo) => {
+    // Función recomendada incluida en el ZIP: estado_correo_registro.
+    // Esta función permite saber si el correo existe y si ya fue confirmado.
+    const { data: estadoData, error: errorEstado } = await supabase.rpc('estado_correo_registro', {
+      p_correo: correo
+    })
+
+    if (!errorEstado) {
+      return interpretarEstadoCorreo(estadoData)
+    }
+
+    // Respaldo si todavía no ejecutaste el nuevo SQL:
+    // usamos la función anterior correo_ya_registrado, pero ahí no se puede saber si confirmó o no.
+    const { data: existePorFuncion, error: errorFuncion } = await supabase.rpc('correo_ya_registrado', {
+      p_correo: correo
+    })
+
+    if (!errorFuncion) {
+      return {
+        existe: existePorFuncion === true,
+        confirmado: null
+      }
+    }
+
+    // Último respaldo: si RLS lo permite, revisamos perfiles.
+    const { data: perfilExistente, error: errorPerfil } = await supabase
+      .from('perfiles')
+      .select('user_id')
+      .eq('correo', correo)
+      .maybeSingle()
+
+    if (errorPerfil) return null
+
+    return {
+      existe: Boolean(perfilExistente),
+      confirmado: null
+    }
+  }
+
+  const esErrorCorreoSinConfirmar = (error) => {
+    const mensajeError = String(error?.message || '').toLowerCase()
+    const codigoError = String(error?.code || error?.status || '').toLowerCase()
+
+    return (
+      mensajeError.includes('email not confirmed') ||
+      mensajeError.includes('not confirmed') ||
+      mensajeError.includes('confirm') ||
+      codigoError.includes('email_not_confirmed') ||
+      codigoError.includes('not_confirmed')
+    )
+  }
+
+  const mostrarCorreoSinConfirmar = () => {
+    setError('Confirma tu correo para iniciar sesión.')
+    setMensaje('Revisa tu bandeja o spam.')
+    setMostrarReenviarConfirmacion(true)
+  }
+
+  const reenviarConfirmacion = async () => {
+    if (cargando) return
+
+    const emailLimpio = limpiarTexto(email).toLowerCase()
+
+    if (!emailLimpio) {
+      setError('Escribe tu correo para reenviar la confirmación')
+      return
+    }
+
+    setCargando(true)
+    setMensaje('')
+
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: emailLimpio,
+      options: {
+        emailRedirectTo: `${window.location.origin}/panel`
+      }
+    })
+
+    if (error) {
+      setError(error.message || 'No se pudo reenviar el correo de confirmación')
+      setCargando(false)
+      return
+    }
+
+    setMensaje('Correo reenviado. Revisa tu bandeja o spam.')
+    setCargando(false)
+  }
+
+  const enviarRecuperacionPassword = async () => {
+    if (cargando || recuperandoPassword) return
+
+    const emailLimpio = limpiarTexto(email).toLowerCase()
+
+    setError('')
+    setMensaje('')
+    setMostrarReenviarConfirmacion(false)
+
+    if (!emailLimpio) {
+      setError('Escribe tu correo para recuperar tu contraseña.')
+      return
+    }
+
+    setRecuperandoPassword(true)
+
+    const estadoCorreo = await verificarEstadoCorreo(emailLimpio)
+
+    if (estadoCorreo?.existe === false) {
+      setError('No existe una cuenta con ese correo.')
+      setRecuperandoPassword(false)
+      return
+    }
+
+    if (estadoCorreo?.existe === true && estadoCorreo?.confirmado === false) {
+      mostrarCorreoSinConfirmar()
+      setRecuperandoPassword(false)
+      return
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(emailLimpio, {
+      redirectTo: `${window.location.origin}/actualizar-password`
+    })
+
+    if (error) {
+      setError(error.message || 'No se pudo enviar el correo de recuperación.')
+      setRecuperandoPassword(false)
+      return
+    }
+
+    setMensaje('Te enviamos un enlace para cambiar tu contraseña.')
+    setRecuperandoPassword(false)
+  }
 
   const iniciarSesion = async (e) => {
     e.preventDefault()
+
+    if (cargando || loginEnProceso.current) return
+
+    loginEnProceso.current = true
     setCargando(true)
     setError('')
+    setMensaje('')
+    setMostrarReenviarConfirmacion(false)
+
+    const emailLimpio = limpiarTexto(email).toLowerCase()
+
+    if (!emailLimpio) {
+      setError('Escribe tu correo')
+      loginEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    const estadoCorreo = await verificarEstadoCorreo(emailLimpio)
+
+    if (estadoCorreo?.existe === false) {
+      setError('No existe una cuenta con ese correo. Crea una cuenta primero.')
+      loginEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    if (estadoCorreo?.existe === true && estadoCorreo?.confirmado === false) {
+      mostrarCorreoSinConfirmar()
+      loginEnProceso.current = false
+      setCargando(false)
+      return
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: emailLimpio,
       password
     })
 
     if (error) {
-      setError('Correo o contraseña incorrectos')
-    } else {
-      window.location.href = '/'
+      if (esErrorCorreoSinConfirmar(error)) {
+        mostrarCorreoSinConfirmar()
+      } else {
+        setError('Correo o contraseña incorrectos')
+      }
+
+      loginEnProceso.current = false
+      setCargando(false)
+      return
     }
 
+    window.location.href = '/panel'
+  }
+
+  const crearCuenta = async (e) => {
+    e.preventDefault()
+
+    // Bloqueo inmediato para evitar varios clics antes de que React actualice el estado.
+    if (cargando || registroCompletado || registroEnProceso.current) return
+
+    registroEnProceso.current = true
+    setCargando(true)
+    setError('')
+    setMensaje('')
+    setMostrarReenviarConfirmacion(false)
+
+    const nombreLimpio = limpiarTexto(nombre)
+    const emailLimpio = limpiarTexto(email).toLowerCase()
+
+    if (!nombreLimpio) {
+      setError('Escribe tu nombre o el nombre de tu negocio')
+      registroEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    if (!emailLimpio) {
+      setError('Escribe tu correo')
+      registroEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres')
+      registroEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden')
+      registroEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    const estadoCorreo = await verificarEstadoCorreo(emailLimpio)
+
+    if (estadoCorreo?.existe === true && estadoCorreo?.confirmado === false) {
+      mostrarCorreoSinConfirmar()
+      registroEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    if (estadoCorreo?.existe === true) {
+      setError('Ese correo ya está registrado. Inicia sesión con esa cuenta.')
+      registroEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: emailLimpio,
+      password,
+      options: {
+        data: {
+          nombre: nombreLimpio
+        },
+        emailRedirectTo: `${window.location.origin}/panel`
+      }
+    })
+
+    if (error) {
+      const mensajeError = error.message?.toLowerCase() || ''
+
+      if (
+        mensajeError.includes('already') ||
+        mensajeError.includes('registered') ||
+        mensajeError.includes('exists') ||
+        mensajeError.includes('duplicate')
+      ) {
+        setError('Ese correo ya está registrado. Inicia sesión con esa cuenta.')
+      } else {
+        if (mensajeError.includes('rate limit')) {
+          setError('Se enviaron muchos correos. Intenta más tarde.')
+        } else {
+          setError('No se pudo crear la cuenta.')
+        }
+      }
+
+      registroEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    // Supabase puede responder sin error cuando el correo ya existe, pero con identities vacío.
+    const identidades = data?.user?.identities
+    const respuestaIndicaCorreoExistente = Array.isArray(identidades) && identidades.length === 0
+
+    if (respuestaIndicaCorreoExistente) {
+      setError('Ese correo ya está registrado. Inicia sesión con esa cuenta.')
+      registroEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    setRegistroCompletado(true)
+
+    if (data.session) {
+      window.location.href = '/panel'
+      return
+    }
+
+    setMensaje('Cuenta creada. Revisa tu correo para confirmar el registro y después inicia sesión.')
     setCargando(false)
   }
 
+  const actualizarEmail = (valor) => {
+    setEmail(valor)
+    if (registroCompletado) {
+      registroEnProceso.current = false
+      setRegistroCompletado(false)
+      setMensaje('')
+    }
+    if (mostrarReenviarConfirmacion) {
+      setMostrarReenviarConfirmacion(false)
+    }
+  }
+
+  const esRegistro = modo === 'registro'
+  const formularioBloqueado = cargando || recuperandoPassword || registroCompletado
+
   return (
-    <div className="login-page">
-      <form onSubmit={iniciarSesion} className="login-card">
-        <h1>Control de Pedidos</h1>
-        <p>Administra pedidos de importaciones y catálogo</p>
+    <div className="ordely-auth-page">
+      <Link to="/" className="ordely-auth-back">
+        ← Volver al inicio
+      </Link>
 
-        <label>Correo</label>
-        <input
-          type="email"
-          placeholder="tu_correo@gmail.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+      <main className="ordely-auth-card">
+        <div className="ordely-auth-brand">
+          <img src="/brand/ordely-logo.png" alt="Ordely" onError={ocultarImagenRota} />
+          <span className="ordely-logo-text-fallback">Ordely</span>
+          <span>Pedidos claros, ventas en orden.</span>
+        </div>
 
-        <label>Contraseña</label>
-        <input
-          type="password"
-          placeholder="Tu contraseña"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        <div className="ordely-auth-tabs" role="tablist" aria-label="Acceso">
+          <button
+            type="button"
+            className={!esRegistro ? 'active' : ''}
+            onClick={() => cambiarModo('login')}
+            disabled={cargando}
+          >
+            Iniciar sesión
+          </button>
 
-        {error && <p className="error">{error}</p>}
+          <button
+            type="button"
+            className={esRegistro ? 'active' : ''}
+            onClick={() => cambiarModo('registro')}
+            disabled={cargando}
+          >
+            Crear cuenta
+          </button>
+        </div>
 
-        <button className="btn btn-primary" disabled={cargando}>
-          {cargando ? 'Entrando...' : 'Entrar'}
-        </button>
-      </form>
+        <form onSubmit={esRegistro ? crearCuenta : iniciarSesion} className="ordely-auth-form">
+          <div className="ordely-auth-heading">
+            <h1>{esRegistro ? 'Crear cuenta' : 'Iniciar sesión'}</h1>
+            <p>
+              {esRegistro
+                ? 'Empieza con tu cuenta gratuita.'
+                : 'Entra para continuar con tu panel.'}
+            </p>
+          </div>
+
+          {esRegistro && (
+            <label className="form-field">
+              <span>Nombre o negocio*</span>
+              <input
+                type="text"
+                placeholder=""
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                required
+                disabled={formularioBloqueado}
+              />
+            </label>
+          )}
+
+          <label className="form-field">
+            <span>Correo*</span>
+            <input
+              type="email"
+              placeholder=""
+              value={email}
+              onChange={(e) => actualizarEmail(e.target.value)}
+              required
+              disabled={formularioBloqueado}
+            />
+          </label>
+
+          <label className="form-field">
+            <span>Contraseña*</span>
+            <input
+              type="password"
+              placeholder=""
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={formularioBloqueado}
+            />
+          </label>
+
+          {!esRegistro && (
+            <button
+              type="button"
+              className="ordely-forgot-password"
+              onClick={enviarRecuperacionPassword}
+              disabled={formularioBloqueado}
+            >
+              {recuperandoPassword ? 'Enviando enlace...' : '¿Olvidaste la contraseña?'}
+            </button>
+          )}
+
+          {esRegistro && (
+            <label className="form-field">
+              <span>Confirmar contraseña*</span>
+              <input
+                type="password"
+                placeholder=""
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={formularioBloqueado}
+              />
+            </label>
+          )}
+
+          {error && (
+            <div className="ordely-auth-error">
+              <p>{error}</p>
+
+              {mostrarReenviarConfirmacion && (
+                <button
+                  type="button"
+                  className="btn btn-light-bordered"
+                  onClick={reenviarConfirmacion}
+                  disabled={cargando}
+                >
+                  Reenviar correo
+                </button>
+              )}
+            </div>
+          )}
+
+          {mensaje && <p className="ordely-auth-success">{mensaje}</p>}
+
+          <button
+            className="btn btn-primary ordely-auth-submit"
+            disabled={formularioBloqueado}
+          >
+            {cargando
+              ? (esRegistro ? 'Verificando cuenta...' : 'Entrando...')
+              : registroCompletado
+                ? 'Cuenta creada'
+                : (esRegistro ? 'Crear cuenta gratis' : 'Entrar')}
+          </button>
+
+          <p className="ordely-auth-switch">
+            {esRegistro ? '¿Ya tienes cuenta?' : '¿Todavía no tienes cuenta?'}{' '}
+            <button
+              type="button"
+              onClick={() => cambiarModo(esRegistro ? 'login' : 'registro')}
+              disabled={cargando}
+            >
+              {esRegistro ? 'Inicia sesión' : 'Crea una cuenta'}
+            </button>
+          </p>
+        </form>
+      </main>
     </div>
   )
 }

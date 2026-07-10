@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
@@ -7,13 +7,81 @@ import Toast from '../components/Toast'
 import PlanLimitNotice from '../components/PlanLimitNotice'
 import { cargarEstadoPlan, estaBloqueadoPorPlan, puedeCrearPedido } from '../lib/planes'
 
+const obtenerIdUsuarioCache = () => {
+  if (typeof window === 'undefined') return 'sin_usuario'
+
+  try {
+    const llaves = Object.keys(localStorage)
+    const llaveAuth = llaves.find((llave) => llave.startsWith('sb-') && llave.endsWith('-auth-token'))
+
+    if (llaveAuth) {
+      const valor = JSON.parse(localStorage.getItem(llaveAuth) || '{}')
+      const userId = valor?.user?.id || valor?.currentSession?.user?.id
+      if (userId) return userId
+    }
+  } catch (error) {
+    console.log(error)
+  }
+
+  return localStorage.getItem('control_pedidos_usuario_cache') || 'sin_usuario'
+}
+
+const cacheKeyPedidos = () => `control_pedidos_pedidos_cache_${obtenerIdUsuarioCache()}`
+
+const leerPedidosCache = () => {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const guardado = localStorage.getItem(cacheKeyPedidos())
+    return guardado ? JSON.parse(guardado)?.pedidos || [] : []
+  } catch (error) {
+    console.log(error)
+    return []
+  }
+}
+
+const guardarPedidosCache = (pedidos) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    const userId = obtenerIdUsuarioCache()
+    localStorage.setItem('control_pedidos_usuario_cache', userId)
+    localStorage.setItem(
+      cacheKeyPedidos(),
+      JSON.stringify({
+        pedidos,
+        guardado_en: new Date().toISOString()
+      })
+    )
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+
 export default function Pedidos() {
-  const [pedidos, setPedidos] = useState([])
+  const [pedidos, setPedidos] = useState(() => leerPedidosCache())
   const [estadoPlan, setEstadoPlan] = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('Todos')
   const [filtroPlataforma, setFiltroPlataforma] = useState('Todas')
   const [toast, setToast] = useState(null)
+  const accionEnProcesoRef = useRef(false)
+  const [accionEnProceso, setAccionEnProceso] = useState('')
+
+  const iniciarAccion = (mensaje = 'Procesando...') => {
+    if (accionEnProcesoRef.current) return false
+    accionEnProcesoRef.current = true
+    setAccionEnProceso(mensaje)
+    return true
+  }
+
+  const finalizarAccion = () => {
+    accionEnProcesoRef.current = false
+    setAccionEnProceso('')
+  }
+
+  const estaProcesando = Boolean(accionEnProceso)
 
   const [modalMensaje, setModalMensaje] = useState(false)
   const [pedidoMensaje, setPedidoMensaje] = useState(null)
@@ -34,8 +102,6 @@ export default function Pedidos() {
 
   const estadosPedido = [
     'Cotizado',
-    'Pendiente de pago',
-    'Pagado por cliente',
     'Comprado en plataforma',
     'En camino',
     'Recibido',
@@ -63,6 +129,8 @@ export default function Pedidos() {
 
   const normalizarEstado = (estado) => {
     if (estado === 'Comprado en SHEIN') return 'Comprado en plataforma'
+    if (estado === 'Pendiente de pago') return 'Cotizado'
+    if (estado === 'Pagado por cliente') return 'Cotizado'
     return estado || 'Cotizado'
   }
 
@@ -70,8 +138,6 @@ export default function Pedidos() {
     const estadoNormal = normalizarEstado(estado)
 
     if (estadoNormal === 'Cotizado') return 'badge-gray'
-    if (estadoNormal === 'Pendiente de pago') return 'badge-yellow'
-    if (estadoNormal === 'Pagado por cliente') return 'badge-blue'
     if (estadoNormal === 'Comprado en plataforma') return 'badge-dark'
     if (estadoNormal === 'En camino') return 'badge-purple'
     if (estadoNormal === 'Recibido') return 'badge-green-soft'
@@ -80,6 +146,75 @@ export default function Pedidos() {
     if (estadoNormal === 'Devuelto') return 'badge-red-strong'
 
     return 'badge-gray'
+  }
+
+  const esEstadoReembolso = (estado) => {
+    const estadoNormal = normalizarEstado(estado)
+    return estadoNormal === 'Cancelado' || estadoNormal === 'Devuelto'
+  }
+
+  const estaPagadoPorCliente = (pedido) => {
+    return (
+      Number(pedido?.total_cliente || 0) > 0 &&
+      Number(pedido?.restante || 0) <= 0 &&
+      !['Cancelado', 'Devuelto'].includes(normalizarEstado(pedido?.estado))
+    )
+  }
+
+  const obtenerEstadoPago = (pedido) => {
+    if (esEstadoReembolso(pedido?.estado)) {
+      return { tipo: 'refund', texto: 'Reembolso' }
+    }
+
+    const total = Number(pedido?.total_cliente || 0)
+    const pagado = Number(pedido?.anticipo || 0)
+    const restante = Number(pedido?.restante || 0)
+
+    if (total > 0 && (restante <= 0 || pagado >= total)) {
+      return { tipo: 'paid', texto: 'Pagado por cliente' }
+    }
+
+    if (pagado > 0) {
+      return { tipo: 'partial', texto: 'Pagado parcialmente' }
+    }
+
+    return { tipo: 'pending', texto: 'Pendiente' }
+  }
+
+  const renderPagoBadge = (pedido, compacto = false) => {
+    const estadoPago = obtenerEstadoPago(pedido)
+
+    if (estadoPago.tipo === 'refund') {
+      return (
+        <span className={compacto ? 'refund-status-badge refund-status-badge-small' : 'refund-status-badge'}>
+          Reembolso
+        </span>
+      )
+    }
+
+    return (
+      <span className={`payment-status-badge payment-status-${estadoPago.tipo} ${compacto ? 'payment-status-badge-small' : ''}`}>
+        <i /> {estadoPago.texto}
+      </span>
+    )
+  }
+
+  const obtenerBasePublica = () => {
+    const configurada = import.meta.env.VITE_PUBLIC_APP_URL
+
+    if (configurada) {
+      return configurada.replace(/\/$/, '')
+    }
+
+    if (typeof window === 'undefined') return ''
+
+    const origin = window.location.origin
+
+    if (origin.includes('localhost')) {
+      return 'https://control-pedidos.pages.dev'
+    }
+
+    return origin
   }
 
   const cargarPedidos = async () => {
@@ -94,7 +229,9 @@ export default function Pedidos() {
       return
     }
 
-    setPedidos(data || [])
+    const pedidosFinal = data || []
+    setPedidos(pedidosFinal)
+    guardarPedidosCache(pedidosFinal)
   }
 
   const limpiarTelefono = (telefono) => {
@@ -116,7 +253,7 @@ export default function Pedidos() {
 
   const obtenerUrlSeguimiento = (pedido) => {
     if (!pedido?.public_token) return ''
-    return `${window.location.origin}/seguimiento/${pedido.public_token}`
+    return `${obtenerBasePublica()}/seguimiento/${pedido.public_token}`
   }
 
   const generarMensajeEstado = (pedido) => {
@@ -135,13 +272,6 @@ export default function Pedidos() {
       return `Hola ${nombre}, tu pedido ${codigo} ya fue cotizado.\n\nPlataforma: ${plataforma}\nTotal: ${total}\nRestante: ${restante}${lineaSeguimiento}`
     }
 
-    if (estado === 'Pendiente de pago') {
-      return `Hola ${nombre}, tu pedido ${codigo} está pendiente de pago.\n\nTotal: ${total}\nPagado: ${pagado}\nRestante pendiente: ${restante}${lineaSeguimiento}`
-    }
-
-    if (estado === 'Pagado por cliente') {
-      return `Hola ${nombre}, recibimos tu pago del pedido ${codigo}.\n\nPagado hasta ahora: ${pagado}\nRestante pendiente: ${restante}${lineaSeguimiento}`
-    }
 
     if (estado === 'Comprado en plataforma') {
       return `Hola ${nombre}, tu pedido ${codigo} ya fue comprado en plataforma.\n\nPlataforma: ${plataforma}${lineaSeguimiento}`
@@ -172,38 +302,112 @@ export default function Pedidos() {
 
   const cambiarEstado = async (pedido, estado) => {
     if (bloquearSiNoPuede()) return
+    if (!iniciarAccion('Actualizando estado...')) return
 
-    const estadoAnterior = normalizarEstado(pedido.estado)
+    try {
+      const estadoAnterior = normalizarEstado(pedido.estado)
+      const estadoNuevo = normalizarEstado(estado)
 
-    if (estadoAnterior === estado) return
+      if (estadoAnterior === estadoNuevo) return
 
-    const { error } = await supabase
-      .from('pedidos')
-      .update({ estado })
-      .eq('id', pedido.id)
+      const { data: pedidoActual } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('id', pedido.id)
+        .single()
 
-    if (error) {
-      console.log(error)
-      mostrarToast('Error al cambiar estado', 'error')
-      return
-    }
+      const payload = {
+        estado: estadoNuevo,
+        reembolso: false,
+        reembolso_monto: 0
+      }
 
-    const pedidoActualizado = {
-      ...pedido,
-      estado
-    }
+      const montoRestante = Math.max(Number(pedidoActual?.restante || pedido.restante || 0), 0)
 
-    setPedidos((actuales) =>
-      actuales.map((item) =>
-        item.id === pedido.id ? pedidoActualizado : item
+      if (estadoNuevo === 'Entregado' && montoRestante > 0) {
+        const confirmar = confirm(`Este pedido todavía tiene ${formatearDinero(montoRestante)} pendiente. ¿Confirmas que el cliente pagó el restante al entregar?`)
+        if (!confirmar) return
+
+        const etiquetaPago = `[entrega-pedido:${pedido.id}]`
+        const { data: pagoExistente } = await supabase
+          .from('pagos')
+          .select('id')
+          .eq('pedido_id', pedido.id)
+          .ilike('notas', `%${etiquetaPago}%`)
+          .limit(1)
+
+        if (!pagoExistente?.length) {
+          const { error: errorPago } = await supabase
+            .from('pagos')
+            .insert([
+              {
+                pedido_id: pedido.id,
+                monto: montoRestante,
+                metodo_pago: 'Entrega',
+                notas: `Pago restante al entregar pedido ${etiquetaPago}`,
+                tipo: 'pago'
+              }
+            ])
+
+          if (errorPago) {
+            console.log(errorPago)
+            mostrarToast('No se pudo registrar el pago restante', 'error')
+            return
+          }
+        }
+
+        payload.anticipo = Number(pedidoActual?.anticipo || pedido.anticipo || 0) + montoRestante
+        payload.restante = 0
+      }
+
+      if (estadoNuevo === 'Entregado') {
+        const ahora = new Date().toISOString()
+        await supabase
+          .from('productos_pedido')
+          .update({
+            entregado: true,
+            entregado_en: ahora,
+            pagado_cliente: true,
+            pagado_en: ahora
+          })
+          .eq('pedido_id', pedido.id)
+      }
+
+      if (esEstadoReembolso(estadoNuevo)) {
+        payload.reembolso = true
+        payload.reembolso_monto = Number(pedidoActual?.anticipo || pedido.anticipo || 0)
+      }
+
+      const { error } = await supabase
+        .from('pedidos')
+        .update(payload)
+        .eq('id', pedido.id)
+
+      if (error) {
+        console.log(error)
+        mostrarToast('Error al cambiar estado', 'error')
+        return
+      }
+
+      const pedidoActualizado = {
+        ...pedido,
+        ...payload
+      }
+
+      setPedidos((actuales) =>
+        actuales.map((item) =>
+          item.id === pedido.id ? pedidoActualizado : item
+        )
       )
-    )
 
-    setPedidoMensaje(pedidoActualizado)
-    setModalMensaje(true)
-    mostrarToast('Estado actualizado correctamente')
+      setPedidoMensaje(pedidoActualizado)
+      setModalMensaje(true)
+      mostrarToast(esEstadoReembolso(estadoNuevo) ? 'Pedido marcado como reembolso' : 'Estado actualizado correctamente')
 
-    cargarPedidos()
+      cargarPedidos()
+    } finally {
+      finalizarAccion()
+    }
   }
 
   const enviarMensajeWhatsApp = () => {
@@ -237,33 +441,44 @@ export default function Pedidos() {
 
     const confirmar = confirm('¿Seguro que quieres eliminar este pedido?')
     if (!confirmar) return
+    if (!iniciarAccion('Eliminando pedido...')) return
 
-    const { error } = await supabase
-      .from('pedidos')
-      .delete()
-      .eq('id', id)
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .delete()
+        .eq('id', id)
 
-    if (error) {
-      console.log(error)
-      mostrarToast('Error al eliminar pedido', 'error')
-      return
+      if (error) {
+        console.log(error)
+        mostrarToast('Error al eliminar pedido', 'error')
+        return
+      }
+
+      const pedidosActualizados = pedidos.filter((pedido) => pedido.id !== id)
+      setPedidos(pedidosActualizados)
+      guardarPedidosCache(pedidosActualizados)
+
+      mostrarToast('Pedido eliminado correctamente')
+      cargarPedidos()
+    } finally {
+      finalizarAccion()
     }
-
-    mostrarToast('Pedido eliminado correctamente')
-    cargarPedidos()
   }
 
   const pedidosFiltrados = pedidos.filter((pedido) => {
     const texto = busqueda.toLowerCase()
     const estadoNormal = normalizarEstado(pedido.estado)
     const plataformaPedido = pedido.plataforma || 'SHEIN'
+    const pagoTexto = obtenerEstadoPago(pedido).texto.toLowerCase()
 
     const coincideBusqueda =
       pedido.codigo?.toLowerCase().includes(texto) ||
       plataformaPedido.toLowerCase().includes(texto) ||
       pedido.clientes?.nombre?.toLowerCase().includes(texto) ||
       pedido.clientes?.telefono?.toLowerCase().includes(texto) ||
-      estadoNormal?.toLowerCase().includes(texto)
+      estadoNormal?.toLowerCase().includes(texto) ||
+      pagoTexto.includes(texto)
 
     const coincideEstado =
       filtroEstado === 'Todos' || estadoNormal === filtroEstado
@@ -417,6 +632,7 @@ export default function Pedidos() {
               <th>Cliente</th>
               <th>Teléfono</th>
               <th>Estado</th>
+              <th>Pago</th>
               <th>Total cliente</th>
               <th>Anticipo</th>
               <th>Restante</th>
@@ -428,7 +644,7 @@ export default function Pedidos() {
 
           <tbody>
             {pedidosFiltrados.map((pedido) => (
-              <tr key={pedido.id}>
+              <tr key={pedido.id} className={esEstadoReembolso(pedido.estado) ? 'refund-censored-row' : ''}>
                 <td>{pedido.codigo}</td>
                 <td>{pedido.plataforma || 'SHEIN'}</td>
                 <td>{pedido.clientes?.nombre || 'Sin cliente'}</td>
@@ -437,13 +653,14 @@ export default function Pedidos() {
                   <select
                     value={normalizarEstado(pedido.estado)}
                     onChange={(e) => cambiarEstado(pedido, e.target.value)}
-                    disabled={bloqueado}
+                    disabled={bloqueado || estaProcesando}
                   >
                     {estadosPedido.map((estado) => (
                       <option key={estado}>{estado}</option>
                     ))}
                   </select>
                 </td>
+                <td>{renderPagoBadge(pedido, true)}</td>
                 <td>${Number(pedido.total_cliente || 0).toFixed(2)}</td>
                 <td>${Number(pedido.anticipo || 0).toFixed(2)}</td>
                 <td>${Number(pedido.restante || 0).toFixed(2)}</td>
@@ -460,7 +677,7 @@ export default function Pedidos() {
                   <button
                     onClick={() => eliminarPedido(pedido.id)}
                     className="btn btn-danger btn-small"
-                    disabled={bloqueado}
+                    disabled={bloqueado || estaProcesando}
                   >
                     Eliminar
                   </button>
@@ -470,7 +687,7 @@ export default function Pedidos() {
 
             {pedidosFiltrados.length === 0 && (
               <tr>
-                <td colSpan="11">No se encontraron pedidos.</td>
+                <td colSpan="12">No se encontraron pedidos.</td>
               </tr>
             )}
           </tbody>
@@ -483,16 +700,20 @@ export default function Pedidos() {
         </div>
 
         {pedidosFiltrados.map((pedido) => (
-          <div className="mobile-card" key={pedido.id}>
+          <div className={`mobile-card ${esEstadoReembolso(pedido.estado) ? 'refund-censored-card' : ''}`} key={pedido.id}>
             <div className="mobile-card-header">
               <div>
                 <h3>{pedido.codigo}</h3>
                 <p>{pedido.plataforma || 'SHEIN'} · {pedido.clientes?.nombre || 'Sin cliente'}</p>
               </div>
 
-              <span className={`badge ${estadoClase(pedido.estado)}`}>
-                {normalizarEstado(pedido.estado)}
-              </span>
+              <div className="mobile-card-badges">
+                <span className={`badge ${estadoClase(pedido.estado)}`}>
+                  {normalizarEstado(pedido.estado)}
+                </span>
+
+                {renderPagoBadge(pedido, true)}
+              </div>
             </div>
 
             <div className="mobile-card-info">
@@ -532,7 +753,7 @@ export default function Pedidos() {
               <select
                 value={normalizarEstado(pedido.estado)}
                 onChange={(e) => cambiarEstado(pedido, e.target.value)}
-                disabled={bloqueado}
+                disabled={bloqueado || estaProcesando}
               >
                 {estadosPedido.map((estado) => (
                   <option key={estado}>{estado}</option>
@@ -562,7 +783,7 @@ export default function Pedidos() {
               <button
                 onClick={() => eliminarPedido(pedido.id)}
                 className="btn btn-danger"
-                disabled={bloqueado}
+                disabled={bloqueado || estaProcesando}
               >
                 Eliminar
               </button>

@@ -6,8 +6,60 @@ import Toast from '../components/Toast'
 import PlanLimitNotice from '../components/PlanLimitNotice'
 import { cargarEstadoPlan, estaBloqueadoPorPlan } from '../lib/planes'
 
+const obtenerIdUsuarioCache = () => {
+  if (typeof window === 'undefined') return 'sin_usuario'
+
+  try {
+    const llaves = Object.keys(localStorage)
+    const llaveAuth = llaves.find((llave) => llave.startsWith('sb-') && llave.endsWith('-auth-token'))
+
+    if (llaveAuth) {
+      const valor = JSON.parse(localStorage.getItem(llaveAuth) || '{}')
+      const userId = valor?.user?.id || valor?.currentSession?.user?.id
+      if (userId) return userId
+    }
+  } catch (error) {
+    console.log(error)
+  }
+
+  return localStorage.getItem('control_pedidos_usuario_cache') || 'sin_usuario'
+}
+
+const cacheKeyClientes = () => `control_pedidos_clientes_cache_${obtenerIdUsuarioCache()}`
+
+const leerClientesCache = () => {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const guardado = localStorage.getItem(cacheKeyClientes())
+    return guardado ? JSON.parse(guardado)?.clientes || [] : []
+  } catch (error) {
+    console.log(error)
+    return []
+  }
+}
+
+const guardarClientesCache = (clientes) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    const userId = obtenerIdUsuarioCache()
+    localStorage.setItem('control_pedidos_usuario_cache', userId)
+    localStorage.setItem(
+      cacheKeyClientes(),
+      JSON.stringify({
+        clientes,
+        guardado_en: new Date().toISOString()
+      })
+    )
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+
 export default function Clientes() {
-  const [clientes, setClientes] = useState([])
+  const [clientes, setClientes] = useState(() => leerClientesCache())
   const [estadoPlan, setEstadoPlan] = useState(null)
   const [modalCliente, setModalCliente] = useState(false)
   const [clienteEditando, setClienteEditando] = useState(null)
@@ -62,7 +114,9 @@ export default function Clientes() {
       return
     }
 
-    setClientes(data || [])
+    const clientesFinal = data || []
+    setClientes(clientesFinal)
+    guardarClientesCache(clientesFinal)
   }
 
   const limpiarFormulario = () => {
@@ -330,35 +384,43 @@ export default function Clientes() {
       >
         <form onSubmit={guardarCliente}>
           <div className="modal-form-grid">
-            <input
-              placeholder="Nombre del cliente"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              required
-            />
-
-            <div className="phone-field">
-              <span>+52</span>
+            <label className="form-field">
+              <span>Nombre del cliente*</span>
               <input
-                placeholder="Teléfono"
-                value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
-                inputMode="numeric"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
                 required
               />
-            </div>
+            </label>
 
-            <input
-              placeholder="Dirección"
-              value={direccion}
-              onChange={(e) => setDireccion(e.target.value)}
-            />
+            <label className="form-field">
+              <span>Teléfono*</span>
+              <div className="phone-field">
+                <span>+52</span>
+                <input
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value)}
+                  inputMode="numeric"
+                  required
+                />
+              </div>
+            </label>
 
-            <input
-              placeholder="Notas"
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-            />
+            <label className="form-field">
+              <span>Dirección</span>
+              <input
+                value={direccion}
+                onChange={(e) => setDireccion(e.target.value)}
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Notas</span>
+              <input
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+              />
+            </label>
           </div>
 
           <div className="modal-actions">
