@@ -18,6 +18,12 @@ const crearProductoVacio = () => ({
   precio_venta: ''
 })
 
+const obtenerFechaLocalHoy = () => {
+  const ahora = new Date()
+  const local = new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000))
+  return local.toISOString().slice(0, 10)
+}
+
 export default function NuevoPedido() {
   const [clientes, setClientes] = useState([])
   const [estadoPlan, setEstadoPlan] = useState(null)
@@ -38,6 +44,7 @@ export default function NuevoPedido() {
   })
 
   const [plataforma, setPlataforma] = useState('SHEIN')
+  const [fechaCreacion, setFechaCreacion] = useState(() => obtenerFechaLocalHoy())
   const [estado, setEstado] = useState('Cotizado')
   const [tracking, setTracking] = useState('')
   const [notas, setNotas] = useState('')
@@ -380,6 +387,11 @@ export default function NuevoPedido() {
       return
     }
 
+    if (!fechaCreacion) {
+      mostrarToast('Selecciona la fecha del pedido', 'error')
+      return
+    }
+
     guardandoPedidoRef.current = true
     setGuardandoPedido(true)
 
@@ -391,7 +403,8 @@ export default function NuevoPedido() {
         p_tracking: tracking.trim(),
         p_notas: notas.trim(),
         p_productos: productosParaGuardar,
-        p_anticipo: pagoInicial
+        p_anticipo: pagoInicial,
+        p_fecha_creacion: fechaCreacion || obtenerFechaLocalHoy()
       })
 
       if (errorPedidoCompleto) {
@@ -628,6 +641,17 @@ export default function NuevoPedido() {
                 <option key={estado}>{estado}</option>
               ))}
             </select>
+          </div>
+
+          <div className="form-field">
+            <label>Fecha del pedido*</label>
+            <input
+              type="date"
+              value={fechaCreacion}
+              onChange={(e) => setFechaCreacion(e.target.value)}
+              required
+            />
+            <small className="field-help-text">Por defecto usa la fecha de hoy. Puedes cambiarla si registras un pedido atrasado.</small>
           </div>
 
           <div className="form-field">
