@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
@@ -6,6 +6,9 @@ import Modal from '../components/Modal'
 import Toast from '../components/Toast'
 import PlanLimitNotice from '../components/PlanLimitNotice'
 import { cargarEstadoPlan, estaBloqueadoPorPlan, puedeCrearPedido } from '../lib/planes'
+
+const PAGE_SIZE_OPTIONS = [25, 50, 100]
+const PEDIDOS_CACHE_LIMIT = 50
 
 const obtenerIdUsuarioCache = () => {
   if (typeof window === 'undefined') return 'sin_usuario'
@@ -49,7 +52,7 @@ const guardarPedidosCache = (pedidos) => {
     localStorage.setItem(
       cacheKeyPedidos(),
       JSON.stringify({
-        pedidos,
+        pedidos: (pedidos || []).slice(0, PEDIDOS_CACHE_LIMIT),
         guardado_en: new Date().toISOString()
       })
     )
@@ -61,6 +64,10 @@ const guardarPedidosCache = (pedidos) => {
 
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState(() => leerPedidosCache())
+  const [totalPedidos, setTotalPedidos] = useState(() => leerPedidosCache().length)
+  const [pagina, setPagina] = useState(1)
+  const [tamanoPagina, setTamanoPagina] = useState(25)
+  const [cargandoPedidos, setCargandoPedidos] = useState(false)
   const [estadoPlan, setEstadoPlan] = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('Todos')
@@ -86,11 +93,29 @@ export default function Pedidos() {
   const [modalMensaje, setModalMensaje] = useState(false)
   const [pedidoMensaje, setPedidoMensaje] = useState(null)
   const [modalFiltros, setModalFiltros] = useState(false)
+  const [modalConfirmarEntrega, setModalConfirmarEntrega] = useState(false)
+  const [entregaPendiente, setEntregaPendiente] = useState(null)
+  const [modalConfirmarReembolso, setModalConfirmarReembolso] = useState(false)
+  const [reembolsoPendiente, setReembolsoPendiente] = useState(null)
+  const [montoReembolso, setMontoReembolso] = useState('')
+  const [menuAccionesAbierto, setMenuAccionesAbierto] = useState(null)
+  const [menuEstadoAbierto, setMenuEstadoAbierto] = useState(null)
+
+  useEffect(() => {
+    cargarPlan()
+  }, [])
 
   useEffect(() => {
     cargarPedidos()
-    cargarPlan()
-  }, [])
+  }, [pagina, tamanoPagina, busqueda, filtroEstado, filtroPlataforma])
+
+  useEffect(() => {
+    setPagina(1)
+  }, [busqueda, filtroEstado, filtroPlataforma, tamanoPagina])
+
+  const totalPaginas = useMemo(() => {
+    return Math.max(1, Math.ceil(totalPedidos / tamanoPagina))
+  }, [totalPedidos, tamanoPagina])
 
   const plataformas = [
     'SHEIN',
@@ -102,9 +127,9 @@ export default function Pedidos() {
 
   const estadosPedido = [
     'Cotizado',
-    'Comprado en plataforma',
     'En camino',
     'Recibido',
+    'Dejado en negocio',
     'Entregado',
     'Cancelado',
     'Devuelto'
@@ -128,7 +153,8 @@ export default function Pedidos() {
   }
 
   const normalizarEstado = (estado) => {
-    if (estado === 'Comprado en SHEIN') return 'Comprado en plataforma'
+    if (estado === 'Comprado en SHEIN') return 'En camino'
+    if (estado === 'Comprado en plataforma') return 'En camino'
     if (estado === 'Pendiente de pago') return 'Cotizado'
     if (estado === 'Pagado por cliente') return 'Cotizado'
     return estado || 'Cotizado'
@@ -138,9 +164,9 @@ export default function Pedidos() {
     const estadoNormal = normalizarEstado(estado)
 
     if (estadoNormal === 'Cotizado') return 'badge-gray'
-    if (estadoNormal === 'Comprado en plataforma') return 'badge-dark'
     if (estadoNormal === 'En camino') return 'badge-purple'
     if (estadoNormal === 'Recibido') return 'badge-green-soft'
+    if (estadoNormal === 'Dejado en negocio') return 'badge-blue'
     if (estadoNormal === 'Entregado') return 'badge-green-strong'
     if (estadoNormal === 'Cancelado') return 'badge-red-soft'
     if (estadoNormal === 'Devuelto') return 'badge-red-strong'
@@ -148,9 +174,121 @@ export default function Pedidos() {
     return 'badge-gray'
   }
 
+
+  const obtenerProductosPedido = (pedido) => {
+    if (Array.isArray(pedido?.productos_pedido)) return pedido.productos_pedido
+    return []
+  }
+
+  const normalizarEstadoProducto = (estado) => {
+    return String(estado || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+  }
+
+  const calcularProgresoProducto = (producto) => {
+    const estado = normalizarEstadoProducto(producto?.estado_compra)
+
+    if (
+      producto?.entregado ||
+      producto?.fecha_entregado_cliente ||
+      estado.includes('entregado')
+    ) {
+      return { porcentaje: 100, texto: 'Entregado', tipo: 'done' }
+    }
+
+    if (producto?.fecha_dejado_negocio || estado.includes('negocio')) {
+      return { porcentaje: 94, texto: 'Listo para recoger', tipo: 'ready' }
+    }
+
+    if (producto?.fecha_recibido || estado.includes('recibido')) {
+      return { porcentaje: 88, texto: 'Recibido', tipo: 'received' }
+    }
+
+    if (!producto?.fecha_comprado) {
+      return { porcentaje: 12, texto: 'Compra pendiente', tipo: 'pending' }
+    }
+
+    const inicio = new Date(producto.fecha_comprado)
+    const estimada = producto?.fecha_estimada_llegada ? new Date(producto.fecha_estimada_llegada) : null
+    const hoy = new Date()
+
+    if (!estimada || Number.isNaN(estimada.getTime()) || Number.isNaN(inicio.getTime())) {
+      return { porcentaje: 45, texto: 'En camino', tipo: 'moving' }
+    }
+
+    const totalDias = Math.max(1, Math.ceil((estimada - inicio) / 86400000))
+    const diasTranscurridos = Math.max(0, Math.ceil((hoy - inicio) / 86400000))
+    const diasFaltantes = Math.ceil((estimada - hoy) / 86400000)
+    const porcentaje = Math.min(85, Math.max(22, Math.round((diasTranscurridos / totalDias) * 82)))
+
+    if (diasFaltantes <= 0) {
+      return { porcentaje: 86, texto: 'Posiblemente ya llegó', tipo: 'arrival' }
+    }
+
+    return {
+      porcentaje,
+      texto: diasFaltantes === 1 ? 'Falta 1 día' : `Faltan ${diasFaltantes} días`,
+      tipo: 'moving'
+    }
+  }
+
+
+  const obtenerEtiquetaProgreso = (progreso) => {
+    if (progreso?.tipo === 'pending') return 'Compra pendiente'
+    if (progreso?.tipo === 'moving') return 'En camino'
+    if (progreso?.tipo === 'arrival') return 'Posible llegada'
+    if (progreso?.tipo === 'received') return 'Recibido'
+    if (progreso?.tipo === 'ready') return 'Listo para recoger'
+    if (progreso?.tipo === 'done') return 'Entregado'
+    return progreso?.texto || 'En proceso'
+  }
+
+  const renderProgresoProductos = (pedido, compacto = false) => {
+    const productos = obtenerProductosPedido(pedido).filter((producto) => {
+      const progreso = calcularProgresoProducto(producto)
+      return progreso.tipo !== 'done'
+    })
+
+    if (!productos.length) return null
+
+    return (
+      <div className={compacto ? 'order-mini-progress order-mini-progress-mobile' : 'order-mini-progress'}>
+        {productos.slice(0, 8).map((producto, index) => {
+          const progreso = calcularProgresoProducto(producto)
+          const nombre = producto?.nombre_producto || `Artículo ${index + 1}`
+
+          return (
+            <div
+              className="order-mini-progress-item"
+              key={producto?.id || `${pedido.id}-${index}`}
+              title={`${nombre}: ${progreso.texto}`}
+              aria-label={`${nombre}: ${progreso.texto}`}
+            >
+              <small className="order-mini-progress-label">{obtenerEtiquetaProgreso(progreso)}</small>
+              <div className={`order-mini-progress-line order-mini-progress-${progreso.tipo}`}>
+                <span style={{ width: `${progreso.porcentaje}%` }} />
+              </div>
+            </div>
+          )
+        })}
+
+        {productos.length > 8 && (
+          <small className="order-mini-progress-more">+{productos.length - 8} artículos más</small>
+        )}
+      </div>
+    )
+  }
+
   const esEstadoReembolso = (estado) => {
     const estadoNormal = normalizarEstado(estado)
     return estadoNormal === 'Cancelado' || estadoNormal === 'Devuelto'
+  }
+
+  const obtenerEtiquetaReembolso = (estado) => {
+    const estadoNormal = normalizarEstado(estado)
+    return estadoNormal === 'Devuelto' ? 'Devuelto' : 'Cancelado'
   }
 
   const estaPagadoPorCliente = (pedido) => {
@@ -178,23 +316,33 @@ export default function Pedidos() {
       return { tipo: 'partial', texto: 'Pagado parcialmente' }
     }
 
-    return { tipo: 'pending', texto: 'Pendiente' }
+    return { tipo: 'pending', texto: 'Pago pendiente' }
   }
 
-  const renderPagoBadge = (pedido, compacto = false) => {
+  const renderPagoBadge = (pedido, compacto = false, vista = 'desktop') => {
     const estadoPago = obtenerEstadoPago(pedido)
+    const esMovil = vista === 'mobile'
+
+    const textosMovil = {
+      paid: 'Pagado',
+      partial: 'Pago parcial',
+      pending: 'Pago pendiente',
+      refund: 'Reembolso'
+    }
+
+    const texto = esMovil ? (textosMovil[estadoPago.tipo] || estadoPago.texto) : estadoPago.texto
 
     if (estadoPago.tipo === 'refund') {
       return (
-        <span className={compacto ? 'refund-status-badge refund-status-badge-small' : 'refund-status-badge'}>
-          Reembolso
+        <span className={`${compacto ? 'refund-status-badge refund-status-badge-small' : 'refund-status-badge'} ${esMovil ? 'payment-status-mobile-top' : ''}`}>
+          {texto}
         </span>
       )
     }
 
     return (
-      <span className={`payment-status-badge payment-status-${estadoPago.tipo} ${compacto ? 'payment-status-badge-small' : ''}`}>
-        <i /> {estadoPago.texto}
+      <span className={`payment-status-badge payment-status-${estadoPago.tipo} ${compacto ? 'payment-status-badge-small' : ''} ${esMovil ? 'payment-status-mobile-top' : ''}`}>
+        <i /> <span>{texto}</span>
       </span>
     )
   }
@@ -218,20 +366,72 @@ export default function Pedidos() {
   }
 
   const cargarPedidos = async () => {
-    const { data, error } = await supabase
+    setCargandoPedidos(true)
+
+    const desde = (pagina - 1) * tamanoPagina
+    const hasta = desde + tamanoPagina - 1
+    const texto = busqueda.trim().toLowerCase()
+
+    let consulta = supabase
       .from('pedidos')
-      .select('*, clientes(nombre, telefono)')
+      .select('*, clientes(nombre, telefono), productos_pedido(id, nombre_producto, cantidad, entregado, estado_compra, fecha_comprado, fecha_estimada_llegada, fecha_recibido, fecha_dejado_negocio, fecha_entregado_cliente)', { count: 'exact' })
       .order('creado_en', { ascending: false })
 
-    if (error) {
-      console.log(error)
-      mostrarToast('Error al cargar pedidos', 'error')
+    if (filtroEstado !== 'Todos') {
+      consulta = consulta.eq('estado', filtroEstado)
+    }
+
+    if (filtroPlataforma !== 'Todas') {
+      consulta = consulta.eq('plataforma', filtroPlataforma)
+    }
+
+    if (!texto) {
+      const { data, error, count } = await consulta.range(desde, hasta)
+      setCargandoPedidos(false)
+
+      if (error) {
+        console.log(error)
+        mostrarToast('Error al cargar pedidos', 'error')
+        return
+      }
+
+      const pedidosFinal = data || []
+      setPedidos(pedidosFinal)
+      setTotalPedidos(count || 0)
+      guardarPedidosCache(pedidosFinal)
       return
     }
 
-    const pedidosFinal = data || []
-    setPedidos(pedidosFinal)
-    guardarPedidosCache(pedidosFinal)
+    // Para búsqueda por cliente/teléfono seguimos permitiendo encontrar datos del join.
+    // Se trae un bloque razonable y se pagina en memoria solo mientras hay texto de búsqueda.
+    const { data, error } = await consulta.limit(500)
+    setCargandoPedidos(false)
+
+    if (error) {
+      console.log(error)
+      mostrarToast('Error al buscar pedidos', 'error')
+      return
+    }
+
+    const pedidosCoincidentes = (data || []).filter((pedido) => {
+      const estadoNormal = normalizarEstado(pedido.estado)
+      const plataformaPedido = pedido.plataforma || 'SHEIN'
+      const pagoTexto = obtenerEstadoPago(pedido).texto.toLowerCase()
+
+      return (
+        pedido.codigo?.toLowerCase().includes(texto) ||
+        plataformaPedido.toLowerCase().includes(texto) ||
+        pedido.clientes?.nombre?.toLowerCase().includes(texto) ||
+        pedido.clientes?.telefono?.toLowerCase().includes(texto) ||
+        estadoNormal?.toLowerCase().includes(texto) ||
+        pagoTexto.includes(texto)
+      )
+    })
+
+    const pedidosPagina = pedidosCoincidentes.slice(desde, hasta + 1)
+    setPedidos(pedidosPagina)
+    setTotalPedidos(pedidosCoincidentes.length)
+    guardarPedidosCache(pedidosPagina)
   }
 
   const limpiarTelefono = (telefono) => {
@@ -272,17 +472,16 @@ export default function Pedidos() {
       return `Hola ${nombre}, tu pedido ${codigo} ya fue cotizado.\n\nPlataforma: ${plataforma}\nTotal: ${total}\nRestante: ${restante}${lineaSeguimiento}`
     }
 
-
-    if (estado === 'Comprado en plataforma') {
-      return `Hola ${nombre}, tu pedido ${codigo} ya fue comprado en plataforma.\n\nPlataforma: ${plataforma}${lineaSeguimiento}`
-    }
-
     if (estado === 'En camino') {
       return `Hola ${nombre}, tu pedido ${codigo} ya está en camino.\n\nPlataforma: ${plataforma}${tracking ? `\nGuía / tracking: ${tracking}` : ''}${lineaSeguimiento}`
     }
 
     if (estado === 'Recibido') {
       return `Hola ${nombre}, tu pedido ${codigo} ya fue recibido.\n\nTotal: ${total}\nPagado: ${pagado}\nRestante pendiente: ${restante}${lineaSeguimiento}`
+    }
+
+    if (estado === 'Dejado en negocio') {
+      return `Hola ${nombre}, tu pedido ${codigo} ya está listo y fue dejado en negocio para recoger.\n\nTotal: ${total}\nPagado: ${pagado}\nRestante pendiente: ${restante}${lineaSeguimiento}`
     }
 
     if (estado === 'Entregado') {
@@ -300,21 +499,21 @@ export default function Pedidos() {
     return `Hola ${nombre}, tu pedido ${codigo} cambió de estado.\n\nEstado actual: ${estado}${lineaSeguimiento}`
   }
 
-  const cambiarEstado = async (pedido, estado) => {
-    if (bloquearSiNoPuede()) return
-    if (!iniciarAccion('Actualizando estado...')) return
+  const aplicarCambioEstado = async (pedido, estadoNuevo, opciones = {}) => {
+    if (!iniciarAccion('Actualizando estado...')) return false
 
     try {
-      const estadoAnterior = normalizarEstado(pedido.estado)
-      const estadoNuevo = normalizarEstado(estado)
-
-      if (estadoAnterior === estadoNuevo) return
-
-      const { data: pedidoActual } = await supabase
+      const { data: pedidoActual, error: errorPedidoActual } = await supabase
         .from('pedidos')
         .select('*')
         .eq('id', pedido.id)
         .single()
+
+      if (errorPedidoActual) {
+        console.log(errorPedidoActual)
+        mostrarToast('No se pudo validar el pedido', 'error')
+        return false
+      }
 
       const payload = {
         estado: estadoNuevo,
@@ -324,43 +523,45 @@ export default function Pedidos() {
 
       const montoRestante = Math.max(Number(pedidoActual?.restante || pedido.restante || 0), 0)
 
-      if (estadoNuevo === 'Entregado' && montoRestante > 0) {
-        const confirmar = confirm(`Este pedido todavía tiene ${formatearDinero(montoRestante)} pendiente. ¿Confirmas que el cliente pagó el restante al entregar?`)
-        if (!confirmar) return
-
-        const etiquetaPago = `[entrega-pedido:${pedido.id}]`
-        const { data: pagoExistente } = await supabase
-          .from('pagos')
-          .select('id')
-          .eq('pedido_id', pedido.id)
-          .ilike('notas', `%${etiquetaPago}%`)
-          .limit(1)
-
-        if (!pagoExistente?.length) {
-          const { error: errorPago } = await supabase
-            .from('pagos')
-            .insert([
-              {
-                pedido_id: pedido.id,
-                monto: montoRestante,
-                metodo_pago: 'Entrega',
-                notas: `Pago restante al entregar pedido ${etiquetaPago}`,
-                tipo: 'pago'
-              }
-            ])
-
-          if (errorPago) {
-            console.log(errorPago)
-            mostrarToast('No se pudo registrar el pago restante', 'error')
-            return
-          }
+      if (estadoNuevo === 'Entregado') {
+        if (montoRestante > 0 && opciones.registrarRestante !== true) {
+          mostrarToast('Confirma el pago restante para entregar el pedido', 'error')
+          return false
         }
 
-        payload.anticipo = Number(pedidoActual?.anticipo || pedido.anticipo || 0) + montoRestante
-        payload.restante = 0
-      }
+        if (montoRestante > 0) {
+          const etiquetaPago = `[entrega-pedido:${pedido.id}]`
+          const { data: pagoExistente } = await supabase
+            .from('pagos')
+            .select('id')
+            .eq('pedido_id', pedido.id)
+            .ilike('notas', `%${etiquetaPago}%`)
+            .limit(1)
 
-      if (estadoNuevo === 'Entregado') {
+          if (!pagoExistente?.length) {
+            const { error: errorPago } = await supabase
+              .from('pagos')
+              .insert([
+                {
+                  pedido_id: pedido.id,
+                  monto: montoRestante,
+                  metodo_pago: 'Entrega',
+                  notas: `Pago restante al entregar pedido ${etiquetaPago}`,
+                  tipo: 'pago'
+                }
+              ])
+
+            if (errorPago) {
+              console.log(errorPago)
+              mostrarToast('No se pudo registrar el pago restante', 'error')
+              return false
+            }
+          }
+
+          payload.anticipo = Number(pedidoActual?.anticipo || pedido.anticipo || 0) + montoRestante
+          payload.restante = 0
+        }
+
         const ahora = new Date().toISOString()
         await supabase
           .from('productos_pedido')
@@ -375,7 +576,7 @@ export default function Pedidos() {
 
       if (esEstadoReembolso(estadoNuevo)) {
         payload.reembolso = true
-        payload.reembolso_monto = Number(pedidoActual?.anticipo || pedido.anticipo || 0)
+        payload.reembolso_monto = Math.max(Number(opciones.montoReembolso || 0), 0)
       }
 
       const { error } = await supabase
@@ -386,7 +587,7 @@ export default function Pedidos() {
       if (error) {
         console.log(error)
         mostrarToast('Error al cambiar estado', 'error')
-        return
+        return false
       }
 
       const pedidoActualizado = {
@@ -403,10 +604,77 @@ export default function Pedidos() {
       setPedidoMensaje(pedidoActualizado)
       setModalMensaje(true)
       mostrarToast(esEstadoReembolso(estadoNuevo) ? 'Pedido marcado como reembolso' : 'Estado actualizado correctamente')
-
       cargarPedidos()
+      return true
     } finally {
       finalizarAccion()
+    }
+  }
+
+  const cambiarEstado = async (pedido, estado) => {
+    if (bloquearSiNoPuede()) return
+    if (accionEnProcesoRef.current) return
+
+    const estadoAnterior = normalizarEstado(pedido.estado)
+    const estadoNuevo = normalizarEstado(estado)
+
+    if (estadoAnterior === estadoNuevo) return
+
+    const montoRestante = Math.max(Number(pedido.restante || 0), 0)
+
+    if (estadoNuevo === 'Entregado' && montoRestante > 0) {
+      setEntregaPendiente({ pedido, estadoNuevo, montoRestante })
+      setModalConfirmarEntrega(true)
+      return
+    }
+
+    if (esEstadoReembolso(estadoNuevo)) {
+      const montoPagado = Math.max(Number(pedido.anticipo || 0), 0)
+      setReembolsoPendiente({ pedido, estadoNuevo, montoPagado })
+      setMontoReembolso(montoPagado.toFixed(2))
+      setModalConfirmarReembolso(true)
+      return
+    }
+
+    await aplicarCambioEstado(pedido, estadoNuevo)
+  }
+
+  const confirmarEntregaPedidoLista = async () => {
+    if (!entregaPendiente?.pedido) return
+    const listo = await aplicarCambioEstado(entregaPendiente.pedido, 'Entregado', { registrarRestante: true })
+    if (listo) {
+      setModalConfirmarEntrega(false)
+      setEntregaPendiente(null)
+    }
+  }
+
+  const aplicarMontoReembolsoRapido = (tipo) => {
+    const montoPagado = Math.max(Number(reembolsoPendiente?.montoPagado || 0), 0)
+
+    if (tipo === 'todo') {
+      setMontoReembolso(montoPagado.toFixed(2))
+      return
+    }
+
+    if (tipo === 'mitad') {
+      setMontoReembolso((montoPagado / 2).toFixed(2))
+      return
+    }
+
+    setMontoReembolso('0.00')
+  }
+
+  const confirmarReembolsoPedidoLista = async () => {
+    if (!reembolsoPendiente?.pedido) return
+
+    const listo = await aplicarCambioEstado(reembolsoPendiente.pedido, reembolsoPendiente.estadoNuevo, {
+      montoReembolso: montoReembolso
+    })
+
+    if (listo) {
+      setModalConfirmarReembolso(false)
+      setReembolsoPendiente(null)
+      setMontoReembolso('')
     }
   }
 
@@ -424,6 +692,21 @@ export default function Pedidos() {
     window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank')
   }
 
+
+  const enviarMensajePedidoDirecto = (pedido) => {
+    setMenuAccionesAbierto(null)
+    setMenuEstadoAbierto(null)
+    const telefono = obtenerTelefonoWhatsApp(pedido?.clientes?.telefono)
+
+    if (!telefono) {
+      mostrarToast('Este cliente no tiene teléfono', 'error')
+      return
+    }
+
+    const mensaje = encodeURIComponent(generarMensajeEstado(pedido))
+    window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank')
+  }
+
   const copiarMensaje = async () => {
     if (!pedidoMensaje) return
 
@@ -437,6 +720,8 @@ export default function Pedidos() {
   }
 
   const eliminarPedido = async (id) => {
+    setMenuAccionesAbierto(null)
+    setMenuEstadoAbierto(null)
     if (bloquearSiNoPuede()) return
 
     const confirmar = confirm('¿Seguro que quieres eliminar este pedido?')
@@ -466,28 +751,56 @@ export default function Pedidos() {
     }
   }
 
-  const pedidosFiltrados = pedidos.filter((pedido) => {
-    const texto = busqueda.toLowerCase()
-    const estadoNormal = normalizarEstado(pedido.estado)
-    const plataformaPedido = pedido.plataforma || 'SHEIN'
-    const pagoTexto = obtenerEstadoPago(pedido).texto.toLowerCase()
 
-    const coincideBusqueda =
-      pedido.codigo?.toLowerCase().includes(texto) ||
-      plataformaPedido.toLowerCase().includes(texto) ||
-      pedido.clientes?.nombre?.toLowerCase().includes(texto) ||
-      pedido.clientes?.telefono?.toLowerCase().includes(texto) ||
-      estadoNormal?.toLowerCase().includes(texto) ||
-      pagoTexto.includes(texto)
+  const seleccionarEstadoPedido = async (pedido, estado) => {
+    setMenuEstadoAbierto(null)
+    await cambiarEstado(pedido, estado)
+  }
 
-    const coincideEstado =
-      filtroEstado === 'Todos' || estadoNormal === filtroEstado
+  const renderEstadoControl = (pedido, compacto = false) => {
+    const estadoActual = normalizarEstado(pedido?.estado)
+    const menuAbierto = menuEstadoAbierto === pedido.id
 
-    const coincidePlataforma =
-      filtroPlataforma === 'Todas' || plataformaPedido === filtroPlataforma
+    return (
+      <div className={`order-status-menu-wrap ${compacto ? 'mobile-order-status-wrap' : ''}`}>
+        <button
+          type="button"
+          className={`order-status-button ${estadoClase(estadoActual)} ${compacto ? 'mobile-order-status-button' : ''}`}
+          onClick={() => {
+            if (bloqueado || estaProcesando) return
+            setMenuAccionesAbierto(null)
+            setMenuEstadoAbierto(menuAbierto ? null : pedido.id)
+          }}
+          disabled={bloqueado || estaProcesando}
+          aria-haspopup="menu"
+          aria-expanded={menuAbierto}
+          title={estadoActual}
+        >
+          <span className="order-status-dot" />
+          <span className="order-status-text">{estadoActual}</span>
+          <span className="order-status-chevron">▾</span>
+        </button>
 
-    return coincideBusqueda && coincideEstado && coincidePlataforma
-  })
+        {menuAbierto && (
+          <div className="order-status-options" role="menu">
+            {estadosPedido.map((estado) => (
+              <button
+                type="button"
+                key={estado}
+                className={estadoActual === estado ? 'active' : ''}
+                onClick={() => seleccionarEstadoPedido(pedido, estado)}
+                role="menuitem"
+              >
+                {estado}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const pedidosFiltrados = pedidos
 
   const filtrosActivos =
     busqueda.trim() !== '' ||
@@ -498,7 +811,19 @@ export default function Pedidos() {
     setBusqueda('')
     setFiltroEstado('Todos')
     setFiltroPlataforma('Todas')
+    setPagina(1)
   }
+
+  const irPaginaAnterior = () => {
+    setPagina((actual) => Math.max(1, actual - 1))
+  }
+
+  const irPaginaSiguiente = () => {
+    setPagina((actual) => Math.min(totalPaginas, actual + 1))
+  }
+
+  const desdeVisible = totalPedidos === 0 ? 0 : ((pagina - 1) * tamanoPagina) + 1
+  const hastaVisible = Math.min(pagina * tamanoPagina, totalPedidos)
 
   return (
     <Layout>
@@ -514,15 +839,21 @@ export default function Pedidos() {
             <div className="pedidos-title-line">
               <h1>Pedidos</h1>
 
-              {puedeCrearPedido(estadoPlan) ? (
-                <Link to="/nuevo-pedido" className="btn btn-primary btn-new-order-small">
-                  Nuevo pedido
+              <div className="pedidos-title-actions">
+                {puedeCrearPedido(estadoPlan) ? (
+                  <Link to="/nuevo-pedido" className="btn btn-primary btn-new-order-small">
+                    Nuevo pedido
+                  </Link>
+                ) : (
+                  <Link to="/planes" className="btn btn-light-bordered btn-new-order-small">
+                    Actualizar plan
+                  </Link>
+                )}
+
+                <Link to="/compras" className="btn btn-light-bordered btn-buy-lote-small">
+                  Registrar compras en plataforma
                 </Link>
-              ) : (
-                <Link to="/planes" className="btn btn-light-bordered btn-new-order-small">
-                  Actualizar plan
-                </Link>
-              )}
+              </div>
             </div>
 
             <p>Lista de pedidos registrados</p>
@@ -599,6 +930,18 @@ export default function Pedidos() {
             </select>
           </div>
 
+          <div className="form-field">
+            <label>Mostrar por página</label>
+            <select
+              value={tamanoPagina}
+              onChange={(e) => setTamanoPagina(Number(e.target.value))}
+            >
+              {PAGE_SIZE_OPTIONS.map((opcion) => (
+                <option key={opcion} value={opcion}>{opcion}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="modal-actions modal-actions-wrap filters-modal-actions">
             <button
               type="button"
@@ -619,12 +962,15 @@ export default function Pedidos() {
         </div>
       </Modal>
 
-      <div className="table-card desktop-table">
+      <div className="table-card desktop-table pedidos-table-card">
         <div className="row-between table-title">
-          <h2>Pedidos encontrados: {pedidosFiltrados.length}</h2>
+          <h2>Pedidos encontrados: {totalPedidos}</h2>
+          <span className="pagination-range">
+            {cargandoPedidos ? 'Actualizando...' : `${desdeVisible}-${hastaVisible} de ${totalPedidos}`}
+          </span>
         </div>
 
-        <table>
+        <table className="pedidos-table">
           <thead>
             <tr>
               <th>Código</th>
@@ -636,58 +982,90 @@ export default function Pedidos() {
               <th>Total cliente</th>
               <th>Anticipo</th>
               <th>Restante</th>
-              <th>Ganancia</th>
-              <th>Tracking</th>
-              <th>Acciones</th>
+              <th className="actions-th">Acciones</th>
             </tr>
           </thead>
 
           <tbody>
-            {pedidosFiltrados.map((pedido) => (
-              <tr key={pedido.id} className={esEstadoReembolso(pedido.estado) ? 'refund-censored-row' : ''}>
-                <td>{pedido.codigo}</td>
-                <td>{pedido.plataforma || 'SHEIN'}</td>
-                <td>{pedido.clientes?.nombre || 'Sin cliente'}</td>
-                <td>{pedido.clientes?.telefono || '-'}</td>
-                <td>
-                  <select
-                    value={normalizarEstado(pedido.estado)}
-                    onChange={(e) => cambiarEstado(pedido, e.target.value)}
-                    disabled={bloqueado || estaProcesando}
-                  >
-                    {estadosPedido.map((estado) => (
-                      <option key={estado}>{estado}</option>
-                    ))}
-                  </select>
-                </td>
-                <td>{renderPagoBadge(pedido, true)}</td>
-                <td>${Number(pedido.total_cliente || 0).toFixed(2)}</td>
-                <td>${Number(pedido.anticipo || 0).toFixed(2)}</td>
-                <td>${Number(pedido.restante || 0).toFixed(2)}</td>
-                <td>${Number(pedido.ganancia || 0).toFixed(2)}</td>
-                <td>{pedido.tracking || '-'}</td>
-                <td className="actions">
-                  <Link
-                    to={`/pedidos/${pedido.id}`}
-                    className="btn btn-small"
-                  >
-                    Ver
-                  </Link>
+            {pedidosFiltrados.map((pedido) => {
+              const progresoPedido = renderProgresoProductos(pedido)
+              const menuAbierto = menuAccionesAbierto === pedido.id
 
-                  <button
-                    onClick={() => eliminarPedido(pedido.id)}
-                    className="btn btn-danger btn-small"
-                    disabled={bloqueado || estaProcesando}
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
+              return (
+                <Fragment key={pedido.id}>
+                  <tr className={esEstadoReembolso(pedido.estado) ? 'refund-censored-row' : ''} data-refund-label={esEstadoReembolso(pedido.estado) ? obtenerEtiquetaReembolso(pedido.estado) : undefined}>
+                    <td className="order-code-cell">{pedido.codigo}</td>
+                    <td>{pedido.plataforma || 'SHEIN'}</td>
+                    <td>{pedido.clientes?.nombre || 'Sin cliente'}</td>
+                    <td>{pedido.clientes?.telefono || '-'}</td>
+                    <td className="status-cell">
+                      {renderEstadoControl(pedido)}
+                    </td>
+                    <td>{renderPagoBadge(pedido, true)}</td>
+                    <td>{formatearDinero(pedido.total_cliente)}</td>
+                    <td>{formatearDinero(pedido.anticipo)}</td>
+                    <td>{formatearDinero(pedido.restante)}</td>
+                    <td className="actions actions-compact actions-menu-cell">
+                      <Link
+                        to={`/pedidos/${pedido.id}`}
+                        className="btn btn-small btn-action-view"
+                      >
+                        Ver
+                      </Link>
+
+                      <div className="order-actions-dropdown-wrap">
+                        <button
+                          type="button"
+                          className="btn btn-light-bordered btn-small btn-action-more"
+                          onClick={() => {
+                            setMenuEstadoAbierto(null)
+                            setMenuAccionesAbierto(menuAbierto ? null : pedido.id)
+                          }}
+                          aria-haspopup="menu"
+                          aria-expanded={menuAbierto}
+                        >
+                          Más ▾
+                        </button>
+
+                        {menuAbierto && (
+                          <div className="order-actions-dropdown" role="menu">
+                            <button
+                              type="button"
+                              onClick={() => enviarMensajePedidoDirecto(pedido)}
+                              role="menuitem"
+                            >
+                              Enviar mensaje
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => eliminarPedido(pedido.id)}
+                              className="danger"
+                              disabled={bloqueado || estaProcesando}
+                              role="menuitem"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+
+                  {progresoPedido && (
+                    <tr className="order-progress-table-row">
+                      <td colSpan="10">
+                        {progresoPedido}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
 
             {pedidosFiltrados.length === 0 && (
               <tr>
-                <td colSpan="12">No se encontraron pedidos.</td>
+                <td colSpan="10">No se encontraron pedidos.</td>
               </tr>
             )}
           </tbody>
@@ -696,89 +1074,59 @@ export default function Pedidos() {
 
       <div className="mobile-list">
         <div className="mobile-list-title">
-          <h2>Pedidos encontrados: {pedidosFiltrados.length}</h2>
+          <h2>Pedidos encontrados: {totalPedidos}</h2>
+          <span className="pagination-range">
+            {cargandoPedidos ? 'Actualizando...' : `${desdeVisible}-${hastaVisible} de ${totalPedidos}`}
+          </span>
         </div>
 
         {pedidosFiltrados.map((pedido) => (
-          <div className={`mobile-card ${esEstadoReembolso(pedido.estado) ? 'refund-censored-card' : ''}`} key={pedido.id}>
-            <div className="mobile-card-header">
-              <div>
+          <div className={`mobile-card mobile-order-card-compact ${esEstadoReembolso(pedido.estado) ? 'refund-censored-card' : ''}`} data-refund-label={esEstadoReembolso(pedido.estado) ? obtenerEtiquetaReembolso(pedido.estado) : undefined} key={pedido.id}>
+            <div className="mobile-order-compact-head mobile-order-compact-head-v13">
+              <div className="mobile-order-main-info">
+                <span>Orden</span>
                 <h3>{pedido.codigo}</h3>
-                <p>{pedido.plataforma || 'SHEIN'} · {pedido.clientes?.nombre || 'Sin cliente'}</p>
+                <p className="mobile-order-client-name">{pedido.clientes?.nombre || 'Sin cliente'}</p>
               </div>
 
-              <div className="mobile-card-badges">
-                <span className={`badge ${estadoClase(pedido.estado)}`}>
-                  {normalizarEstado(pedido.estado)}
-                </span>
-
-                {renderPagoBadge(pedido, true)}
+              <div className="mobile-order-payment-top">
+                {renderPagoBadge(pedido, true, 'mobile')}
               </div>
             </div>
 
-            <div className="mobile-card-info">
-              <div>
-                <span>Plataforma</span>
-                <strong>{pedido.plataforma || 'SHEIN'}</strong>
-              </div>
+            <div className="mobile-order-state-row">
+              {renderEstadoControl(pedido, true)}
+            </div>
 
+            <div className="mobile-order-compact-money">
               <div>
                 <span>Total</span>
-                <strong>${Number(pedido.total_cliente || 0).toFixed(2)}</strong>
-              </div>
-
-              <div>
-                <span>Pagado</span>
-                <strong>${Number(pedido.anticipo || 0).toFixed(2)}</strong>
+                <strong>{formatearDinero(pedido.total_cliente)}</strong>
               </div>
 
               <div>
                 <span>Restante</span>
-                <strong>${Number(pedido.restante || 0).toFixed(2)}</strong>
-              </div>
-
-              <div>
-                <span>Ganancia</span>
-                <strong>${Number(pedido.ganancia || 0).toFixed(2)}</strong>
-              </div>
-
-              <div>
-                <span>Tracking</span>
-                <strong>{pedido.tracking || '-'}</strong>
+                <strong>{formatearDinero(pedido.restante)}</strong>
               </div>
             </div>
 
-            <div className="mobile-status-select">
-              <label>Estado</label>
-              <select
-                value={normalizarEstado(pedido.estado)}
-                onChange={(e) => cambiarEstado(pedido, e.target.value)}
-                disabled={bloqueado || estaProcesando}
-              >
-                {estadosPedido.map((estado) => (
-                  <option key={estado}>{estado}</option>
-                ))}
-              </select>
-            </div>
+            {renderProgresoProductos(pedido, true)}
 
-            <div className="mobile-card-actions">
+            <div className="mobile-card-actions mobile-order-actions-compact">
               <Link
                 to={`/pedidos/${pedido.id}`}
                 className="btn btn-primary"
               >
-                Ver pedido
+                Ver
               </Link>
 
-              {pedido.clientes?.telefono && (
-                <a
-                  href={`https://wa.me/${obtenerTelefonoWhatsApp(pedido.clientes.telefono)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-light-bordered"
-                >
-                  WhatsApp
-                </a>
-              )}
+              <button
+                type="button"
+                onClick={() => enviarMensajePedidoDirecto(pedido)}
+                className="btn btn-light-bordered"
+              >
+                Mensaje
+              </button>
 
               <button
                 onClick={() => eliminarPedido(pedido.id)}
@@ -797,6 +1145,141 @@ export default function Pedidos() {
           </div>
         )}
       </div>
+
+      {totalPedidos > tamanoPagina && (
+        <div className="pagination-card">
+          <button type="button" className="btn btn-light-bordered" onClick={irPaginaAnterior} disabled={pagina <= 1 || cargandoPedidos}>
+            Anterior
+          </button>
+
+          <div>
+            <strong>Página {pagina} de {totalPaginas}</strong>
+            <span>{desdeVisible}-{hastaVisible} de {totalPedidos}</span>
+          </div>
+
+          <button type="button" className="btn btn-light-bordered" onClick={irPaginaSiguiente} disabled={pagina >= totalPaginas || cargandoPedidos}>
+            Siguiente
+          </button>
+        </div>
+      )}
+
+      <Modal
+        abierto={modalConfirmarEntrega}
+        titulo="Confirmar entrega"
+        onClose={() => {
+          if (estaProcesando) return
+          setModalConfirmarEntrega(false)
+          setEntregaPendiente(null)
+        }}
+      >
+        {entregaPendiente?.pedido && (
+          <div className="confirm-delivery-modal">
+            <p className="muted">
+              Este pedido tiene saldo pendiente. Confirma que el cliente pagó el restante para marcarlo como entregado.
+            </p>
+
+            <div className="confirm-delivery-amount">
+              <span>Restante a cobrar</span>
+              <strong>{formatearDinero(entregaPendiente.montoRestante)}</strong>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-light-bordered"
+                onClick={() => {
+                  setModalConfirmarEntrega(false)
+                  setEntregaPendiente(null)
+                }}
+                disabled={estaProcesando}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={confirmarEntregaPedidoLista}
+                disabled={bloqueado || estaProcesando}
+              >
+                {accionEnProceso || 'Confirmar pago y entrega'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        abierto={modalConfirmarReembolso}
+        titulo={`Confirmar ${reembolsoPendiente?.estadoNuevo || 'reembolso'}`}
+        onClose={() => {
+          if (estaProcesando) return
+          setModalConfirmarReembolso(false)
+          setReembolsoPendiente(null)
+          setMontoReembolso('')
+        }}
+      >
+        {reembolsoPendiente?.pedido && (
+          <div className="refund-confirm-modal">
+            <p className="muted">
+              Este pedido quedará como {reembolsoPendiente.estadoNuevo} y no contará para métricas.
+            </p>
+
+            <div className="confirm-delivery-amount">
+              <span>Pagado por el cliente</span>
+              <strong>{formatearDinero(reembolsoPendiente.montoPagado)}</strong>
+            </div>
+
+            <div className="refund-quick-actions">
+              <button type="button" className="btn btn-light-bordered" onClick={() => aplicarMontoReembolsoRapido('todo')} disabled={estaProcesando}>
+                Devolví todo
+              </button>
+              <button type="button" className="btn btn-light-bordered" onClick={() => aplicarMontoReembolsoRapido('mitad')} disabled={estaProcesando}>
+                Devolví la mitad
+              </button>
+              <button type="button" className="btn btn-light-bordered" onClick={() => aplicarMontoReembolsoRapido('nada')} disabled={estaProcesando}>
+                No devolví nada
+              </button>
+            </div>
+
+            <label className="form-field">
+              <span>Cuánto devolviste</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={montoReembolso}
+                onChange={(e) => setMontoReembolso(e.target.value)}
+                disabled={estaProcesando}
+              />
+            </label>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-light-bordered"
+                onClick={() => {
+                  setModalConfirmarReembolso(false)
+                  setReembolsoPendiente(null)
+                  setMontoReembolso('')
+                }}
+                disabled={estaProcesando}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={confirmarReembolsoPedidoLista}
+                disabled={bloqueado || estaProcesando}
+              >
+                {accionEnProceso || 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         abierto={modalMensaje}

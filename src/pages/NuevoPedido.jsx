@@ -13,6 +13,7 @@ const crearProductoVacio = () => ({
   talla: '',
   color: '',
   cantidad: 1,
+  precio_pagina: '',
   precio_shein: '',
   precio_venta: ''
 })
@@ -25,6 +26,8 @@ export default function NuevoPedido() {
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
   const [modalClienteAbierto, setModalClienteAbierto] = useState(false)
   const [guardandoCliente, setGuardandoCliente] = useState(false)
+  const [guardandoPedido, setGuardandoPedido] = useState(false)
+  const guardandoPedidoRef = useRef(false)
   const buscadorClienteRef = useRef(null)
 
   const [nuevoCliente, setNuevoCliente] = useState({
@@ -52,9 +55,9 @@ export default function NuevoPedido() {
 
   const estadosPedido = [
     'Cotizado',
-    'Comprado en plataforma',
-    'En camino',
+      'En camino',
     'Recibido',
+    'Dejado en negocio',
     'Entregado',
     'Cancelado',
     'Devuelto'
@@ -282,11 +285,12 @@ export default function NuevoPedido() {
       const numeroProducto = index + 1
       const nombreProducto = producto.nombre_producto.trim()
       const cantidadTexto = String(producto.cantidad ?? '').trim()
+      const paginaTexto = String(producto.precio_pagina ?? '').trim()
       const costoTexto = String(producto.precio_shein ?? '').trim()
-      const ventaTexto = String(producto.precio_venta ?? '').trim()
       const cant = Number(cantidadTexto)
-      const costoUnitario = Number(costoTexto)
-      const ventaUnitario = Number(ventaTexto)
+      const precioPagina = Number(paginaTexto)
+      const costoUnitario = costoTexto === '' ? precioPagina : Number(costoTexto)
+      const ventaUnitario = precioPagina
 
       if (!nombreProducto) {
         throw new Error(`Escribe el nombre del producto ${numeroProducto}`)
@@ -296,12 +300,12 @@ export default function NuevoPedido() {
         throw new Error(`Escribe una cantidad válida en el producto ${numeroProducto}`)
       }
 
-      if (!costoTexto || !Number.isFinite(costoUnitario) || costoUnitario < 0) {
-        throw new Error(`Escribe el costo de plataforma del producto ${numeroProducto}`)
+      if (!paginaTexto || !Number.isFinite(precioPagina) || precioPagina < 0) {
+        throw new Error(`Escribe el precio de página del producto ${numeroProducto}`)
       }
 
-      if (!ventaTexto || !Number.isFinite(ventaUnitario) || ventaUnitario < 0) {
-        throw new Error(`Escribe el precio de venta del producto ${numeroProducto}`)
+      if (costoTexto !== '' && (!Number.isFinite(costoUnitario) || costoUnitario < 0)) {
+        throw new Error(`Escribe un costo real válido en el producto ${numeroProducto}`)
       }
 
       productosListos.push({
@@ -310,6 +314,7 @@ export default function NuevoPedido() {
         talla: producto.talla.trim(),
         color: producto.color.trim(),
         cantidad: cant,
+        precio_pagina: precioPagina,
         precio_shein: costoUnitario,
         precio_venta: ventaUnitario
       })
@@ -318,8 +323,22 @@ export default function NuevoPedido() {
     return productosListos
   }
 
+  const limpiarPedidoIncompleto = async (pedidoId) => {
+    if (!pedidoId) return
+
+    try {
+      await supabase.from('pagos').delete().eq('pedido_id', pedidoId)
+      await supabase.from('productos_pedido').delete().eq('pedido_id', pedidoId)
+      await supabase.from('pedidos').delete().eq('id', pedidoId)
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
   const guardarPedido = async (e) => {
     e.preventDefault()
+
+    if (guardandoPedidoRef.current) return
 
     if (!puedeCrearPedido(estadoPlan)) {
       mostrarToast('Llegaste al límite de pedidos del Plan Básico. Actualiza a Premium para crear más pedidos.', 'error')
@@ -342,11 +361,11 @@ export default function NuevoPedido() {
     }
 
     const totalShein = productosParaGuardar.reduce((total, producto) => {
-      return total + (Number(producto.precio_shein || 0) * Number(producto.cantidad || 0))
+      return total + (Number(producto.precio_shein || producto.precio_pagina || 0) * Number(producto.cantidad || 0))
     }, 0)
 
     const totalCliente = productosParaGuardar.reduce((total, producto) => {
-      return total + (Number(producto.precio_venta || 0) * Number(producto.cantidad || 0))
+      return total + (Number(producto.precio_venta || producto.precio_pagina || 0) * Number(producto.cantidad || 0))
     }, 0)
 
     const pagoInicial = Number(anticipo || 0)
@@ -361,89 +380,50 @@ export default function NuevoPedido() {
       return
     }
 
-    const restante = totalCliente - pagoInicial
-    const ganancia = totalCliente - totalShein
-
-    let codigoGenerado = ''
+    guardandoPedidoRef.current = true
+    setGuardandoPedido(true)
 
     try {
-      codigoGenerado = await generarCodigo()
+      const { data: pedidoCreado, error: errorPedidoCompleto } = await supabase.rpc('crear_pedido_completo', {
+        p_cliente_id: clienteId,
+        p_plataforma: plataforma,
+        p_estado: estado,
+        p_tracking: tracking.trim(),
+        p_notas: notas.trim(),
+        p_productos: productosParaGuardar,
+        p_anticipo: pagoInicial
+      })
+
+      if (errorPedidoCompleto) {
+        console.log(errorPedidoCompleto)
+        const mensaje = errorPedidoCompleto.message?.includes('function crear_pedido_completo')
+          ? 'Primero ejecuta el SQL de la Parte 2 en Supabase.'
+          : errorPedidoCompleto.message || 'No se pudo crear el pedido completo'
+        mostrarToast(mensaje, 'error')
+        return
+      }
+
+      await cargarPlan()
+      window.dispatchEvent(new CustomEvent('planActualizado'))
+      mostrarToast(`Pedido ${pedidoCreado?.codigo || ''} creado correctamente`)
+      setTimeout(() => {
+        window.location.href = '/pedidos'
+      }, 900)
     } catch (error) {
-      mostrarToast(error.message, 'error')
-      return
+      console.log(error)
+      mostrarToast(error.message || 'No se pudo crear el pedido', 'error')
+    } finally {
+      guardandoPedidoRef.current = false
+      setGuardandoPedido(false)
     }
-
-    const { data: pedido, error: errorPedido } = await supabase
-      .from('pedidos')
-      .insert([
-        {
-          cliente_id: clienteId,
-          codigo: codigoGenerado,
-          plataforma,
-          estado,
-          total_shein: totalShein,
-          total_cliente: totalCliente,
-          anticipo: pagoInicial,
-          restante,
-          ganancia,
-          tracking,
-          notas
-        }
-      ])
-      .select()
-      .single()
-
-    if (errorPedido) {
-      console.log(errorPedido)
-      const mensajeLimite = errorPedido.message?.includes('Límite')
-        ? 'Llegaste al límite de pedidos del Plan Básico. Actualiza a Premium para crear más pedidos.'
-        : 'Error al crear pedido'
-      mostrarToast(mensajeLimite, 'error')
-      return
-    }
-
-    const { error: errorProducto } = await supabase
-      .from('productos_pedido')
-      .insert(
-        productosParaGuardar.map((producto) => ({
-          pedido_id: pedido.id,
-          ...producto
-        }))
-      )
-
-    if (errorProducto) {
-      console.log(errorProducto)
-      mostrarToast('El pedido se creó, pero hubo error al guardar los productos', 'error')
-      return
-    }
-
-    if (pagoInicial > 0) {
-      await supabase
-        .from('pagos')
-        .insert([
-          {
-            pedido_id: pedido.id,
-            monto: pagoInicial,
-            metodo_pago: 'Anticipo',
-            notas: 'Pago inicial'
-          }
-        ])
-    }
-
-    await cargarPlan()
-    window.dispatchEvent(new CustomEvent('planActualizado'))
-    mostrarToast(`Pedido ${codigoGenerado} creado correctamente`)
-    setTimeout(() => {
-      window.location.href = '/pedidos'
-    }, 900)
   }
 
   const totalSheinPreview = productos.reduce((total, producto) => {
-    return total + (Number(producto.precio_shein || 0) * Number(producto.cantidad || 0))
+    return total + (Number(producto.precio_shein || producto.precio_pagina || 0) * Number(producto.cantidad || 0))
   }, 0)
 
   const totalClientePreview = productos.reduce((total, producto) => {
-    return total + (Number(producto.precio_venta || 0) * Number(producto.cantidad || 0))
+    return total + (Number(producto.precio_venta || producto.precio_pagina || 0) * Number(producto.cantidad || 0))
   }, 0)
 
   const gananciaPreview = totalClientePreview - totalSheinPreview
@@ -606,7 +586,7 @@ export default function NuevoPedido() {
                   type="button"
                   className="client-suggestion client-suggestion-add"
                   onClick={abrirModalNuevoCliente}
-                  disabled={bloqueado}
+                  disabled={bloqueado || guardandoPedido}
                 >
                   + Registrar nuevo cliente
                 </button>
@@ -677,7 +657,7 @@ export default function NuevoPedido() {
             type="button"
             className="btn btn-light-bordered btn-add-product"
             onClick={agregarProducto}
-            disabled={bloqueado}
+            disabled={bloqueado || guardandoPedido}
           >
             + Agregar otro producto
           </button>
@@ -746,28 +726,30 @@ export default function NuevoPedido() {
                 </div>
 
                 <div className="form-field">
-                  <label>Costo plataforma unitario*</label>
+                  <label>Precio página unitario*</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={producto.precio_pagina}
+                    onChange={(e) => actualizarProducto(producto.id, 'precio_pagina', e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label>Costo real unitario</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={producto.precio_shein}
                     onChange={(e) => actualizarProducto(producto.id, 'precio_shein', e.target.value)}
-                    required
+                    placeholder="Se calcula al crear lote"
                   />
+                  <small className="field-help-text">Déjalo vacío si todavía no compras. Ordely usará el precio de página como estimado.</small>
                 </div>
 
-                <div className="form-field">
-                  <label>Precio venta unitario*</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={producto.precio_venta}
-                    onChange={(e) => actualizarProducto(producto.id, 'precio_venta', e.target.value)}
-                    required
-                  />
-                </div>
               </div>
             </div>
           ))}
@@ -788,7 +770,7 @@ export default function NuevoPedido() {
 
         <div className="cards-grid">
           <div className="card">
-            <span>Costo plataforma</span>
+            <span>Costo estimado</span>
             <strong>${totalSheinPreview.toFixed(2)}</strong>
           </div>
 
@@ -798,7 +780,7 @@ export default function NuevoPedido() {
           </div>
 
           <div className="card">
-            <span>Ganancia</span>
+            <span>Ganancia estimada</span>
             <strong>${gananciaPreview.toFixed(2)}</strong>
           </div>
 
@@ -808,8 +790,8 @@ export default function NuevoPedido() {
           </div>
         </div>
 
-        <button className="btn btn-primary" disabled={!puedeCrearPedido(estadoPlan)}>
-          {!puedeCrearPedido(estadoPlan) ? 'Límite alcanzado' : 'Guardar pedido'}
+        <button className="btn btn-primary" disabled={guardandoPedido || !puedeCrearPedido(estadoPlan)}>
+          {guardandoPedido ? 'Guardando pedido...' : (!puedeCrearPedido(estadoPlan) ? 'Límite alcanzado' : 'Guardar pedido')}
         </button>
       </form>
     </Layout>

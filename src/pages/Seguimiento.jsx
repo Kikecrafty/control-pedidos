@@ -13,7 +13,8 @@ export default function Seguimiento() {
   }, [token])
 
   const normalizarEstado = (estado) => {
-    if (estado === 'Comprado en SHEIN') return 'Comprado en plataforma'
+    if (estado === 'Comprado en SHEIN') return 'En camino'
+    if (estado === 'Comprado en plataforma') return 'En camino'
     if (estado === 'Pendiente de pago') return 'Cotizado'
     if (estado === 'Pagado por cliente') return 'Cotizado'
     return estado || 'Cotizado'
@@ -44,7 +45,7 @@ export default function Seguimiento() {
       return { tipo: 'partial', texto: 'Pagado parcialmente' }
     }
 
-    return { tipo: 'pending', texto: 'Pendiente' }
+    return { tipo: 'pending', texto: 'Pago pendiente' }
   }
 
   const renderPagoBadge = () => {
@@ -70,14 +71,25 @@ export default function Seguimiento() {
     const estadoNormal = normalizarEstado(estado)
 
     if (estadoNormal === 'Cotizado') return 'badge-gray'
-    if (estadoNormal === 'Comprado en plataforma') return 'badge-dark'
     if (estadoNormal === 'En camino') return 'badge-purple'
     if (estadoNormal === 'Recibido') return 'badge-green-soft'
+    if (estadoNormal === 'Dejado en negocio') return 'badge-blue'
     if (estadoNormal === 'Entregado') return 'badge-green-strong'
     if (estadoNormal === 'Cancelado') return 'badge-red-soft'
     if (estadoNormal === 'Devuelto') return 'badge-red-strong'
 
     return 'badge-gray'
+  }
+
+  const estadoProductoCliente = (producto) => {
+    if (producto.entregado || producto.estado_compra === 'Entregado') return 'Entregado'
+    if (producto.estado_compra === 'Dejado en negocio') return 'Listo para recoger'
+    if (producto.estado_compra === 'Recibido') return 'Recibido por vendedor'
+    if (producto.estado_compra === 'Comprado' || producto.estado_compra === 'En camino') {
+      if (producto.fecha_estimada_llegada) return `En camino · estimado ${producto.fecha_estimada_llegada}`
+      return 'En camino'
+    }
+    return 'Pendiente de compra'
   }
 
   const cargarSeguimiento = async () => {
@@ -181,6 +193,7 @@ export default function Seguimiento() {
               <div>
                 <h3>{producto.nombre_producto || 'Producto'}</h3>
                 <p>{producto.talla || 'Sin talla'} · {producto.color || 'Sin color'}</p>
+                <span className="tracking-product-status">{estadoProductoCliente(producto)}</span>
               </div>
 
               <strong>x{producto.cantidad || 1}</strong>

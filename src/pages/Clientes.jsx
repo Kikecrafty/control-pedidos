@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import Toast from '../components/Toast'
 import PlanLimitNotice from '../components/PlanLimitNotice'
 import { cargarEstadoPlan, estaBloqueadoPorPlan } from '../lib/planes'
+
+const PAGE_SIZE_OPTIONS = [25, 50, 100]
+const CLIENTES_CACHE_LIMIT = 50
 
 const obtenerIdUsuarioCache = () => {
   if (typeof window === 'undefined') return 'sin_usuario'
@@ -48,7 +51,7 @@ const guardarClientesCache = (clientes) => {
     localStorage.setItem(
       cacheKeyClientes(),
       JSON.stringify({
-        clientes,
+        clientes: (clientes || []).slice(0, CLIENTES_CACHE_LIMIT),
         guardado_en: new Date().toISOString()
       })
     )
@@ -57,13 +60,20 @@ const guardarClientesCache = (clientes) => {
   }
 }
 
-
 export default function Clientes() {
   const [clientes, setClientes] = useState(() => leerClientesCache())
+  const [totalClientes, setTotalClientes] = useState(() => leerClientesCache().length)
+  const [pagina, setPagina] = useState(1)
+  const [tamanoPagina, setTamanoPagina] = useState(25)
+  const [busqueda, setBusqueda] = useState('')
+  const [cargandoClientes, setCargandoClientes] = useState(false)
+
   const [estadoPlan, setEstadoPlan] = useState(null)
   const [modalCliente, setModalCliente] = useState(false)
   const [clienteEditando, setClienteEditando] = useState(null)
   const [toast, setToast] = useState(null)
+  const accionEnProcesoRef = useRef(false)
+  const [accionEnProceso, setAccionEnProceso] = useState('')
 
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -71,9 +81,20 @@ export default function Clientes() {
   const [notas, setNotas] = useState('')
 
   useEffect(() => {
-    cargarClientes()
     cargarPlan()
   }, [])
+
+  useEffect(() => {
+    cargarClientes()
+  }, [pagina, tamanoPagina, busqueda])
+
+  useEffect(() => {
+    setPagina(1)
+  }, [busqueda, tamanoPagina])
+
+  const totalPaginas = useMemo(() => {
+    return Math.max(1, Math.ceil(totalClientes / tamanoPagina))
+  }, [totalClientes, tamanoPagina])
 
   const cargarPlan = async () => {
     const estado = await cargarEstadoPlan()
@@ -85,6 +106,20 @@ export default function Clientes() {
   const mostrarToast = (mensaje, tipo = 'success') => {
     setToast({ mensaje, tipo })
   }
+
+  const iniciarAccion = (mensaje = 'Procesando...') => {
+    if (accionEnProcesoRef.current) return false
+    accionEnProcesoRef.current = true
+    setAccionEnProceso(mensaje)
+    return true
+  }
+
+  const finalizarAccion = () => {
+    accionEnProcesoRef.current = false
+    setAccionEnProceso('')
+  }
+
+  const estaProcesando = Boolean(accionEnProceso)
 
   const bloquearSiNoPuede = () => {
     if (!bloqueado) return false
@@ -103,10 +138,26 @@ export default function Clientes() {
   }
 
   const cargarClientes = async () => {
-    const { data, error } = await supabase
+    setCargandoClientes(true)
+
+    const desde = (pagina - 1) * tamanoPagina
+    const hasta = desde + tamanoPagina - 1
+    const texto = busqueda.trim()
+
+    let consulta = supabase
       .from('clientes')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('creado_en', { ascending: false })
+      .range(desde, hasta)
+
+    if (texto) {
+      const limpio = texto.replace(/[%_]/g, '')
+      consulta = consulta.or(`nombre.ilike.%${limpio}%,telefono.ilike.%${limpio}%,direccion.ilike.%${limpio}%,notas.ilike.%${limpio}%`)
+    }
+
+    const { data, error, count } = await consulta
+
+    setCargandoClientes(false)
 
     if (error) {
       console.log(error)
@@ -116,6 +167,7 @@ export default function Clientes() {
 
     const clientesFinal = data || []
     setClientes(clientesFinal)
+    setTotalClientes(count || 0)
     guardarClientesCache(clientesFinal)
   }
 
@@ -144,6 +196,7 @@ export default function Clientes() {
   }
 
   const cerrarModalCliente = () => {
+    if (estaProcesando) return
     setModalCliente(false)
     limpiarFormulario()
   }
@@ -152,6 +205,7 @@ export default function Clientes() {
     e.preventDefault()
 
     if (bloquearSiNoPuede()) return
+    if (accionEnProcesoRef.current) return
 
     const telefonoFinal = normalizarTelefono(telefono)
 
@@ -165,76 +219,128 @@ export default function Clientes() {
       return
     }
 
-    if (clienteEditando) {
-      const { error } = await supabase
-        .from('clientes')
-        .update({
-          nombre: nombre.trim(),
-          telefono: telefonoFinal,
-          direccion,
-          notas
-        })
-        .eq('id', clienteEditando.id)
+    if (!iniciarAccion(clienteEditando ? 'Guardando cambios...' : 'Guardando cliente...')) return
 
-      if (error) {
-        console.log(error)
-        mostrarToast('Error al actualizar cliente', 'error')
+    try {
+      if (clienteEditando) {
+        const { error } = await supabase
+          .from('clientes')
+          .update({
+            nombre: nombre.trim(),
+            telefono: telefonoFinal,
+            direccion,
+            notas
+          })
+          .eq('id', clienteEditando.id)
+
+        if (error) {
+          console.log(error)
+          mostrarToast('Error al actualizar cliente', 'error')
+          return
+        }
+
+        setModalCliente(false)
+        limpiarFormulario()
+        await cargarClientes()
+        mostrarToast('Cliente actualizado correctamente')
         return
       }
 
-      cerrarModalCliente()
+      const { error } = await supabase
+        .from('clientes')
+        .insert([
+          {
+            nombre: nombre.trim(),
+            telefono: telefonoFinal,
+            direccion,
+            notas
+          }
+        ])
+
+      if (error) {
+        console.log(error)
+        mostrarToast('Error al guardar cliente', 'error')
+        return
+      }
+
+      setModalCliente(false)
+      limpiarFormulario()
+      setBusqueda('')
+      setPagina(1)
       await cargarClientes()
-      mostrarToast('Cliente actualizado correctamente')
-      return
+      mostrarToast('Cliente agregado correctamente')
+    } finally {
+      finalizarAccion()
     }
-
-    const { error } = await supabase
-      .from('clientes')
-      .insert([
-        {
-          nombre: nombre.trim(),
-          telefono: telefonoFinal,
-          direccion,
-          notas
-        }
-      ])
-
-    if (error) {
-      console.log(error)
-      mostrarToast('Error al guardar cliente', 'error')
-      return
-    }
-
-    cerrarModalCliente()
-    await cargarClientes()
-    mostrarToast('Cliente agregado correctamente')
   }
 
   const eliminarCliente = async (id) => {
     if (bloquearSiNoPuede()) return
+    if (accionEnProcesoRef.current) return
 
     const confirmar = confirm('¿Seguro que quieres eliminar este cliente?')
 
     if (!confirmar) return
+    if (!iniciarAccion('Validando cliente...')) return
 
-    const { error } = await supabase
-      .from('clientes')
-      .delete()
-      .eq('id', id)
+    try {
+      const { count, error: errorConteo } = await supabase
+        .from('pedidos')
+        .select('id', { count: 'exact', head: true })
+        .eq('cliente_id', id)
 
-    if (error) {
-      console.log(error)
-      mostrarToast('Error al eliminar cliente', 'error')
-      return
+      if (errorConteo) {
+        console.log(errorConteo)
+        mostrarToast('No se pudo validar si el cliente tiene pedidos', 'error')
+        return
+      }
+
+      if ((count || 0) > 0) {
+        mostrarToast('Este cliente ya tiene pedidos. No se elimina para proteger el historial.', 'error')
+        return
+      }
+
+      setAccionEnProceso('Eliminando cliente...')
+
+      const { error } = await supabase
+        .from('clientes')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        console.log(error)
+        mostrarToast('Error al eliminar cliente', 'error')
+        return
+      }
+
+      const nuevaPagina = clientes.length === 1 && pagina > 1 ? pagina - 1 : pagina
+      setPagina(nuevaPagina)
+      await cargarClientes()
+      mostrarToast('Cliente eliminado correctamente')
+    } finally {
+      finalizarAccion()
     }
-
-    await cargarClientes()
-    mostrarToast('Cliente eliminado correctamente')
   }
 
   const limpiarTelefono = (telefono) => {
     return normalizarTelefono(telefono)
   }
+
+  const limpiarBusqueda = () => {
+    setBusqueda('')
+    setPagina(1)
+  }
+
+  const irPaginaAnterior = () => {
+    setPagina((actual) => Math.max(1, actual - 1))
+  }
+
+  const irPaginaSiguiente = () => {
+    setPagina((actual) => Math.min(totalPaginas, actual + 1))
+  }
+
+  const desdeVisible = totalClientes === 0 ? 0 : ((pagina - 1) * tamanoPagina) + 1
+  const hastaVisible = Math.min(pagina * tamanoPagina, totalClientes)
 
   return (
     <Layout>
@@ -250,14 +356,50 @@ export default function Clientes() {
           <p>Registra y administra tus clientes</p>
         </div>
 
-        <button className="btn btn-primary" onClick={abrirAgregarCliente} disabled={bloqueado}>
+        <button className="btn btn-primary" onClick={abrirAgregarCliente} disabled={bloqueado || estaProcesando}>
           Agregar cliente
         </button>
       </div>
 
       <PlanLimitNotice estadoPlan={estadoPlan} compacto />
 
+      <div className="list-toolbar-card">
+        <div className="form-field">
+          <label>Buscar cliente</label>
+          <input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Nombre, teléfono, dirección o notas"
+          />
+        </div>
+
+        <label className="form-field list-page-size-field">
+          <span>Mostrar</span>
+          <select
+            value={tamanoPagina}
+            onChange={(e) => setTamanoPagina(Number(e.target.value))}
+          >
+            {PAGE_SIZE_OPTIONS.map((opcion) => (
+              <option key={opcion} value={opcion}>{opcion}</option>
+            ))}
+          </select>
+        </label>
+
+        {busqueda && (
+          <button type="button" className="btn btn-light-bordered" onClick={limpiarBusqueda}>
+            Limpiar
+          </button>
+        )}
+      </div>
+
       <div className="table-card desktop-table">
+        <div className="row-between table-title">
+          <h2>Clientes encontrados: {totalClientes}</h2>
+          <span className="pagination-range">
+            {cargandoClientes ? 'Actualizando...' : `${desdeVisible}-${hastaVisible} de ${totalClientes}`}
+          </span>
+        </div>
+
         <table>
           <thead>
             <tr>
@@ -292,7 +434,7 @@ export default function Clientes() {
                   <button
                     onClick={() => abrirEditarCliente(cliente)}
                     className="btn btn-light-bordered btn-small"
-                    disabled={bloqueado}
+                    disabled={bloqueado || estaProcesando}
                   >
                     Editar
                   </button>
@@ -300,7 +442,7 @@ export default function Clientes() {
                   <button
                     onClick={() => eliminarCliente(cliente.id)}
                     className="btn btn-danger btn-small"
-                    disabled={bloqueado}
+                    disabled={bloqueado || estaProcesando}
                   >
                     Eliminar
                   </button>
@@ -318,6 +460,13 @@ export default function Clientes() {
       </div>
 
       <div className="mobile-list">
+        <div className="mobile-list-title">
+          <h2>Clientes encontrados: {totalClientes}</h2>
+          <span className="pagination-range">
+            {cargandoClientes ? 'Actualizando...' : `${desdeVisible}-${hastaVisible} de ${totalClientes}`}
+          </span>
+        </div>
+
         {clientes.map((cliente) => (
           <div className="mobile-card" key={cliente.id}>
             <div className="mobile-card-header">
@@ -354,7 +503,7 @@ export default function Clientes() {
               <button
                 onClick={() => abrirEditarCliente(cliente)}
                 className="btn btn-light-bordered"
-                disabled={bloqueado}
+                disabled={bloqueado || estaProcesando}
               >
                 Editar
               </button>
@@ -362,7 +511,7 @@ export default function Clientes() {
               <button
                 onClick={() => eliminarCliente(cliente.id)}
                 className="btn btn-danger"
-                disabled={bloqueado}
+                disabled={bloqueado || estaProcesando}
               >
                 Eliminar
               </button>
@@ -376,6 +525,23 @@ export default function Clientes() {
           </div>
         )}
       </div>
+
+      {totalClientes > tamanoPagina && (
+        <div className="pagination-card">
+          <button type="button" className="btn btn-light-bordered" onClick={irPaginaAnterior} disabled={pagina <= 1 || cargandoClientes}>
+            Anterior
+          </button>
+
+          <div>
+            <strong>Página {pagina} de {totalPaginas}</strong>
+            <span>{desdeVisible}-{hastaVisible} de {totalClientes}</span>
+          </div>
+
+          <button type="button" className="btn btn-light-bordered" onClick={irPaginaSiguiente} disabled={pagina >= totalPaginas || cargandoClientes}>
+            Siguiente
+          </button>
+        </div>
+      )}
 
       <Modal
         abierto={modalCliente}
@@ -428,12 +594,13 @@ export default function Clientes() {
               type="button"
               className="btn btn-light-bordered"
               onClick={cerrarModalCliente}
+              disabled={estaProcesando}
             >
               Cancelar
             </button>
 
-            <button className="btn btn-primary" disabled={bloqueado}>
-              {clienteEditando ? 'Guardar cambios' : 'Guardar cliente'}
+            <button className="btn btn-primary" disabled={bloqueado || estaProcesando}>
+              {accionEnProceso || (clienteEditando ? 'Guardar cambios' : 'Guardar cliente')}
             </button>
           </div>
         </form>

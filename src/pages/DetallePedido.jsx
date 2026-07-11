@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
@@ -9,6 +9,7 @@ import { cargarEstadoPlan, estaBloqueadoPorPlan } from '../lib/planes'
 
 export default function DetallePedido() {
   const { id } = useParams()
+  const navigate = useNavigate()
 
   const [pedido, setPedido] = useState(null)
   const [estadoPlan, setEstadoPlan] = useState(null)
@@ -36,6 +37,8 @@ export default function DetallePedido() {
   const [modalPedido, setModalPedido] = useState(false)
   const [modalProducto, setModalProducto] = useState(false)
   const [modalPago, setModalPago] = useState(false)
+  const [menuPedidoAbierto, setMenuPedidoAbierto] = useState(false)
+  const [menuProductoAbierto, setMenuProductoAbierto] = useState(null)
 
   const [modalMensajeEstado, setModalMensajeEstado] = useState(false)
   const [pedidoMensajeEstado, setPedidoMensajeEstado] = useState(null)
@@ -43,6 +46,9 @@ export default function DetallePedido() {
   const [entregaPendiente, setEntregaPendiente] = useState(null)
   const [modalConfirmarProducto, setModalConfirmarProducto] = useState(false)
   const [productoEntregaPendiente, setProductoEntregaPendiente] = useState(null)
+  const [modalConfirmarReembolso, setModalConfirmarReembolso] = useState(false)
+  const [reembolsoPendiente, setReembolsoPendiente] = useState(null)
+  const [montoReembolso, setMontoReembolso] = useState('')
 
   const [clienteIdPedido, setClienteIdPedido] = useState('')
   const [plataformaPedido, setPlataformaPedido] = useState('SHEIN')
@@ -56,6 +62,7 @@ export default function DetallePedido() {
   const [talla, setTalla] = useState('')
   const [color, setColor] = useState('')
   const [cantidad, setCantidad] = useState(1)
+  const [precioPagina, setPrecioPagina] = useState('')
   const [precioShein, setPrecioShein] = useState('')
   const [precioVenta, setPrecioVenta] = useState('')
 
@@ -74,9 +81,9 @@ export default function DetallePedido() {
 
   const estadosPedido = [
     'Cotizado',
-    'Comprado en plataforma',
     'En camino',
     'Recibido',
+    'Dejado en negocio',
     'Entregado',
     'Cancelado',
     'Devuelto'
@@ -89,6 +96,15 @@ export default function DetallePedido() {
 
   const mostrarToast = (mensaje, tipo = 'success') => {
     setToast({ mensaje, tipo })
+  }
+
+  const volverAtras = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+
+    navigate('/pedidos')
   }
 
   const cargarPlan = async () => {
@@ -104,8 +120,16 @@ export default function DetallePedido() {
     return true
   }
 
+
+  const bloquearSiPedidoCerrado = () => {
+    if (!pedido || !esEstadoReembolso(pedido.estado)) return false
+    mostrarToast('Este pedido está cancelado/devuelto. Reactívalo desde Editar pedido para hacer cambios.', 'error')
+    return true
+  }
+
   const normalizarEstado = (estado) => {
-    if (estado === 'Comprado en SHEIN') return 'Comprado en plataforma'
+    if (estado === 'Comprado en SHEIN') return 'En camino'
+    if (estado === 'Comprado en plataforma') return 'En camino'
     if (estado === 'Pendiente de pago') return 'Cotizado'
     if (estado === 'Pagado por cliente') return 'Cotizado'
     return estado || 'Cotizado'
@@ -115,9 +139,9 @@ export default function DetallePedido() {
     const estadoNormal = normalizarEstado(estado)
 
     if (estadoNormal === 'Cotizado') return 'badge-gray'
-    if (estadoNormal === 'Comprado en plataforma') return 'badge-dark'
     if (estadoNormal === 'En camino') return 'badge-purple'
     if (estadoNormal === 'Recibido') return 'badge-green-soft'
+    if (estadoNormal === 'Dejado en negocio') return 'badge-blue'
     if (estadoNormal === 'Entregado') return 'badge-green-strong'
     if (estadoNormal === 'Cancelado') return 'badge-red-soft'
     if (estadoNormal === 'Devuelto') return 'badge-red-strong'
@@ -128,6 +152,11 @@ export default function DetallePedido() {
   const esEstadoReembolso = (estado) => {
     const estadoNormal = normalizarEstado(estado)
     return estadoNormal === 'Cancelado' || estadoNormal === 'Devuelto'
+  }
+
+  const obtenerEtiquetaReembolso = (estado = pedido?.estado) => {
+    const estadoNormal = normalizarEstado(estado)
+    return estadoNormal === 'Devuelto' ? 'Devuelto' : 'Cancelado'
   }
 
   const estaPagadoPorCliente = (pedidoBase = pedido) => {
@@ -155,7 +184,7 @@ export default function DetallePedido() {
       return { tipo: 'partial', texto: 'Pagado parcialmente' }
     }
 
-    return { tipo: 'pending', texto: 'Pendiente' }
+    return { tipo: 'pending', texto: 'Pago pendiente' }
   }
 
   const renderPagoBadge = (pedidoBase = pedido, compacto = false) => {
@@ -180,8 +209,121 @@ export default function DetallePedido() {
     return Number(producto?.precio_venta || 0) * Number(producto?.cantidad || 0)
   }
 
+  const totalProductoCosto = (producto) => {
+    if (producto?.costo_real_total !== null && producto?.costo_real_total !== undefined) {
+      return Number(producto.costo_real_total || 0)
+    }
+
+    return Number(producto?.precio_shein || producto?.precio_pagina || 0) * Number(producto?.cantidad || 0)
+  }
+
+  const totalProductoPagina = (producto) => {
+    return Number(producto?.precio_pagina ?? producto?.precio_shein ?? 0) * Number(producto?.cantidad || 0)
+  }
+
+  const gananciaProducto = (producto) => {
+    if (producto?.ganancia_real !== null && producto?.ganancia_real !== undefined) {
+      return Number(producto.ganancia_real || 0)
+    }
+
+    return totalProductoVenta(producto) - totalProductoCosto(producto)
+  }
+
+  const calcularMontoCobroProducto = (productoObjetivo, productosBase = productos, pedidoBase = pedido) => {
+    const restantePedido = Math.max(Number(pedidoBase?.restante || 0), 0)
+    const totalProducto = totalProductoVenta(productoObjetivo)
+
+    if (restantePedido <= 0 || totalProducto <= 0) return 0
+
+    const totalEntregadoPrevio = (productosBase || [])
+      .filter((item) => item.id !== productoObjetivo.id && productoEntregado(item))
+      .reduce((sum, item) => sum + totalProductoVenta(item), 0)
+
+    const pagadoPedido = Math.max(Number(pedidoBase?.anticipo || 0), 0)
+    const pagoDisponibleParaEsteProducto = Math.max(pagadoPedido - totalEntregadoPrevio, 0)
+    const saldoProducto = Math.max(totalProducto - pagoDisponibleParaEsteProducto, 0)
+
+    return Math.min(saldoProducto, restantePedido)
+  }
+
   const productoEntregado = (producto) => producto?.entregado === true
   const productoPagado = (producto) => producto?.pagado_cliente === true || productoEntregado(producto)
+
+  const formatearFecha = (valor) => {
+    if (!valor) return '-'
+    const fecha = new Date(valor)
+    if (Number.isNaN(fecha.getTime())) return '-'
+    return fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+  }
+
+  const obtenerEstadoCompraProducto = (producto) => {
+    if (productoEntregado(producto) || producto?.estado_compra === 'Entregado') return 'Entregado'
+    return producto?.estado_compra || 'Pendiente de compra'
+  }
+
+  const obtenerProgresoProducto = (producto) => {
+    const estadoCompra = obtenerEstadoCompraProducto(producto)
+
+    if (estadoCompra === 'Pendiente de compra') {
+      return { porcentaje: 8, texto: 'Pendiente de compra', clase: 'product-progress-pending' }
+    }
+
+    if (estadoCompra === 'Recibido') {
+      return { porcentaje: 82, texto: 'Recibido por ti', clase: 'product-progress-received' }
+    }
+
+    if (estadoCompra === 'Dejado en negocio') {
+      return { porcentaje: 92, texto: 'Dejado en negocio', clase: 'product-progress-shop' }
+    }
+
+    if (estadoCompra === 'Entregado') {
+      return { porcentaje: 100, texto: 'Entregado al cliente', clase: 'product-progress-delivered' }
+    }
+
+    const comprado = producto?.fecha_comprado ? new Date(producto.fecha_comprado) : null
+    const estimada = producto?.fecha_estimada_llegada ? new Date(producto.fecha_estimada_llegada) : null
+
+    if (!comprado || !estimada || Number.isNaN(comprado.getTime()) || Number.isNaN(estimada.getTime())) {
+      return { porcentaje: 42, texto: 'En camino · sin fecha estimada', clase: 'product-progress-moving' }
+    }
+
+    const ahora = new Date()
+    const total = Math.max(estimada.getTime() - comprado.getTime(), 1)
+    const avance = Math.max(ahora.getTime() - comprado.getTime(), 0)
+    const porcentaje = Math.min(Math.round((avance / total) * 100), 100)
+
+    if (porcentaje >= 100) {
+      return { porcentaje: 100, texto: 'Posiblemente ya llegó', clase: 'product-progress-arrived' }
+    }
+
+    return { porcentaje: Math.max(porcentaje, 15), texto: `Posible llegada: ${formatearFecha(producto.fecha_estimada_llegada)}`, clase: 'product-progress-moving' }
+  }
+
+  const marcarEstadoLogisticoProducto = async (producto, estadoLogistico) => {
+    if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
+    if (!iniciarAccion('Actualizando producto...')) return
+
+    const { error } = await supabase.rpc('actualizar_estado_producto_logistica', {
+      p_producto_id: producto.id,
+      p_estado: estadoLogistico
+    })
+
+    finalizarAccion()
+
+    if (error) {
+      console.log(error)
+      mostrarToast(error.message || 'No se pudo actualizar el producto', 'error')
+      return
+    }
+
+    mostrarToast(
+      estadoLogistico === 'Dejado en negocio'
+        ? 'Producto marcado como dejado en negocio'
+        : 'Producto marcado como recibido'
+    )
+    cargarTodo()
+  }
 
   const obtenerBasePublica = () => {
     const configurada = import.meta.env.VITE_PUBLIC_APP_URL
@@ -238,6 +380,19 @@ export default function DetallePedido() {
   }
 
   const recalcularPedido = async () => {
+    const { data: pedidoRecalculado, error: errorRpc } = await supabase.rpc('recalcular_totales_pedido', {
+      p_pedido_id: id
+    })
+
+    if (!errorRpc && pedidoRecalculado) {
+      setPedido((actual) => actual ? { ...actual, ...pedidoRecalculado } : pedidoRecalculado)
+      return pedidoRecalculado
+    }
+
+    console.log(errorRpc)
+
+    // Respaldo temporal: si todavía no ejecutaste el SQL de la Parte 2,
+    // la app sigue recalculando como antes para no romper el uso diario.
     const { data: productosActuales } = await supabase
       .from('productos_pedido')
       .select('*')
@@ -263,10 +418,10 @@ export default function DetallePedido() {
       0
     )
 
-    const restante = totalCliente - anticipo
+    const restante = Math.max(totalCliente - anticipo, 0)
     const ganancia = totalCliente - totalShein
 
-    await supabase
+    const { data: pedidoActualizado } = await supabase
       .from('pedidos')
       .update({
         total_shein: totalShein,
@@ -276,6 +431,14 @@ export default function DetallePedido() {
         ganancia
       })
       .eq('id', id)
+      .select()
+      .single()
+
+    if (pedidoActualizado) {
+      setPedido((actual) => actual ? { ...actual, ...pedidoActualizado } : pedidoActualizado)
+    }
+
+    return pedidoActualizado
   }
 
   const abrirEditarPedido = () => {
@@ -288,6 +451,38 @@ export default function DetallePedido() {
     setTrackingPedido(pedido.tracking || '')
     setNotasPedido(pedido.notas || '')
     setModalPedido(true)
+  }
+
+
+  const sincronizarProductosConEstadoPedido = async (estadoNuevo) => {
+    const estadoNormal = normalizarEstado(estadoNuevo)
+    const ahora = new Date().toISOString()
+
+    if (estadoNormal !== 'Recibido' && estadoNormal !== 'Dejado en negocio') return null
+
+    const payload = estadoNormal === 'Recibido'
+      ? {
+          estado_compra: 'Recibido',
+          fecha_recibido: ahora
+        }
+      : {
+          estado_compra: 'Dejado en negocio',
+          fecha_recibido: ahora,
+          fecha_dejado_negocio: ahora
+        }
+
+    const { error } = await supabase
+      .from('productos_pedido')
+      .update(payload)
+      .eq('pedido_id', id)
+      .or('entregado.is.null,entregado.eq.false')
+
+    if (error) {
+      console.log(error)
+      mostrarToast('El pedido se actualizó, pero no se pudieron actualizar todos los productos', 'error')
+    }
+
+    return error
   }
 
   const guardarPedidoGeneral = async (e) => {
@@ -318,9 +513,22 @@ export default function DetallePedido() {
       return
     }
 
-    if (esEstadoReembolso(estadoNuevo)) {
-      payloadPedido.reembolso = true
-      payloadPedido.reembolso_monto = Number(pedido.anticipo || 0)
+    if (estadoAnterior !== estadoNuevo && esEstadoReembolso(estadoNuevo)) {
+      const montoPagado = Math.max(Number(pedido.anticipo || 0), 0)
+      setReembolsoPendiente({
+        payload: {
+          ...payloadPedido,
+          estado: estadoNuevo,
+          reembolso: true
+        },
+        estadoAnterior,
+        estadoNuevo,
+        montoPagado
+      })
+      setMontoReembolso(montoPagado.toFixed(2))
+      setModalPedido(false)
+      setModalConfirmarReembolso(true)
+      return
     }
 
     const { error } = await supabase
@@ -332,6 +540,10 @@ export default function DetallePedido() {
       console.log(error)
       mostrarToast('Error al actualizar pedido', 'error')
       return
+    }
+
+    if (estadoAnterior !== estadoNuevo) {
+      await sincronizarProductosConEstadoPedido(estadoNuevo)
     }
 
     const clienteSeleccionado = clientes.find((cliente) => cliente.id === clienteIdPedido)
@@ -352,8 +564,68 @@ export default function DetallePedido() {
     }
   }
 
+  const aplicarMontoReembolsoRapido = (tipo) => {
+    const montoPagado = Math.max(Number(reembolsoPendiente?.montoPagado || pedido?.anticipo || 0), 0)
+
+    if (tipo === 'todo') {
+      setMontoReembolso(montoPagado.toFixed(2))
+      return
+    }
+
+    if (tipo === 'mitad') {
+      setMontoReembolso((montoPagado / 2).toFixed(2))
+      return
+    }
+
+    setMontoReembolso('0.00')
+  }
+
+  const confirmarReembolsoPedido = async () => {
+    if (bloquearSiNoPuede()) return
+    if (!reembolsoPendiente?.payload) return
+    if (!iniciarAccion('Guardando reembolso...')) return
+
+    try {
+      const montoFinal = Math.max(Number(montoReembolso || 0), 0)
+      const payload = {
+        ...reembolsoPendiente.payload,
+        reembolso: true,
+        reembolso_monto: montoFinal
+      }
+
+      const { error } = await supabase
+        .from('pedidos')
+        .update(payload)
+        .eq('id', id)
+
+      if (error) {
+        console.log(error)
+        mostrarToast('No se pudo guardar el reembolso', 'error')
+        return
+      }
+
+      const clienteSeleccionado = clientes.find((cliente) => cliente.id === payload.cliente_id)
+      const pedidoActualizado = {
+        ...pedido,
+        ...payload,
+        clientes: clienteSeleccionado || pedido.clientes
+      }
+
+      setModalConfirmarReembolso(false)
+      setReembolsoPendiente(null)
+      setMontoReembolso('')
+      await cargarTodo()
+      mostrarToast(`${payload.estado} guardado con reembolso de ${formatearDinero(montoFinal)}`)
+      setPedidoMensajeEstado(pedidoActualizado)
+      setModalMensajeEstado(true)
+    } finally {
+      finalizarAccion()
+    }
+  }
+
   const confirmarEntregaPedido = async () => {
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
     if (!iniciarAccion('Confirmando entrega...')) return
 
     try {
@@ -384,9 +656,9 @@ export default function DetallePedido() {
       if (montoRestante > 0) {
         const { data: pagoExistente } = await supabase
           .from('pagos')
-          .select('id')
+          .select('id, notas')
           .eq('pedido_id', id)
-          .ilike('notas', `%${etiquetaPago}%`)
+          .or(`notas.ilike.%${etiquetaPago}%,notas.eq.Pago restante al entregar pedido`)
           .limit(1)
 
         if (!pagoExistente?.length) {
@@ -397,7 +669,7 @@ export default function DetallePedido() {
                 pedido_id: id,
                 monto: montoRestante,
                 metodo_pago: 'Entrega',
-                notas: `Pago restante al entregar pedido ${etiquetaPago}`,
+                notas: 'Pago restante al entregar pedido',
                 tipo: 'pago'
               }
             ])
@@ -416,7 +688,10 @@ export default function DetallePedido() {
           entregado: true,
           entregado_en: ahora,
           pagado_cliente: true,
-          pagado_en: ahora
+          pagado_en: ahora,
+          estado_compra: 'Entregado',
+          fecha_recibido: ahora,
+          fecha_entregado_cliente: ahora
         })
         .eq('pedido_id', id)
 
@@ -475,16 +750,17 @@ export default function DetallePedido() {
   const abrirConfirmarEntregaProducto = (producto) => {
     if (accionEnProcesoRef.current) return
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
     if (productoEntregado(producto)) return
 
     const productosPendientesDespues = productos.filter((item) => item.id !== producto.id && !productoEntregado(item)).length
     const esUltimoProductoPendiente = productosPendientesDespues === 0
-    const restantePedido = Math.max(Number(pedido?.restante || 0), 0)
-    const montoProducto = totalProductoVenta(producto)
-    const montoACobrar = esUltimoProductoPendiente ? restantePedido : Math.min(montoProducto, restantePedido)
+    const totalProducto = totalProductoVenta(producto)
+    const montoACobrar = calcularMontoCobroProducto(producto, productos, pedido)
 
     setProductoEntregaPendiente({
       producto,
+      totalProducto,
       montoACobrar,
       esUltimoProductoPendiente
     })
@@ -493,6 +769,7 @@ export default function DetallePedido() {
 
   const confirmarEntregaProducto = async () => {
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
     if (!productoEntregaPendiente?.producto) return
     if (!iniciarAccion('Confirmando producto...')) return
 
@@ -506,7 +783,10 @@ export default function DetallePedido() {
           entregado: true,
           entregado_en: ahora,
           pagado_cliente: true,
-          pagado_en: ahora
+          pagado_en: ahora,
+          estado_compra: 'Entregado',
+          fecha_recibido: ahora,
+          fecha_entregado_cliente: ahora
         })
         .eq('id', productoOriginal.id)
         .or('entregado.is.null,entregado.eq.false')
@@ -540,15 +820,13 @@ export default function DetallePedido() {
 
       const productosPendientes = (productosActuales || []).filter((item) => item.id !== productoMarcado.id && item.entregado !== true)
       const esUltimoProductoPendiente = productosPendientes.length === 0
-      const restanteActual = Math.max(Number(pedidoActual?.restante || pedido?.restante || 0), 0)
-      const montoProducto = totalProductoVenta(productoMarcado)
-      const montoACobrar = esUltimoProductoPendiente ? restanteActual : Math.min(montoProducto, restanteActual)
+      const montoACobrar = calcularMontoCobroProducto(productoMarcado, productosActuales || [], pedidoActual || pedido)
       const etiquetaPago = `[producto:${productoMarcado.id}]`
 
       if (montoACobrar > 0) {
         const { data: pagoExistente } = await supabase
           .from('pagos')
-          .select('id')
+          .select('id, notas')
           .eq('pedido_id', id)
           .ilike('notas', `%${etiquetaPago}%`)
           .limit(1)
@@ -561,7 +839,7 @@ export default function DetallePedido() {
                 pedido_id: id,
                 monto: montoACobrar,
                 metodo_pago: 'Entrega producto',
-                notas: `Pago al entregar: ${productoMarcado.nombre_producto || 'producto'} ${etiquetaPago}`,
+                notas: `Pago al entregar: ${productoMarcado.nombre_producto || 'producto'}`,
                 tipo: 'pago'
               }
             ])
@@ -603,25 +881,29 @@ export default function DetallePedido() {
     setTalla('')
     setColor('')
     setCantidad(1)
+    setPrecioPagina('')
     setPrecioShein('')
     setPrecioVenta('')
   }
 
   const abrirAgregarProducto = () => {
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
     limpiarProducto()
     setModalProducto(true)
   }
 
   const abrirEditarProducto = (producto) => {
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
     setProductoEditando(producto)
     setNombreProducto(producto.nombre_producto || '')
     setLinkShein(producto.link_shein || '')
     setTalla(producto.talla || '')
     setColor(producto.color || '')
     setCantidad(producto.cantidad || 1)
-    setPrecioShein(producto.precio_shein || '')
+    setPrecioPagina(producto.precio_pagina ?? producto.precio_shein ?? '')
+    setPrecioShein(producto.lote_compra_id ? (producto.precio_shein || '') : '')
     setPrecioVenta(producto.precio_venta || '')
     setModalProducto(true)
   }
@@ -635,6 +917,7 @@ export default function DetallePedido() {
     e.preventDefault()
 
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
     if (!iniciarAccion(productoEditando ? 'Guardando cambios...' : 'Guardando producto...')) return
 
     try {
@@ -645,8 +928,11 @@ export default function DetallePedido() {
         talla,
         color,
         cantidad: Number(cantidad),
-        precio_shein: Number(precioShein),
-        precio_venta: Number(precioVenta)
+        precio_pagina: Number(precioPagina || precioShein || 0),
+        precio_shein: Number(precioShein || precioPagina || 0),
+        precio_venta: Number(precioPagina || precioShein || precioVenta || 0),
+        estado_compra: productoEditando?.estado_compra || 'Pendiente de compra',
+        fecha_agregado: productoEditando?.fecha_agregado || new Date().toISOString()
       }
 
       if (productoEditando) {
@@ -689,6 +975,7 @@ export default function DetallePedido() {
 
   const eliminarProducto = async (productoId) => {
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
 
     const confirmar = confirm('¿Eliminar este producto?')
     if (!confirmar) return
@@ -723,12 +1010,14 @@ export default function DetallePedido() {
 
   const abrirAgregarPago = () => {
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
     limpiarPago()
     setModalPago(true)
   }
 
   const abrirEditarPago = (pago) => {
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
     setPagoEditando(pago)
     setMontoPago(pago.monto || '')
     setMetodoPago(pago.metodo_pago || '')
@@ -745,6 +1034,7 @@ export default function DetallePedido() {
     e.preventDefault()
 
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
     if (!iniciarAccion(pagoEditando ? 'Guardando pago...' : 'Agregando pago...')) return
 
     try {
@@ -795,6 +1085,7 @@ export default function DetallePedido() {
 
   const eliminarPago = async (pagoId) => {
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
 
     const confirmar = confirm('¿Eliminar este pago?')
     if (!confirmar) return
@@ -829,6 +1120,11 @@ export default function DetallePedido() {
 
   const formatearDinero = (valor) => {
     return `$${Number(valor || 0).toFixed(2)}`
+  }
+
+  const limpiarNotaPago = (nota) => {
+    const limpia = String(nota || '').replace(/\s*\[(?:entrega-(?:pedido|producto)|producto):[^\]]+\]/gi, '').trim()
+    return limpia || '-'
   }
 
   const obtenerTelefonoWhatsApp = (telefono) => {
@@ -909,13 +1205,6 @@ Total: ${total}
 Restante: ${restante}${lineaSeguimiento}`
     }
 
-
-    if (estado === 'Comprado en plataforma') {
-      return `Hola ${nombre}, tu pedido ${codigo} ya fue comprado en plataforma.
-
-Plataforma: ${plataforma}${lineaSeguimiento}`
-    }
-
     if (estado === 'En camino') {
       return `Hola ${nombre}, tu pedido ${codigo} ya está en camino.
 
@@ -929,6 +1218,12 @@ Guía / tracking: ${tracking}` : ''}${lineaSeguimiento}`
 Total: ${total}
 Pagado: ${pagado}
 Restante pendiente: ${restante}${lineaSeguimiento}`
+    }
+
+    if (estado === 'Dejado en negocio') {
+      return `Hola ${nombre}, tu pedido ${codigo} ya está listo en el negocio.
+
+Puedes pasar a recogerlo cuando gustes.${lineaSeguimiento}`
     }
 
     if (estado === 'Entregado') {
@@ -993,6 +1288,133 @@ Estado actual: ${estado}${lineaSeguimiento}`
   }
 
 
+
+  const renderProductoDetalle = (producto) => {
+    const progreso = obtenerProgresoProducto(producto)
+    const estadoCompra = obtenerEstadoCompraProducto(producto)
+    const menuAbierto = menuProductoAbierto === producto.id
+
+    return (
+      <article key={producto.id} className={`detail-product-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined}>
+        <div className="detail-product-top">
+          <div className="detail-product-title-block">
+            <span className="detail-product-kicker">Producto</span>
+            <h3>{producto.nombre_producto || 'Producto sin nombre'}</h3>
+            <p>{producto.talla || 'Sin talla'} · {producto.color || 'Sin color'} · Cantidad {producto.cantidad || 0}</p>
+          </div>
+
+          <div className="detail-product-status-area">
+            <span className={`detail-product-logistic-pill ${estadoCompra === 'Entregado' ? 'is-delivered' : estadoCompra === 'Dejado en negocio' ? 'is-shop' : estadoCompra === 'Recibido' ? 'is-received' : estadoCompra === 'En camino' ? 'is-moving' : 'is-pending'}`}>
+              {estadoCompra === 'Pendiente de compra' ? 'Compra pendiente' : estadoCompra}
+            </span>
+
+            <div className="product-status-pills">
+              {productoPagado(producto) && <span className="mini-status-pill mini-status-paid">Pagado</span>}
+              {productoEntregado(producto) && <span className="mini-status-pill mini-status-delivered">Entregado</span>}
+              {!productoPagado(producto) && !productoEntregado(producto) && <span className="mini-status-pill">Pendiente</span>}
+            </div>
+
+            <div className="detail-product-menu-wrap">
+              <button
+                type="button"
+                className="btn btn-light-bordered btn-small detail-product-action-toggle"
+                onClick={() => setMenuProductoAbierto(menuAbierto ? null : producto.id)}
+                disabled={estaProcesando || pedidoConReembolso}
+              >
+                Acciones ▾
+              </button>
+
+              {menuAbierto && (
+                <div className="detail-product-menu">
+                  {!productoEntregado(producto) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuProductoAbierto(null)
+                        abrirConfirmarEntregaProducto(producto)
+                      }}
+                      disabled={bloqueado || estaProcesando || pedidoConReembolso}
+                    >
+                      Entregar al cliente
+                    </button>
+                  )}
+
+                  {producto.link_shein && (
+                    <a
+                      href={producto.link_shein}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setMenuProductoAbierto(null)}
+                    >
+                      Abrir link
+                    </a>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuProductoAbierto(null)
+                      abrirEditarProducto(producto)
+                    }}
+                    disabled={bloqueado || estaProcesando || pedidoConReembolso}
+                  >
+                    Editar producto
+                  </button>
+
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => {
+                      setMenuProductoAbierto(null)
+                      eliminarProducto(producto.id)
+                    }}
+                    disabled={bloqueado || estaProcesando || pedidoConReembolso}
+                  >
+                    Eliminar producto
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="detail-product-data-grid">
+          <div>
+            <span>Precio página</span>
+            <strong>{formatearDinero(Number(producto.precio_pagina ?? producto.precio_shein ?? 0))}</strong>
+          </div>
+          <div>
+            <span>Costo real</span>
+            <strong>{producto.lote_compra_id ? formatearDinero(Number(producto.costo_real_unitario ?? producto.precio_shein ?? 0)) : 'Pendiente'}</strong>
+          </div>
+          <div>
+            <span>Total producto</span>
+            <strong>{formatearDinero(totalProductoVenta(producto))}</strong>
+          </div>
+          <div>
+            <span>Comprado</span>
+            <strong>{formatearFecha(producto.fecha_comprado)}</strong>
+          </div>
+          <div>
+            <span>Estimado</span>
+            <strong>{formatearFecha(producto.fecha_estimada_llegada)}</strong>
+          </div>
+          <div>
+            <span>Link</span>
+            <strong>{producto.link_shein ? 'Disponible' : '-'}</strong>
+          </div>
+        </div>
+
+        <div className="detail-product-progress-row">
+          <span>{progreso.texto}</span>
+          <div className={`detail-product-progress-line ${progreso.clase}`}>
+            <i style={{ width: `${progreso.porcentaje}%` }} />
+          </div>
+        </div>
+      </article>
+    )
+  }
+
   if (!pedido) {
     return (
       <Layout>
@@ -1023,29 +1445,76 @@ Estado actual: ${estado}${lineaSeguimiento}`
         </div>
 
         <div className="actions detail-header-actions">
+          <button type="button" className="btn btn-light-bordered detail-back-button" onClick={volverAtras}>
+            ← Regresar
+          </button>
+
           <span className={`badge ${estadoClase(pedido.estado)}`}>
             {normalizarEstado(pedido.estado)}
           </span>
 
           {renderPagoBadge()}
 
-          <button className="btn btn-light-bordered" onClick={copiarLinkSeguimiento}>
-            Copiar seguimiento
-          </button>
+          <div className="detail-order-actions-menu-wrap">
+            <button
+              type="button"
+              className="btn btn-light-bordered"
+              onClick={() => setMenuPedidoAbierto(!menuPedidoAbierto)}
+              disabled={estaProcesando}
+            >
+              Acciones ▾
+            </button>
 
-          <button className="btn btn-light-bordered" onClick={enviarSeguimientoWhatsApp}>
-            Enviar seguimiento
-          </button>
+            {menuPedidoAbierto && (
+              <div className="detail-order-actions-menu">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuPedidoAbierto(false)
+                    copiarLinkSeguimiento()
+                  }}
+                >
+                  Copiar seguimiento
+                </button>
 
-          <button className="btn btn-light-bordered" onClick={abrirEditarPedido} disabled={bloqueado || estaProcesando}>
-            Editar pedido
-          </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuPedidoAbierto(false)
+                    enviarSeguimientoWhatsApp()
+                  }}
+                >
+                  Enviar seguimiento
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuPedidoAbierto(false)
+                    abrirEditarPedido()
+                  }}
+                  disabled={bloqueado || estaProcesando}
+                >
+                  Editar pedido
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       <PlanLimitNotice estadoPlan={estadoPlan} compacto />
 
-      <div className={`cards-grid detail-summary-grid ${pedidoConReembolso ? 'refund-censored-surface' : ''}`}>
+      {pedidoConReembolso && (
+        <div className="refund-locked-notice">
+          <strong>{obtenerEtiquetaReembolso()}</strong>
+          <span>
+            Este pedido quedó fuera de métricas. Reembolso registrado: {formatearDinero(pedido.reembolso_monto || 0)}. Para hacer cambios, reactívalo desde "Editar pedido".
+          </span>
+        </div>
+      )}
+
+      <div className={`cards-grid detail-summary-grid ${pedidoConReembolso ? 'refund-censored-surface' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined}>
         <div className="card">
           <span>Plataforma</span>
           <strong>{pedido.plataforma || 'SHEIN'}</strong>
@@ -1084,163 +1553,13 @@ Estado actual: ${estado}${lineaSeguimiento}`
           <p className="muted">Productos agregados al pedido</p>
         </div>
 
-        <button className="btn btn-primary" onClick={abrirAgregarProducto} disabled={bloqueado || estaProcesando}>
+        <button className="btn btn-primary" onClick={abrirAgregarProducto} disabled={bloqueado || estaProcesando || pedidoConReembolso}>
           Agregar producto
         </button>
       </div>
 
-      <div className={`table-card desktop-table ${pedidoConReembolso ? 'refund-censored-surface' : ''}`}>
-        <table>
-          <thead>
-            <tr>
-              <th>Producto</th>
-              <th>Talla</th>
-              <th>Color</th>
-              <th>Cantidad</th>
-              <th>Costo plataforma</th>
-              <th>Precio venta</th>
-              <th>Link</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {productos.map((producto) => (
-              <tr key={producto.id} className={pedidoConReembolso ? 'refund-censored-row' : ''}>
-                <td>{producto.nombre_producto}</td>
-                <td>{producto.talla || '-'}</td>
-                <td>{producto.color || '-'}</td>
-                <td>{producto.cantidad}</td>
-                <td>${Number(producto.precio_shein || 0).toFixed(2)}</td>
-                <td>${Number(producto.precio_venta || 0).toFixed(2)}</td>
-                <td>
-                  {producto.link_shein ? (
-                    <a href={producto.link_shein} target="_blank" rel="noreferrer">
-                      Abrir
-                    </a>
-                  ) : '-'}
-                </td>
-                <td>
-                  <div className="product-status-pills">
-                    {productoPagado(producto) && <span className="mini-status-pill mini-status-paid">Pagado</span>}
-                    {productoEntregado(producto) && <span className="mini-status-pill mini-status-delivered">Entregado</span>}
-                    {!productoPagado(producto) && !productoEntregado(producto) && <span className="mini-status-pill">Pendiente</span>}
-                  </div>
-                </td>
-                <td className="actions product-actions-inline">
-                  {!productoEntregado(producto) && (
-                    <button
-                      onClick={() => abrirConfirmarEntregaProducto(producto)}
-                      className="btn btn-success btn-small"
-                      disabled={bloqueado || estaProcesando}
-                    >
-                      Entregado
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => abrirEditarProducto(producto)}
-                    className="btn btn-light-bordered btn-small"
-                    disabled={bloqueado || estaProcesando}
-                  >
-                    Editar
-                  </button>
-
-                  <button
-                    onClick={() => eliminarProducto(producto.id)}
-                    className="btn btn-danger btn-small"
-                    disabled={bloqueado || estaProcesando}
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
-
-            {productos.length === 0 && (
-              <tr>
-                <td colSpan="9">Este pedido todavía no tiene productos.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mobile-list detail-mobile-list">
-        {productos.map((producto) => (
-          <div className={`mobile-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} key={producto.id}>
-            <div className="mobile-card-header">
-              <div>
-                <h3>{producto.nombre_producto}</h3>
-                <p>{producto.talla || 'Sin talla'} · {producto.color || 'Sin color'}</p>
-              </div>
-              <div className="product-status-pills product-status-pills-mobile">
-                {productoPagado(producto) && <span className="mini-status-pill mini-status-paid">Pagado</span>}
-                {productoEntregado(producto) && <span className="mini-status-pill mini-status-delivered">Entregado</span>}
-                {!productoPagado(producto) && !productoEntregado(producto) && <span className="mini-status-pill">Pendiente</span>}
-              </div>
-            </div>
-
-            <div className="mobile-card-info">
-              <div>
-                <span>Cantidad</span>
-                <strong>{producto.cantidad}</strong>
-              </div>
-              <div>
-                <span>Costo</span>
-                <strong>${Number(producto.precio_shein || 0).toFixed(2)}</strong>
-              </div>
-              <div>
-                <span>Venta</span>
-                <strong>${Number(producto.precio_venta || 0).toFixed(2)}</strong>
-              </div>
-              <div>
-                <span>Ganancia</span>
-                <strong>${((Number(producto.precio_venta || 0) - Number(producto.precio_shein || 0)) * Number(producto.cantidad || 0)).toFixed(2)}</strong>
-              </div>
-            </div>
-
-            <div className="mobile-card-actions multi-actions">
-              {!productoEntregado(producto) && (
-                <button
-                  onClick={() => abrirConfirmarEntregaProducto(producto)}
-                  className="btn btn-success"
-                  disabled={bloqueado || estaProcesando}
-                >
-                  Entregado
-                </button>
-              )}
-
-              {producto.link_shein && (
-                <a
-                  href={producto.link_shein}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-light-bordered"
-                >
-                  Abrir link
-                </a>
-              )}
-
-              <button
-                onClick={() => abrirEditarProducto(producto)}
-                className="btn btn-light-bordered"
-                disabled={bloqueado || estaProcesando}
-              >
-                Editar
-              </button>
-
-              <button
-                onClick={() => eliminarProducto(producto.id)}
-                className="btn btn-danger"
-                disabled={bloqueado || estaProcesando}
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        ))}
+      <div className="detail-products-list">
+        {productos.map((producto) => renderProductoDetalle(producto))}
 
         {productos.length === 0 && (
           <div className="empty-state">
@@ -1255,12 +1574,12 @@ Estado actual: ${estado}${lineaSeguimiento}`
           <p className="muted">Pagos y abonos del pedido</p>
         </div>
 
-        <button className="btn btn-primary" onClick={abrirAgregarPago} disabled={bloqueado || estaProcesando}>
+        <button className="btn btn-primary" onClick={abrirAgregarPago} disabled={bloqueado || estaProcesando || pedidoConReembolso}>
           Agregar pago
         </button>
       </div>
 
-      <div className={`table-card desktop-table ${pedidoConReembolso ? 'refund-censored-surface' : ''}`}>
+      <div className={`table-card desktop-table ${pedidoConReembolso ? 'refund-censored-surface' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined}>
         <table>
           <thead>
             <tr>
@@ -1278,12 +1597,12 @@ Estado actual: ${estado}${lineaSeguimiento}`
                 <td>${Number(pago.monto || 0).toFixed(2)}</td>
                 <td>{pago.metodo_pago || '-'}</td>
                 <td>{pago.fecha_pago}</td>
-                <td>{pago.notas || '-'}</td>
+                <td>{limpiarNotaPago(pago.notas)}</td>
                 <td className="actions">
                   <button
                     onClick={() => abrirEditarPago(pago)}
                     className="btn btn-light-bordered btn-small"
-                    disabled={bloqueado || estaProcesando}
+                    disabled={bloqueado || estaProcesando || pedidoConReembolso}
                   >
                     Editar
                   </button>
@@ -1291,7 +1610,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
                   <button
                     onClick={() => eliminarPago(pago.id)}
                     className="btn btn-danger btn-small"
-                    disabled={bloqueado || estaProcesando}
+                    disabled={bloqueado || estaProcesando || pedidoConReembolso}
                   >
                     Eliminar
                   </button>
@@ -1310,7 +1629,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
 
       <div className="mobile-list detail-mobile-list">
         {pagos.map((pago) => (
-          <div className={`mobile-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} key={pago.id}>
+          <div className={`mobile-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined} key={pago.id}>
             <div className="mobile-card-header">
               <div>
                 <h3>${Number(pago.monto || 0).toFixed(2)}</h3>
@@ -1321,7 +1640,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
             <div className="mobile-card-info single">
               <div>
                 <span>Notas</span>
-                <strong>{pago.notas || '-'}</strong>
+                <strong>{limpiarNotaPago(pago.notas)}</strong>
               </div>
             </div>
 
@@ -1329,7 +1648,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
               <button
                 onClick={() => abrirEditarPago(pago)}
                 className="btn btn-light-bordered"
-                disabled={bloqueado || estaProcesando}
+                disabled={bloqueado || estaProcesando || pedidoConReembolso}
               >
                 Editar
               </button>
@@ -1337,7 +1656,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
               <button
                 onClick={() => eliminarPago(pago.id)}
                 className="btn btn-danger"
-                disabled={bloqueado || estaProcesando}
+                disabled={bloqueado || estaProcesando || pedidoConReembolso}
               >
                 Eliminar
               </button>
@@ -1486,28 +1805,29 @@ Estado actual: ${estado}${lineaSeguimiento}`
             </label>
 
             <label className="form-field">
-              <span>Costo plataforma*</span>
+              <span>Precio página*</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={precioPagina}
+                onChange={(e) => setPrecioPagina(e.target.value)}
+                required
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Costo real</span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 value={precioShein}
                 onChange={(e) => setPrecioShein(e.target.value)}
-                required
+                placeholder="Se calcula al crear lote"
               />
             </label>
 
-            <label className="form-field">
-              <span>Precio venta*</span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={precioVenta}
-                onChange={(e) => setPrecioVenta(e.target.value)}
-                required
-              />
-            </label>
           </div>
 
           <div className="modal-actions">
@@ -1519,7 +1839,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
               Cancelar
             </button>
 
-            <button className="btn btn-primary" disabled={bloqueado || estaProcesando}>
+            <button className="btn btn-primary" disabled={bloqueado || estaProcesando || pedidoConReembolso}>
               {accionEnProceso || (productoEditando ? 'Guardar cambios' : 'Guardar producto')}
             </button>
           </div>
@@ -1571,7 +1891,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
               Cancelar
             </button>
 
-            <button className="btn btn-primary" disabled={bloqueado || estaProcesando}>
+            <button className="btn btn-primary" disabled={bloqueado || estaProcesando || pedidoConReembolso}>
               {accionEnProceso || (pagoEditando ? 'Guardar cambios' : 'Guardar pago')}
             </button>
           </div>
@@ -1612,7 +1932,7 @@ Estado actual: ${estado}${lineaSeguimiento}`
               type="button"
               className="btn btn-primary"
               onClick={confirmarEntregaPedido}
-              disabled={bloqueado || estaProcesando}
+              disabled={bloqueado || estaProcesando || pedidoConReembolso}
             >
               {accionEnProceso || 'Confirmar entrega'}
             </button>
@@ -1639,10 +1959,22 @@ Estado actual: ${estado}${lineaSeguimiento}`
               <strong>{productoEntregaPendiente.producto.nombre_producto}</strong>
             </div>
 
-            <div className="confirm-delivery-amount">
-              <span>Monto a registrar</span>
-              <strong>{formatearDinero(productoEntregaPendiente.montoACobrar)}</strong>
+            <div className="confirm-delivery-product-totals">
+              <div>
+                <span>Total del producto</span>
+                <strong>{formatearDinero(productoEntregaPendiente.totalProducto)}</strong>
+              </div>
+              <div>
+                <span>Monto a registrar</span>
+                <strong>{formatearDinero(productoEntregaPendiente.montoACobrar)}</strong>
+              </div>
             </div>
+
+            {productoEntregaPendiente.montoACobrar <= 0 && (
+              <p className="muted">
+                Este producto ya queda cubierto con los pagos registrados. Solo se marcará como pagado y entregado.
+              </p>
+            )}
 
             {productoEntregaPendiente.esUltimoProductoPendiente && (
               <p className="muted">
@@ -1666,13 +1998,83 @@ Estado actual: ${estado}${lineaSeguimiento}`
                 type="button"
                 className="btn btn-primary"
                 onClick={confirmarEntregaProducto}
-                disabled={bloqueado || estaProcesando}
+                disabled={bloqueado || estaProcesando || pedidoConReembolso}
               >
                 {accionEnProceso || 'Confirmar'}
               </button>
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        abierto={modalConfirmarReembolso}
+        titulo={`Confirmar ${reembolsoPendiente?.estadoNuevo || 'reembolso'}`}
+        onClose={() => {
+          if (estaProcesando) return
+          setModalConfirmarReembolso(false)
+          setReembolsoPendiente(null)
+          setMontoReembolso('')
+        }}
+      >
+        <div className="refund-confirm-modal">
+          <p className="muted">
+            Este pedido quedará como {reembolsoPendiente?.estadoNuevo || 'cancelado/devuelto'} y no contará para métricas.
+          </p>
+
+          <div className="confirm-delivery-amount">
+            <span>Pagado por el cliente</span>
+            <strong>{formatearDinero(reembolsoPendiente?.montoPagado || pedido?.anticipo || 0)}</strong>
+          </div>
+
+          <div className="refund-quick-actions">
+            <button type="button" className="btn btn-light-bordered" onClick={() => aplicarMontoReembolsoRapido('todo')} disabled={estaProcesando}>
+              Devolví todo
+            </button>
+            <button type="button" className="btn btn-light-bordered" onClick={() => aplicarMontoReembolsoRapido('mitad')} disabled={estaProcesando}>
+              Devolví la mitad
+            </button>
+            <button type="button" className="btn btn-light-bordered" onClick={() => aplicarMontoReembolsoRapido('nada')} disabled={estaProcesando}>
+              No devolví nada
+            </button>
+          </div>
+
+          <label className="form-field">
+            <span>Cuánto devolviste</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={montoReembolso}
+              onChange={(e) => setMontoReembolso(e.target.value)}
+              disabled={estaProcesando}
+            />
+          </label>
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn btn-light-bordered"
+              onClick={() => {
+                setModalConfirmarReembolso(false)
+                setReembolsoPendiente(null)
+                setMontoReembolso('')
+              }}
+              disabled={estaProcesando}
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={confirmarReembolsoPedido}
+              disabled={bloqueado || estaProcesando}
+            >
+              {accionEnProceso || 'Confirmar'}
+            </button>
+          </div>
+        </div>
       </Modal>
 
       <Modal

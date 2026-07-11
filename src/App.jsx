@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard'
 import Clientes from './pages/Clientes'
 import Pedidos from './pages/Pedidos'
 import NuevoPedido from './pages/NuevoPedido'
+import Compras from './pages/Compras'
 import DetallePedido from './pages/DetallePedido'
 import Seguimiento from './pages/Seguimiento'
 import Planes from './pages/Planes'
@@ -141,6 +142,16 @@ export default function App() {
           element={
             <ProtectedRoute session={session}>
               <Planes />
+            </ProtectedRoute>
+          }
+        />
+
+
+        <Route
+          path="/compras"
+          element={
+            <ProtectedRoute session={session}>
+              <Compras />
             </ProtectedRoute>
           }
         />

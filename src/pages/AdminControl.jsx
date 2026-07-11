@@ -92,7 +92,7 @@ export default function AdminControl() {
   const [tab, setTab] = useState('resumen')
   const [cargando, setCargando] = useState(true)
   const [mensaje, setMensaje] = useState('')
-  const [precios, setPrecios] = useState({ premium: '149', pro: '249' })
+  const [precios, setPrecios] = useState({ premium: '59.99', pro: '99.99' })
   const [nuevoCodigo, setNuevoCodigo] = useState({
     codigo: '',
     plan: 'premium',
@@ -105,7 +105,7 @@ export default function AdminControl() {
   const [guardandoPago, setGuardandoPago] = useState(false)
   const [pagoManual, setPagoManual] = useState({
     plan: 'premium',
-    monto: '149',
+    monto: '59.99',
     metodo_pago: 'transferencia',
     duracion_dias: '30',
     sin_vencimiento: false,
@@ -320,7 +320,7 @@ export default function AdminControl() {
     setUsuarioPago(usuario)
     setPagoManual({
       plan,
-      monto: plan === 'pro' ? '249' : '149',
+      monto: plan === 'pro' ? '99.99' : '59.99',
       metodo_pago: 'transferencia',
       duracion_dias: '30',
       sin_vencimiento: false,
@@ -799,7 +799,7 @@ export default function AdminControl() {
                 onChange={(e) => setPagoManual({
                   ...pagoManual,
                   plan: e.target.value,
-                  monto: e.target.value === 'pro' ? '249' : '149'
+                  monto: e.target.value === 'pro' ? '99.99' : '59.99'
                 })}
               >
                 <option value="premium">Premium</option>
@@ -815,7 +815,7 @@ export default function AdminControl() {
                 step="0.01"
                 value={pagoManual.monto}
                 onChange={(e) => setPagoManual({ ...pagoManual, monto: e.target.value })}
-                placeholder="Ej. 149"
+                placeholder="Ej. 59.99"
               />
             </div>
 

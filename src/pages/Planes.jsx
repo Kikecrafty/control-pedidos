@@ -37,7 +37,7 @@ const planes = [
     periodo: '30 pedidos',
     descripcion: 'Para probar el sistema completo antes de actualizar.',
     boton: 'Plan actual',
-    destacado: false,
+    icono: '✓',
     funciones: [
       '30 pedidos gratis',
       'Clientes y pedidos',
@@ -51,11 +51,11 @@ const planes = [
     id: 'premium',
     etiqueta: 'Recomendado',
     nombre: 'Plan Premium',
-    precio: '$149',
+    precio: '$59.99',
     periodo: 'MXN / mes',
     descripcion: 'Para vender sin límite y usar todas las funciones principales.',
     boton: 'Actualizar a Premium',
-    destacado: true,
+    icono: '♕',
     funciones: [
       'Pedidos ilimitados',
       'Clientes ilimitados',
@@ -69,11 +69,11 @@ const planes = [
     id: 'pro',
     etiqueta: 'Avanzado',
     nombre: 'Plan Pro',
-    precio: '$249',
+    precio: '$99.99',
     periodo: 'MXN / mes',
     descripcion: 'Para analizar ventas, ganancias y crecimiento del negocio.',
     boton: 'Actualizar a Pro',
-    destacado: false,
+    icono: '✦',
     funciones: [
       'Todo Premium',
       'Métricas reales por fecha',
@@ -221,10 +221,13 @@ export default function Planes() {
 
   return (
     <Layout>
-      <div className="page-header plans-header">
-        <div>
-          <h1>Planes</h1>
-          <p>Elige cómo quieres usar Control Pedidos y desbloquea más funciones.</p>
+      <div className="page-header plans-header ordely-plans-header-v4">
+        <div className="ordely-plans-title-row">
+          <span className="ordely-plans-title-icon">♕</span>
+          <div>
+            <h1>Planes y precios</h1>
+            <p>Elige el plan que mejor se adapte al crecimiento de tu negocio.</p>
+          </div>
         </div>
       </div>
 
@@ -234,23 +237,27 @@ export default function Planes() {
         descripcion="Puedes seguir viendo tu información, pero para crear, editar o eliminar necesitas actualizar a Premium o Pro."
       />
 
-      <section className="plans-hero-card">
-        <div className="plans-hero-main">
-          <span className="plan-kicker">Tu cuenta</span>
-          <h2>{estadoPlan?.nombre || 'Usuario'}</h2>
+      <section className="ordely-plan-status-v4">
+        <div>
+          <span>Tu cuenta</span>
+          <strong>{estadoPlan?.nombre || 'Usuario'}</strong>
           <p>{estadoPlan?.correo}</p>
-
-          <div className="plan-current-badges">
-            <span>{nombrePlan(planActual)}</span>
-            <span>{estadoPlan?.plan_expira_en ? `Vence: ${formatearFecha(estadoPlan.plan_expira_en)}` : 'Sin vencimiento'}</span>
-          </div>
         </div>
 
-        <div className="plans-usage-panel">
-          <span>Uso del plan</span>
+        <div>
+          <span>Plan actual</span>
+          <strong>{nombrePlan(planActual)}</strong>
+          <p>{estadoPlan?.plan_expira_en ? `Vence: ${formatearFecha(estadoPlan.plan_expira_en)}` : 'Sin vencimiento'}</p>
+        </div>
+
+        <div>
+          <span>Uso</span>
           <strong>{esBasico ? `${pedidosUsados} / ${limite}` : 'Ilimitado'}</strong>
           <p>{mensajeEstado}</p>
+        </div>
 
+        <div className="ordely-status-progress">
+          <span>Avance</span>
           <div className="plan-progress-bar plan-progress-bar-large">
             <span style={{ width: `${porcentaje}%` }} />
           </div>
@@ -273,49 +280,69 @@ export default function Planes() {
         </section>
       )}
 
-      <section className="plans-grid plans-grid-commercial">
+      <section className="ordely-pricing-grid-v4">
         {planes.map((plan) => {
           const activo = planActual === plan.id
           const esUpgrade = plan.id !== 'basico' && !activo
+          const incluido = plan.id === 'basico' && planActual !== 'basico'
 
           return (
             <article
               key={plan.id}
-              className={`plan-card ${plan.destacado ? 'plan-card-featured' : ''} ${activo ? 'plan-card-active' : ''}`}
+              className={`ordely-plan-card-v4 ordely-plan-card-${plan.id}-v4 ${activo ? 'ordely-plan-card-current-v4' : ''}`}
             >
-              <span className="plan-kicker">{plan.etiqueta}</span>
-              <h2>{plan.nombre}</h2>
+              <div className="ordely-card-glow-v4" />
 
-              <div className="commercial-price">
-                <strong>{plan.precio}</strong>
-                <span>{plan.periodo}</span>
+              <div className="ordely-plan-card-content-v4">
+                <span className="ordely-plan-badge-v4">
+                  <i>{plan.icono}</i>
+                  {plan.etiqueta}
+                </span>
+
+                <h2>{plan.nombre}</h2>
+
+                <div className="ordely-plan-divider-v4" />
+
+                <div className="ordely-plan-price-v4">
+                  <strong>{plan.precio}</strong>
+                  <span>{plan.periodo}</span>
+                </div>
+
+                <p>{plan.descripcion}</p>
+
+                <ul className="ordely-plan-features-v4">
+                  {plan.funciones.map((funcion) => (
+                    <li key={funcion}>
+                      <span>✓</span>
+                      <strong>{funcion}</strong>
+                    </li>
+                  ))}
+                </ul>
+
+                {activo ? (
+                  <button type="button" className="btn ordely-plan-button-v4 ordely-plan-button-current-v4" disabled>
+                    Plan actual
+                  </button>
+                ) : esUpgrade ? (
+                  <button type="button" className="btn ordely-plan-button-v4" onClick={() => solicitarPlan(plan)}>
+                    {plan.boton}
+                  </button>
+                ) : incluido ? (
+                  <button type="button" className="btn ordely-plan-button-v4 ordely-plan-button-included-v4" disabled>
+                    Incluido
+                  </button>
+                ) : (
+                  <button type="button" className="btn ordely-plan-button-v4 ordely-plan-button-current-v4" disabled>
+                    Plan actual
+                  </button>
+                )}
               </div>
-
-              <p>{plan.descripcion}</p>
-
-              <ul>
-                {plan.funciones.map((funcion) => (
-                  <li key={funcion}>{funcion}</li>
-                ))}
-              </ul>
-
-              {activo ? (
-                <button type="button" className="btn btn-light-bordered" disabled>
-                  Plan actual
-                </button>
-              ) : esUpgrade ? (
-                <button type="button" className="btn btn-primary" onClick={() => solicitarPlan(plan)}>
-                  {plan.boton}
-                </button>
-              ) : (
-                <button type="button" className="btn btn-light-bordered" disabled>
-                  Incluido
-                </button>
-              )}
             </article>
           )
         })}
       </section>
+
+      <p className="ordely-plans-footnote-v4">🔒 Todos los planes incluyen actualizaciones y soporte.</p>
 
       <section className="plans-two-columns">
         <div className="redeem-card redeem-card-active">
@@ -367,7 +394,6 @@ export default function Planes() {
           </div>
         </div>
       </section>
-
 
       <section className="subscription-history-card">
         <div className="table-title">

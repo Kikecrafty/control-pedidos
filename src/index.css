@@ -3848,8 +3848,9 @@ textarea:disabled,
   text-decoration-color: rgba(153, 27, 27, 0.55);
 }
 
-.refund-censored-surface::before {
-  content: 'No cuenta para métricas';
+.refund-censored-surface::before,
+.refund-censored-card::before {
+  content: attr(data-refund-label);
   position: absolute;
   top: 14px;
   right: 14px;
@@ -3874,9 +3875,5724 @@ textarea:disabled,
     text-decoration-thickness: 1.5px;
   }
 
-  .refund-censored-surface::before {
+  .refund-censored-surface::before,
+  .refund-censored-card::before {
     position: static;
     display: inline-flex;
     margin: 0 0 12px;
+  }
+}
+
+
+/* ORDELY PARTE 1 - OPTIMIZACIÓN Y BLOQUEOS */
+.dashboard-payment-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: -6px;
+}
+
+.dashboard-payment-mini-grid div {
+  background: #ffffff;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  border-radius: 20px;
+  padding: 16px 18px;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.05);
+}
+
+.dashboard-payment-mini-grid span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.dashboard-payment-mini-grid strong {
+  display: block;
+  font-size: 22px;
+  letter-spacing: -0.05em;
+}
+
+.refund-locked-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  box-shadow: 0 12px 34px rgba(154, 52, 18, 0.08);
+}
+
+.refund-locked-notice strong {
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.refund-locked-notice span {
+  color: #9a3412;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* Suaviza el efecto de reembolso para que no tape botones ni contenido */
+.refund-censored-surface::after,
+.refund-censored-card::after {
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.refund-censored-surface > *,
+.refund-censored-card > * {
+  z-index: 1;
+}
+
+@media (max-width: 800px) {
+  .dashboard-payment-mini-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .refund-locked-notice {
+    display: grid;
+  }
+}
+
+
+.refund-confirm-modal {
+  display: grid;
+  gap: 16px;
+}
+
+.refund-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.refund-quick-actions .btn {
+  min-height: 46px;
+  white-space: normal;
+}
+
+.refund-confirm-modal .form-field input {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+@media (max-width: 800px) {
+  .refund-quick-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   ORDELY PARTE 3 - PAGINACIÓN Y LISTAS GRANDES
+   ========================================================= */
+
+.list-toolbar-card {
+  background: #ffffff;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  border-radius: 22px;
+  padding: 16px;
+  margin: 0 0 18px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.list-page-size-field select {
+  min-width: 100px;
+}
+
+.pagination-card {
+  background: #ffffff;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  border-radius: 22px;
+  padding: 14px;
+  margin: 0 0 24px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.pagination-card > div {
+  display: grid;
+  gap: 3px;
+  text-align: center;
+}
+
+.pagination-card strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.pagination-card span,
+.pagination-range {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pagination-card .btn {
+  min-width: 120px;
+}
+
+.mobile-list-title .pagination-range {
+  display: block;
+  margin-top: 4px;
+}
+
+@media (max-width: 800px) {
+  .list-toolbar-card {
+    grid-template-columns: 1fr;
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .pagination-card {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .pagination-card .btn {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* ORDELY - TOTALES POR PRODUCTO + BOTÓN REGRESAR */
+.detail-back-button {
+  white-space: nowrap;
+}
+
+.confirm-delivery-product-totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.confirm-delivery-product-totals div {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.confirm-delivery-product-totals span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.confirm-delivery-product-totals strong {
+  font-size: 24px;
+  letter-spacing: -0.05em;
+}
+
+.product-actions-inline .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+  .detail-back-button {
+    width: 100%;
+  }
+
+  .confirm-delivery-product-totals {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   ORDELY - SIDEBAR FIJA + PLANES VISUALES
+   Pegar al final de src/index.css
+   ========================================================= */
+
+@media (min-width: 801px) {
+  .app-layout {
+    display: block;
+    min-height: 100vh;
+  }
+
+  .sidebar.desktop-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 280px;
+    height: 100vh;
+    min-height: 0;
+    padding: 18px 18px 16px;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 12px;
+    overflow: hidden;
+  }
+
+  .sidebar-main-area {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+  }
+
+  .sidebar-main-area::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar-main-area::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
+  }
+
+  .sidebar-footer {
+    flex: 0 0 auto;
+    padding-top: 8px;
+    background: #0f172a;
+  }
+
+  .sidebar-footer .btn {
+    width: 100%;
+    min-height: 46px;
+    border-radius: 18px;
+  }
+
+  .main-content {
+    margin-left: 280px;
+  }
+}
+
+.ordely-sidebar-brand {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ordely-sidebar-brand-main {
+  gap: 10px;
+}
+
+.ordely-sidebar-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.ordely-sidebar-brand-main strong {
+  font-size: 24px;
+}
+
+.ordely-sidebar-brand-main span {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.ordely-sidebar-brand p {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #dbeafe;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-account-button {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-radius: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  margin: 4px 0 10px;
+  transition: 0.18s ease;
+}
+
+.sidebar-account-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.sidebar-account-button-drawer {
+  margin-top: 0;
+}
+
+.account-plan-card {
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 12px;
+  padding: 14px;
+  border-radius: 22px;
+  isolation: isolate;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.18);
+}
+
+.account-plan-card::before,
+.account-plan-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.account-plan-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.account-plan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.account-plan-head strong {
+  display: block;
+  font-size: 23px;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.account-plan-head span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.account-plan-summary {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.account-plan-summary span {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-plan-summary strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.account-plan-card-basico {
+  background:
+    linear-gradient(135deg, #ffffff 0%, #f8fafc 48%, #e0f2fe 100%);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  color: #0f172a;
+}
+
+.account-plan-card-basico .account-plan-label,
+.account-plan-card-basico .account-plan-head span {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.account-plan-card-basico .account-plan-summary {
+  border-top-color: rgba(15, 23, 42, 0.1);
+}
+
+.account-plan-card-basico .account-plan-summary span {
+  color: #64748b;
+}
+
+.account-plan-card-premium {
+  background:
+    linear-gradient(125deg, #7c3f00 0%, #f59e0b 25%, #fff7c2 47%, #facc15 64%, #92400e 100%);
+  border: 1px solid rgba(253, 224, 71, 0.92);
+  color: #2a1600;
+}
+
+.account-plan-card-premium::before {
+  background:
+    linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.52) 43%, transparent 62%);
+  transform: translateX(-65%);
+  animation: ordelyGoldShine 4.8s ease-in-out infinite;
+}
+
+.account-plan-card-premium .account-plan-label,
+.account-plan-card-premium .account-plan-head span {
+  background: rgba(255, 255, 255, 0.42);
+  color: #713f12;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.account-plan-card-premium .account-plan-summary {
+  border-top-color: rgba(113, 63, 18, 0.25);
+}
+
+.account-plan-card-premium .account-plan-summary span {
+  color: rgba(68, 32, 0, 0.76);
+}
+
+.account-plan-card-pro {
+  background:
+    radial-gradient(circle at 16% 20%, rgba(255, 255, 255, 0.22), transparent 16%),
+    radial-gradient(circle at 86% 22%, rgba(59, 130, 246, 0.28), transparent 18%),
+    radial-gradient(circle at 20% 88%, rgba(168, 85, 247, 0.28), transparent 20%),
+    linear-gradient(145deg, #020617 0%, #111827 48%, #000000 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.account-plan-card-pro::before {
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.98) 0 1.2px, transparent 1.5px),
+    radial-gradient(circle, rgba(255,255,255,0.75) 0 1px, transparent 1.3px),
+    radial-gradient(circle, rgba(192,132,252,0.95) 0 1.2px, transparent 1.5px);
+  background-size: 58px 58px, 78px 78px, 96px 96px;
+  background-position: 10px 12px, 32px 36px, 18px 60px;
+  opacity: 0.56;
+  animation: ordelyStarTwinkle 3.2s ease-in-out infinite alternate;
+}
+
+.account-plan-card-pro::after {
+  inset: auto -40% -60% -40%;
+  height: 90px;
+  background: radial-gradient(circle, rgba(255,255,255,0.22), transparent 70%);
+}
+
+.account-plan-card-pro .account-plan-label,
+.account-plan-card-pro .account-plan-head span {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e0e7ff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.account-plan-card-pro .account-plan-summary span {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+@keyframes ordelyGoldShine {
+  0%, 38% { transform: translateX(-75%); }
+  62%, 100% { transform: translateX(80%); }
+}
+
+@keyframes ordelyStarTwinkle {
+  from { opacity: 0.38; filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+  to { opacity: 0.82; filter: drop-shadow(0 0 6px rgba(255,255,255,0.65)); }
+}
+
+.sidebar-platform-panel {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-platform-panel span {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar-platform-panel select {
+  width: 100%;
+  min-height: 42px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.sidebar .nav {
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sidebar .nav-link {
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.account-details-modal {
+  display: grid;
+  gap: 16px;
+}
+
+.account-details-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #f8fafc;
+}
+
+.account-details-user img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.account-details-user strong {
+  display: block;
+  font-size: 18px;
+  letter-spacing: -0.04em;
+}
+
+.account-details-user span {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.account-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.account-details-grid div {
+  padding: 14px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.account-details-grid span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+}
+
+.account-details-grid strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+@media (max-width: 800px) {
+  .account-plan-card {
+    margin-bottom: 14px;
+  }
+
+  .sidebar-account-button {
+    min-height: 42px;
+  }
+
+  .sidebar-platform-panel {
+    margin-bottom: 16px;
+  }
+
+  .account-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   ORDELY - SIDEBAR V2: MI CUENTA + PLANES MEJORADOS
+   Pegar al final de src/index.css, después de los estilos anteriores
+   ========================================================= */
+
+.account-plan-head-simple {
+  justify-content: flex-start !important;
+}
+
+.account-plan-head-simple strong {
+  max-width: 100%;
+}
+
+.account-plan-head-simple span {
+  display: none !important;
+}
+
+/* Tarjeta Premium: brillo corto, sin bloque blanco detenido */
+.account-plan-card-premium {
+  background:
+    radial-gradient(circle at 24% 10%, rgba(255, 255, 255, 0.82), transparent 22%),
+    linear-gradient(135deg, #8a4b00 0%, #d99107 18%, #ffd65a 36%, #fff3b0 52%, #f4bd19 70%, #9a5b07 100%) !important;
+  border: 1px solid rgba(253, 224, 71, 0.92) !important;
+  color: #2a1600 !important;
+}
+
+.account-plan-card-premium::before {
+  inset: -80% auto -80% 0 !important;
+  width: 58px !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.68), transparent) !important;
+  transform: translateX(-170%) rotate(18deg) !important;
+  animation: ordelyGoldShineClean 5.5s ease-in-out infinite !important;
+  opacity: 0 !important;
+}
+
+.account-plan-card-premium::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    linear-gradient(115deg, transparent 0 42%, rgba(255,255,255,0.24) 43% 50%, transparent 51% 100%),
+    radial-gradient(circle at 78% 22%, rgba(255,255,255,0.42), transparent 18%);
+  opacity: 0.55;
+}
+
+@keyframes ordelyGoldShineClean {
+  0%, 55% {
+    opacity: 0;
+    transform: translateX(-170%) rotate(18deg);
+  }
+
+  62% {
+    opacity: 0.95;
+  }
+
+  78% {
+    opacity: 0.95;
+    transform: translateX(520%) rotate(18deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(560%) rotate(18deg);
+  }
+}
+
+/* Tarjeta Pro: metal negro brillante + estrellas */
+.account-plan-card-pro {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255,255,255,0.20), transparent 14%),
+    radial-gradient(circle at 86% 16%, rgba(59,130,246,0.28), transparent 18%),
+    radial-gradient(circle at 30% 92%, rgba(168,85,247,0.30), transparent 22%),
+    linear-gradient(115deg, #030712 0%, #0b1120 26%, #222835 43%, #05070d 58%, #111827 77%, #000000 100%) !important;
+  border: 1px solid rgba(255,255,255,0.2) !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 24px 58px rgba(0,0,0,0.36),
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    inset 0 -18px 40px rgba(0,0,0,0.35) !important;
+}
+
+.account-plan-card-pro::before {
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,1) 0 1.25px, transparent 1.6px),
+    radial-gradient(circle, rgba(219,234,254,0.96) 0 1px, transparent 1.35px),
+    radial-gradient(circle, rgba(192,132,252,0.96) 0 1.2px, transparent 1.55px),
+    radial-gradient(circle, rgba(255,255,255,0.9) 0 0.8px, transparent 1.1px) !important;
+  background-size: 46px 46px, 68px 68px, 92px 92px, 120px 120px !important;
+  background-position: 8px 10px, 30px 34px, 12px 62px, 54px 18px !important;
+  opacity: 0.45 !important;
+  animation: ordelyProStars 2.8s ease-in-out infinite alternate !important;
+}
+
+.account-plan-card-pro::after {
+  content: '';
+  position: absolute;
+  inset: -60% auto -60% 0;
+  width: 80px;
+  pointer-events: none;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.32), rgba(125,211,252,0.16), transparent);
+  transform: translateX(-180%) rotate(18deg);
+  animation: ordelyProMetalSweep 6s ease-in-out infinite;
+  opacity: 0;
+}
+
+@keyframes ordelyProStars {
+  0% {
+    opacity: 0.28;
+    filter: drop-shadow(0 0 0 rgba(255,255,255,0));
+  }
+
+  45% {
+    opacity: 0.72;
+    filter: drop-shadow(0 0 5px rgba(255,255,255,0.6));
+  }
+
+  100% {
+    opacity: 0.50;
+    filter: drop-shadow(0 0 9px rgba(147,197,253,0.45));
+  }
+}
+
+@keyframes ordelyProMetalSweep {
+  0%, 48% {
+    opacity: 0;
+    transform: translateX(-180%) rotate(18deg);
+  }
+
+  56% {
+    opacity: 1;
+  }
+
+  74% {
+    opacity: 0.75;
+    transform: translateX(520%) rotate(18deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(560%) rotate(18deg);
+  }
+}
+
+/* Modal Mi cuenta editable */
+.account-details-modal-edit {
+  gap: 18px;
+}
+
+.account-name-edit-field {
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #ffffff;
+}
+
+.account-name-edit-field input {
+  margin-top: 2px;
+  font-weight: 800;
+}
+
+.account-modal-message {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.account-modal-message-success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.account-modal-message-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.account-modal-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.account-modal-actions .btn {
+  width: 100%;
+}
+
+@media (max-width: 800px) {
+  .account-modal-actions {
+    grid-template-columns: 1fr;
+  }
+}
+/* =========================================================
+   ORDELY - FIX MENÚ MÓVIL / DRAWER
+   Corrige ancho, scroll, tarjeta de plan y botones en teléfono
+   ========================================================= */
+
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media (max-width: 800px) {
+  .mobile-drawer {
+    width: min(84vw, 340px) !important;
+    max-width: calc(100vw - 56px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 14px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    gap: 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  .mobile-drawer * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .mobile-drawer-header,
+  .ordely-drawer-brand {
+    margin-bottom: 10px !important;
+    align-items: center !important;
+  }
+
+  .ordely-drawer-brand > div {
+    min-width: 0;
+    gap: 10px !important;
+  }
+
+  .ordely-drawer-icon {
+    width: 44px !important;
+    height: 44px !important;
+    flex: 0 0 44px !important;
+  }
+
+  .mobile-drawer-header strong,
+  .ordely-drawer-brand strong {
+    font-size: 22px !important;
+    line-height: 1.05 !important;
+  }
+
+  .mobile-drawer-header span,
+  .ordely-drawer-brand span {
+    font-size: 12px !important;
+    line-height: 1.15 !important;
+  }
+
+  .drawer-close {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    border-radius: 18px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer .sidebar-account-button,
+  .mobile-drawer .sidebar-account-button-drawer {
+    min-height: 44px !important;
+    margin: 0 0 10px !important;
+    border-radius: 16px !important;
+    font-size: 15px !important;
+  }
+
+  /* Tarjeta del plan en móvil: compacta y sin recortes */
+  .mobile-drawer .account-plan-card,
+  .mobile-drawer .account-plan-card-compact {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 0 12px !important;
+    padding: 12px !important;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    transform: none !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-label {
+    min-height: 22px !important;
+    padding: 4px 8px !important;
+    font-size: 9px !important;
+    line-height: 1 !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-head,
+  .mobile-drawer .account-plan-card .account-plan-head-simple {
+    display: block !important;
+    margin-top: 8px !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-head strong {
+    display: block !important;
+    font-size: 20px !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.05em !important;
+    white-space: normal !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-summary {
+    display: grid !important;
+    grid-template-columns: 84px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-top: 9px !important;
+    padding-top: 9px !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-summary span {
+    font-size: 10px !important;
+    line-height: 1.05 !important;
+    margin: 0 !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-summary strong {
+    display: block !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    text-align: right !important;
+    word-break: normal !important;
+  }
+
+  .mobile-drawer .account-plan-card-premium::before,
+  .mobile-drawer .account-plan-card-premium::after,
+  .mobile-drawer .account-plan-card-pro::before,
+  .mobile-drawer .account-plan-card-pro::after {
+    max-width: none !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel {
+    width: 100% !important;
+    margin: 0 0 12px !important;
+    padding: 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel span {
+    font-size: 10px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel select {
+    min-height: 44px !important;
+    border-radius: 15px !important;
+    font-size: 15px !important;
+  }
+
+  .mobile-drawer .drawer-nav {
+    display: grid !important;
+    gap: 9px !important;
+    margin-top: 0 !important;
+  }
+
+  .mobile-drawer .drawer-nav .nav-link {
+    min-height: 48px !important;
+    padding: 12px 14px !important;
+    border-radius: 17px !important;
+    font-size: 17px !important;
+    line-height: 1 !important;
+  }
+
+  .mobile-drawer .drawer-logout {
+    margin-top: 12px !important;
+    min-height: 46px !important;
+    border-radius: 17px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer-overlay {
+    overflow: hidden !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .mobile-drawer {
+    width: min(86vw, 324px) !important;
+    max-width: calc(100vw - 46px) !important;
+    padding: 12px !important;
+  }
+
+  .mobile-drawer .drawer-nav .nav-link {
+    min-height: 46px !important;
+    font-size: 16px !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-summary {
+    grid-template-columns: 76px minmax(0, 1fr) !important;
+  }
+}
+
+/* =========================================================
+   ORDELY - FIX DEFINITIVO MENÚ MÓVIL
+   Drawer móvil independiente del sidebar de escritorio
+   ========================================================= */
+
+@media (max-width: 800px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+  }
+
+  .mobile-drawer-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 80 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    background: rgba(15, 23, 42, 0.54) !important;
+    border: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mobile-drawer {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: 90 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 18px 18px 96px !important;
+    background: #0f172a !important;
+    color: #ffffff !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    transform: translateX(-105%) !important;
+    transition: transform 0.22s ease !important;
+    box-shadow: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    box-sizing: border-box !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .mobile-drawer.mobile-drawer-open {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-drawer *,
+  .mobile-drawer *::before,
+  .mobile-drawer *::after {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+  }
+
+  .mobile-drawer-header.ordely-drawer-brand {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+    margin: 0 0 4px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .ordely-drawer-brand > div {
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 11px !important;
+  }
+
+  .ordely-drawer-icon {
+    width: 46px !important;
+    height: 46px !important;
+    flex: 0 0 46px !important;
+    object-fit: contain !important;
+  }
+
+  .ordely-drawer-brand strong {
+    display: block !important;
+    font-size: 24px !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .ordely-drawer-brand span {
+    display: block !important;
+    margin-top: 4px !important;
+    color: rgba(255,255,255,0.72) !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+
+  .drawer-close {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    border-radius: 18px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer .sidebar-account-button,
+  .mobile-drawer .sidebar-account-button-drawer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-height: 46px !important;
+    margin: 0 !important;
+    padding: 10px 14px !important;
+    border-radius: 18px !important;
+    font-size: 16px !important;
+    font-weight: 950 !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer .account-plan-card,
+  .mobile-drawer .account-plan-card-compact {
+    display: none !important;
+  }
+
+  .drawer-plan-card {
+    position: relative !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 14px !important;
+    border-radius: 22px !important;
+    overflow: hidden !important;
+    flex: 0 0 auto !important;
+    isolation: isolate !important;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .drawer-plan-card::before,
+  .drawer-plan-card::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+  }
+
+  .drawer-plan-card-basico {
+    background: linear-gradient(135deg, #ffffff, #f8fafc, #e0f2fe) !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  }
+
+  .drawer-plan-card-premium {
+    background:
+      radial-gradient(circle at 22% 8%, rgba(255,255,255,0.85), transparent 22%),
+      linear-gradient(135deg, #8a4b00 0%, #e69f09 22%, #fff3ad 48%, #facc15 70%, #8a4b00 100%) !important;
+    color: #2a1600 !important;
+    border: 1px solid rgba(253, 224, 71, 0.9) !important;
+  }
+
+  .drawer-plan-card-premium::before {
+    inset: -60% auto -60% -40% !important;
+    width: 56px !important;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.70), transparent) !important;
+    transform: translateX(-120%) rotate(18deg) !important;
+    animation: drawerGoldShine 5.2s ease-in-out infinite !important;
+  }
+
+  .drawer-plan-card-pro {
+    background:
+      radial-gradient(circle at 18% 18%, rgba(255,255,255,0.20), transparent 15%),
+      radial-gradient(circle at 86% 18%, rgba(59,130,246,0.28), transparent 20%),
+      linear-gradient(125deg, #020617 0%, #111827 38%, #030712 62%, #000000 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+  }
+
+  .drawer-plan-card-pro::before {
+    background-image:
+      radial-gradient(circle, rgba(255,255,255,1) 0 1px, transparent 1.4px),
+      radial-gradient(circle, rgba(192,132,252,0.95) 0 1px, transparent 1.4px),
+      radial-gradient(circle, rgba(147,197,253,0.95) 0 1px, transparent 1.4px) !important;
+    background-size: 42px 42px, 68px 68px, 96px 96px !important;
+    background-position: 8px 12px, 26px 34px, 58px 10px !important;
+    opacity: 0.42 !important;
+    animation: drawerStars 2.8s ease-in-out infinite alternate !important;
+  }
+
+  .drawer-plan-card-top {
+    display: grid !important;
+    gap: 5px !important;
+  }
+
+  .drawer-plan-card-top span {
+    width: fit-content !important;
+    display: inline-flex !important;
+    min-height: 24px !important;
+    align-items: center !important;
+    padding: 5px 9px !important;
+    border-radius: 999px !important;
+    background: rgba(255,255,255,0.28) !important;
+    border: 1px solid rgba(255,255,255,0.26) !important;
+    font-size: 10px !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+  }
+
+  .drawer-plan-card-top strong {
+    display: block !important;
+    font-size: 24px !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.06em !important;
+  }
+
+  .drawer-plan-card-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    margin-top: 12px !important;
+  }
+
+  .drawer-plan-card-grid div {
+    min-width: 0 !important;
+    padding: 11px !important;
+    border-radius: 16px !important;
+    background: rgba(255,255,255,0.20) !important;
+    border: 1px solid rgba(255,255,255,0.16) !important;
+  }
+
+  .drawer-plan-card-grid span {
+    display: block !important;
+    margin-bottom: 5px !important;
+    font-size: 9px !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    opacity: 0.78 !important;
+  }
+
+  .drawer-plan-card-grid strong {
+    display: block !important;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+    word-break: normal !important;
+  }
+
+  .drawer-plan-warning {
+    margin-top: 10px !important;
+    padding: 9px 10px !important;
+    border-radius: 14px !important;
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    font-weight: 950 !important;
+    text-align: center !important;
+    font-size: 12px !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 14px !important;
+    border-radius: 22px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel span {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel select {
+    min-height: 46px !important;
+    border-radius: 16px !important;
+    font-size: 16px !important;
+  }
+
+  .mobile-drawer .drawer-nav {
+    display: grid !important;
+    gap: 10px !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer .drawer-nav .nav-link {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 52px !important;
+    padding: 12px 18px !important;
+    border-radius: 18px !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+  }
+
+  .mobile-drawer .drawer-logout {
+    width: 100% !important;
+    min-height: 48px !important;
+    border-radius: 18px !important;
+    margin: 8px 0 0 !important;
+    flex: 0 0 auto !important;
+  }
+
+  .bottom-nav {
+    z-index: 70 !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .mobile-drawer {
+    padding: 16px 14px 92px !important;
+    gap: 11px !important;
+  }
+
+  .drawer-plan-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mobile-drawer .drawer-nav .nav-link {
+    min-height: 50px !important;
+    font-size: 17px !important;
+  }
+}
+
+@keyframes drawerGoldShine {
+  0%, 52% { transform: translateX(-130%) rotate(18deg); opacity: 0; }
+  60% { opacity: 0.9; }
+  78% { transform: translateX(900%) rotate(18deg); opacity: 0.85; }
+  100% { transform: translateX(940%) rotate(18deg); opacity: 0; }
+}
+
+@keyframes drawerStars {
+  from { opacity: 0.26; filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+  to { opacity: 0.72; filter: drop-shadow(0 0 6px rgba(255,255,255,0.6)); }
+}
+
+
+/* FIX: nombre y plan visibles en drawer móvil */
+@media (max-width: 800px) {
+  .mobile-drawer .ordely-drawer-brand > div:first-child {
+    align-items: flex-start !important;
+  }
+
+  .mobile-drawer .drawer-account-line {
+    display: block !important;
+    max-width: 230px !important;
+    margin: 10px 0 0 !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+    font-weight: 850 !important;
+    letter-spacing: -0.02em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .mobile-drawer .ordely-drawer-brand span {
+    color: rgba(255, 255, 255, 0.76) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .mobile-drawer .drawer-account-line {
+    max-width: 190px !important;
+  }
+}
+
+
+/* =========================================================
+   ORDELY - Ajustes planes, sidebar y precios V3
+   ========================================================= */
+
+.ordely-sidebar-brand-main span,
+.ordely-drawer-brand span {
+  display: none !important;
+}
+
+.ordely-sidebar-brand p,
+.drawer-account-line {
+  color: #dbeafe;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-plan-upgrade-button {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  font-weight: 950;
+  font-size: 13px;
+  border: 1px solid rgba(255,255,255,0.55);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.12);
+}
+
+.account-plan-card-basico .account-plan-upgrade-button {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.account-plan-card-pro .account-plan-upgrade-button {
+  display: none;
+}
+
+.drawer-plan-upgrade-button {
+  min-height: 40px;
+  margin-top: 12px;
+}
+
+.drawer-plan-card-pro .drawer-plan-upgrade-button {
+  display: none;
+}
+
+/* Tarjetas de planes en /planes estilo presentación */
+.plans-grid-commercial {
+  align-items: stretch;
+  gap: 22px;
+}
+
+.ordely-pricing-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 520px;
+  padding: 28px;
+  border-radius: 30px;
+  box-shadow: 0 22px 70px rgba(15, 23, 42, 0.10);
+}
+
+.ordely-pricing-card .plan-kicker {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.ordely-pricing-card h2 {
+  margin: 14px 0 16px;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.ordely-pricing-card .commercial-price {
+  align-items: baseline;
+  margin: 26px 0 26px;
+}
+
+.ordely-pricing-card .commercial-price strong {
+  font-size: 52px;
+  line-height: 0.95;
+  letter-spacing: -0.08em;
+}
+
+.ordely-pricing-card .commercial-price span {
+  font-size: 20px;
+  font-weight: 950;
+  color: #64748b;
+}
+
+.ordely-pricing-card p {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.ordely-pricing-card ul {
+  gap: 13px;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.ordely-pricing-card .btn {
+  min-height: 56px;
+  border-radius: 18px;
+  font-size: 15px;
+}
+
+.ordely-pricing-card-current {
+  outline: 4px solid rgba(15, 23, 42, 0.16);
+}
+
+.ordely-pricing-card-premium {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  transform: none !important;
+}
+
+.ordely-pricing-card-premium .plan-kicker,
+.ordely-pricing-card-premium p,
+.ordely-pricing-card-premium li,
+.ordely-pricing-card-premium .commercial-price span {
+  color: rgba(255, 255, 255, 0.68) !important;
+}
+
+.ordely-pricing-card-premium .commercial-price strong {
+  color: #ffffff !important;
+}
+
+.ordely-pricing-card-pro {
+  background:
+    radial-gradient(circle at 86% 12%, rgba(59, 130, 246, 0.10), transparent 28%),
+    #ffffff !important;
+}
+
+.ordely-pricing-card-basico {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255,255,255,0.9), transparent 30%),
+    #ffffff !important;
+}
+
+@media (max-width: 1100px) {
+  .ordely-pricing-card {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 800px) {
+  .ordely-pricing-card {
+    padding: 22px;
+    border-radius: 26px;
+  }
+
+  .ordely-pricing-card .commercial-price strong {
+    font-size: 42px;
+  }
+
+  .ordely-pricing-card p,
+  .ordely-pricing-card ul {
+    font-size: 16px;
+  }
+}
+
+/* =========================================================
+   ORDELY - Planes premium V4
+   Diseño dorado Premium + galaxia Pro
+   ========================================================= */
+
+.ordely-plans-header-v4 {
+  margin-bottom: 20px;
+}
+
+.ordely-plans-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ordely-plans-title-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff7cc, #d99715 58%, #fff0a6);
+  color: #6b3c00;
+  box-shadow: 0 14px 34px rgba(217, 151, 21, 0.28), inset 0 0 0 1px rgba(255,255,255,0.65);
+  font-weight: 950;
+}
+
+.ordely-plan-status-v4 {
+  display: grid;
+  grid-template-columns: 1.1fr 0.85fr 1.1fr 1fr;
+  gap: 12px;
+  margin: 0 0 24px;
+}
+
+.ordely-plan-status-v4 > div {
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(229, 231, 235, 0.95);
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
+}
+
+.ordely-plan-status-v4 span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+
+.ordely-plan-status-v4 strong {
+  display: block;
+  color: #0f172a;
+  font-size: 18px;
+  letter-spacing: -0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ordely-plan-status-v4 p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ordely-status-progress {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.ordely-pricing-grid-v4 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  align-items: stretch;
+  margin: 0 0 14px;
+}
+
+.ordely-plan-card-v4 {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 610px;
+  border-radius: 34px;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(255,255,255,0.72);
+  background: #ffffff;
+}
+
+.ordely-plan-card-v4::before,
+.ordely-plan-card-v4::after,
+.ordely-card-glow-v4 {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.ordely-plan-card-content-v4 {
+  position: relative;
+  z-index: 3;
+  height: 100%;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ordely-plan-badge-v4 {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 9px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.ordely-plan-badge-v4 i {
+  font-style: normal;
+  line-height: 1;
+}
+
+.ordely-plan-card-v4 h2 {
+  margin: 0;
+  font-size: clamp(30px, 2.4vw, 42px);
+  line-height: 1;
+  letter-spacing: -0.07em;
+}
+
+.ordely-plan-divider-v4 {
+  height: 1px;
+  margin: 24px 0;
+  background: rgba(15, 23, 42, 0.12);
+}
+
+.ordely-plan-price-v4 {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.ordely-plan-price-v4 strong {
+  display: block;
+  font-size: clamp(48px, 5vw, 72px);
+  line-height: 0.9;
+  letter-spacing: -0.09em;
+}
+
+.ordely-plan-price-v4 span {
+  font-size: 20px;
+  font-weight: 950;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.ordely-plan-card-v4 p {
+  margin: 0 0 26px;
+  color: #475569;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.ordely-plan-features-v4 {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 14px;
+  flex: 1;
+}
+
+.ordely-plan-features-v4 li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+  color: #0f172a;
+}
+
+.ordely-plan-features-v4 li span {
+  width: 21px;
+  height: 21px;
+  margin-top: 1px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 950;
+  border: 2px solid currentColor;
+}
+
+.ordely-plan-features-v4 li strong {
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 850;
+}
+
+.ordely-plan-button-v4 {
+  width: 100%;
+  min-height: 58px;
+  margin-top: 30px;
+  border-radius: 18px;
+  font-size: 15px;
+  font-weight: 950;
+  position: relative;
+  z-index: 4;
+}
+
+.ordely-plan-button-included-v4 {
+  background: #ffffff;
+  color: #64748b;
+  border: 1px solid #e5e7eb;
+}
+
+/* Básico */
+.ordely-plan-card-basico-v4 {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(219, 234, 254, 0.65), transparent 28%),
+    linear-gradient(145deg, #ffffff 0%, #ffffff 58%, #f8fafc 100%);
+}
+
+.ordely-plan-card-basico-v4 .ordely-plan-badge-v4 {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.ordely-plan-card-basico-v4 .ordely-plan-features-v4 li span {
+  color: #3b82f6;
+}
+
+.ordely-plan-card-basico-v4 .ordely-plan-button-v4:not(.ordely-plan-button-current-v4) {
+  background: #ffffff;
+  color: #64748b;
+  border: 1px solid #e5e7eb;
+}
+
+/* Premium oro */
+.ordely-plan-card-premium-v4 {
+  color: #211200;
+  border: 2px solid rgba(255, 214, 98, 0.92);
+  background:
+    radial-gradient(circle at 86% 18%, rgba(255,255,255,0.7), transparent 20%),
+    radial-gradient(circle at 18% 96%, rgba(104, 59, 0, 0.32), transparent 34%),
+    linear-gradient(135deg, #9c5d04 0%, #f8be2e 24%, #fff1a2 48%, #e1a007 72%, #6c3b00 100%);
+  box-shadow:
+    0 0 0 5px rgba(255, 228, 119, 0.26),
+    0 34px 90px rgba(164, 97, 0, 0.32),
+    inset 0 0 0 1px rgba(255,255,255,0.55);
+}
+
+.ordely-plan-card-premium-v4::before {
+  inset: -35% auto -35% -26%;
+  width: 38%;
+  transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.78), rgba(255,255,255,0.28), transparent);
+  filter: blur(1px);
+  animation: ordelyGoldSweepV4 4.8s ease-in-out infinite;
+  z-index: 1;
+}
+
+.ordely-plan-card-premium-v4::after {
+  inset: 0;
+  background:
+    radial-gradient(circle at 72% 24%, rgba(255,255,255,0.42) 0 1px, transparent 2px),
+    radial-gradient(circle at 36% 72%, rgba(255,255,255,0.35) 0 1px, transparent 2px),
+    radial-gradient(circle at 78% 86%, rgba(255,255,255,0.28) 0 1px, transparent 2px),
+    linear-gradient(120deg, transparent 0 45%, rgba(255,255,255,0.2) 46% 49%, transparent 50% 100%);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 220% 220%;
+  mix-blend-mode: screen;
+  opacity: 0.68;
+  animation: ordelyGoldGlitterV4 3.8s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+.ordely-plan-card-premium-v4 .ordely-card-glow-v4 {
+  inset: 16px;
+  border-radius: 26px;
+  background: radial-gradient(circle at 85% 20%, rgba(255,255,255,0.5), transparent 28%);
+  border: 1px solid rgba(255,255,255,0.35);
+  z-index: 0;
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-badge-v4 {
+  color: #6b3c00;
+  background: rgba(255,255,255,0.62);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.8);
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-divider-v4 {
+  background: rgba(63, 35, 0, 0.22);
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-price-v4 span,
+.ordely-plan-card-premium-v4 p {
+  color: rgba(40, 22, 0, 0.76);
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-features-v4 li {
+  color: #211200;
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-features-v4 li span {
+  color: #211200;
+  background: rgba(255,255,255,0.32);
+  border-color: rgba(33,18,0,0.4);
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-button-v4 {
+  background: linear-gradient(135deg, #211200, #5f3a00);
+  color: #ffe9a6;
+  border: 1px solid rgba(255, 238, 166, 0.48);
+  box-shadow: 0 16px 34px rgba(61, 34, 0, 0.28);
+}
+
+/* Pro galaxia */
+.ordely-plan-card-pro-v4 {
+  color: #ffffff;
+  border: 2px solid rgba(185, 167, 255, 0.58);
+  background:
+    radial-gradient(circle at 84% 14%, rgba(255,255,255,0.25) 0 1px, transparent 2px),
+    radial-gradient(circle at 74% 45%, rgba(147, 197, 253, 0.18), transparent 25%),
+    radial-gradient(circle at 88% 60%, rgba(124, 58, 237, 0.22), transparent 30%),
+    linear-gradient(145deg, #050817 0%, #0c1222 42%, #050713 100%);
+  box-shadow:
+    0 0 0 5px rgba(124, 58, 237, 0.16),
+    0 34px 90px rgba(3, 7, 18, 0.34),
+    inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+.ordely-plan-card-pro-v4::before {
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% 18%, rgba(255,255,255,0.9) 0 1px, transparent 2px),
+    radial-gradient(circle at 32% 72%, rgba(255,255,255,0.75) 0 1px, transparent 2px),
+    radial-gradient(circle at 55% 28%, rgba(196,181,253,0.9) 0 1px, transparent 2px),
+    radial-gradient(circle at 76% 80%, rgba(255,255,255,0.8) 0 1px, transparent 2px),
+    radial-gradient(circle at 88% 34%, rgba(147,197,253,0.9) 0 1px, transparent 2px);
+  background-size: 240px 240px, 310px 310px, 280px 280px, 360px 360px, 210px 210px;
+  opacity: 0.72;
+  animation: ordelyStarDriftV4 11s linear infinite;
+  z-index: 0;
+}
+
+.ordely-plan-card-pro-v4::after {
+  right: -42%;
+  top: -18%;
+  width: 88%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 42%, transparent 0 47%, rgba(186, 164, 255, 0.24) 49%, rgba(96, 165, 250, 0.16) 52%, transparent 56%),
+    radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 64%);
+  filter: blur(0.2px);
+  opacity: 0.95;
+  animation: ordelyPlanetPulseV4 5s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+.ordely-plan-card-pro-v4 .ordely-card-glow-v4 {
+  inset: 0;
+  background:
+    radial-gradient(circle at 24% 95%, rgba(168, 85, 247, 0.22), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.16), transparent 34%);
+  z-index: 0;
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-badge-v4 {
+  color: #ffffff;
+  background: rgba(124, 58, 237, 0.48);
+  border: 1px solid rgba(196,181,253,0.35);
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.22);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-divider-v4 {
+  background: rgba(255,255,255,0.14);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-price-v4 strong,
+.ordely-plan-card-pro-v4 h2,
+.ordely-plan-card-pro-v4 .ordely-plan-features-v4 li {
+  color: #ffffff;
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-price-v4 span {
+  color: #c4b5fd;
+}
+
+.ordely-plan-card-pro-v4 p {
+  color: rgba(255,255,255,0.78);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-features-v4 li span {
+  color: #c4b5fd;
+  border-color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.14);
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-button-v4 {
+  background: linear-gradient(135deg, #a78bfa, #5b21b6 55%, #111827);
+  color: #ffffff;
+  border: 1px solid rgba(216, 180, 254, 0.42);
+  box-shadow: 0 16px 40px rgba(91, 33, 182, 0.30);
+}
+
+.ordely-plan-card-current-v4 {
+  transform: translateY(-4px);
+}
+
+.ordely-plan-card-current-v4::selection {
+  background: transparent;
+}
+
+.ordely-plan-button-current-v4:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.ordely-plan-card-basico-v4 .ordely-plan-button-current-v4,
+.ordely-plan-card-basico-v4 .ordely-plan-button-included-v4 {
+  background: #ffffff;
+  color: #64748b;
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
+}
+
+.ordely-plans-footnote-v4 {
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 750;
+  margin: 14px 0 26px;
+}
+
+@keyframes ordelyGoldSweepV4 {
+  0%, 42% { transform: translateX(-120%) rotate(18deg); opacity: 0; }
+  52% { opacity: 0.95; }
+  78% { transform: translateX(470%) rotate(18deg); opacity: 0.8; }
+  100% { transform: translateX(520%) rotate(18deg); opacity: 0; }
+}
+
+@keyframes ordelyGoldGlitterV4 {
+  from { opacity: 0.38; background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { opacity: 0.82; background-position: 0 0, 0 0, 0 0, 80% 20%; }
+}
+
+@keyframes ordelyStarDriftV4 {
+  from { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 240px 120px, -310px 180px, 160px -280px, -120px 360px, 210px -140px; }
+}
+
+@keyframes ordelyPlanetPulseV4 {
+  from { transform: scale(1) rotate(0deg); opacity: 0.72; }
+  to { transform: scale(1.035) rotate(3deg); opacity: 1; }
+}
+
+@media (max-width: 1260px) {
+  .ordely-pricing-grid-v4 {
+    grid-template-columns: 1fr;
+  }
+
+  .ordely-plan-card-v4 {
+    min-height: auto;
+  }
+
+  .ordely-plan-features-v4 {
+    margin-top: 4px;
+  }
+}
+
+@media (max-width: 980px) {
+  .ordely-plan-status-v4 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .ordely-plans-title-row {
+    align-items: flex-start;
+  }
+
+  .ordely-plans-title-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .ordely-plan-status-v4 {
+    grid-template-columns: 1fr;
+  }
+
+  .ordely-plan-card-content-v4 {
+    padding: 24px;
+  }
+
+  .ordely-plan-card-v4 {
+    border-radius: 28px;
+  }
+
+  .ordely-plan-card-v4 h2 {
+    font-size: 32px;
+  }
+
+  .ordely-plan-price-v4 strong {
+    font-size: 52px;
+  }
+
+  .ordely-plan-price-v4 span {
+    font-size: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ordely-plan-card-premium-v4::before,
+  .ordely-plan-card-premium-v4::after,
+  .ordely-plan-card-pro-v4::before,
+  .ordely-plan-card-pro-v4::after {
+    animation: none !important;
+  }
+}
+
+/* =========================================================
+   ORDELY PARTE 4 - COMPRAS, LOTES Y PROGRESO POR PRODUCTO
+   ========================================================= */
+
+.compras-header {
+  align-items: flex-start;
+}
+
+.compras-tabs {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.06);
+}
+
+.compras-tabs button {
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  padding: 10px 14px;
+  font-weight: 950;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.compras-tabs button.active {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.compras-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.compras-list-title p,
+.compras-lote-card p {
+  margin: 5px 0 0;
+}
+
+.compras-products-list,
+.compras-lotes-list {
+  display: grid;
+  gap: 12px;
+}
+
+.compra-product-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 14px;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.compra-product-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.compra-product-card-selected {
+  border-color: #0f172a;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 2px rgba(15, 23, 42, 0.06);
+}
+
+.compra-check {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #cbd5e1;
+  color: #ffffff;
+  background: #ffffff;
+  font-weight: 950;
+}
+
+.compra-product-card-selected .compra-check {
+  border-color: #0f172a;
+  background: #0f172a;
+}
+
+.compra-product-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.compra-product-main strong {
+  font-size: 15px;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compra-product-main span,
+.compra-product-money span,
+.compra-lote-item span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.compra-product-money {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.compra-product-money strong {
+  font-size: 16px;
+  color: #111827;
+}
+
+.compras-lote-card {
+  position: sticky;
+  top: 18px;
+}
+
+.compras-lote-form {
+  display: grid;
+  gap: 14px;
+}
+
+.compras-lote-money-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.compras-summary-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 20px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+}
+
+.compras-summary-box div {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.compras-summary-box span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+
+.compras-summary-box strong {
+  display: block;
+  font-size: 17px;
+  color: #111827;
+}
+
+.compra-lote-item {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) repeat(4, minmax(120px, 0.8fr));
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.compra-lote-item strong {
+  display: block;
+  font-size: 16px;
+  color: #111827;
+}
+
+.compra-lote-item p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cost-pending-text {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.field-help-text {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.product-progress-mini {
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.product-progress-mini span {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.product-progress-bar {
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e5e7eb;
+}
+
+.product-progress-bar i {
+  display: block;
+  height: 100%;
+  min-width: 6px;
+  border-radius: inherit;
+  transition: width 0.25s ease;
+  background: linear-gradient(90deg, #64748b, #0f172a);
+}
+
+.product-progress-pending i { background: linear-gradient(90deg, #cbd5e1, #94a3b8); }
+.product-progress-moving i { background: linear-gradient(90deg, #2563eb, #7c3aed); }
+.product-progress-arrived i { background: linear-gradient(90deg, #f59e0b, #facc15); }
+.product-progress-received i { background: linear-gradient(90deg, #22c55e, #16a34a); }
+.product-progress-shop i { background: linear-gradient(90deg, #0ea5e9, #2563eb); }
+.product-progress-delivered i { background: linear-gradient(90deg, #16a34a, #166534); }
+
+.product-progress-mobile-box {
+  margin-top: 14px;
+  padding: 13px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 8px;
+}
+
+.product-progress-mobile-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.product-progress-mobile-head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.product-progress-mobile-head strong {
+  font-size: 13px;
+  text-align: right;
+}
+
+.product-progress-mobile-box small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.tracking-product-status {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.account-config-section {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: #f8fafc;
+}
+
+.account-config-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.account-config-heading strong {
+  font-size: 15px;
+  color: #111827;
+}
+
+.account-config-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.account-config-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.account-business-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.bottom-nav-six {
+  grid-template-columns: repeat(6, 1fr) !important;
+}
+
+.bottom-nav-six .bottom-nav-link {
+  font-size: 10px;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+@media (max-width: 1100px) {
+  .compras-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .compras-lote-card {
+    position: static;
+  }
+
+  .compra-lote-item {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .account-config-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .compras-header {
+    gap: 14px;
+  }
+
+  .compras-tabs {
+    width: 100%;
+  }
+
+  .compras-tabs button,
+  .compras-list-title .btn {
+    width: 100%;
+  }
+
+  .compras-list-title {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .compra-product-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .compra-product-money {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .compras-lote-money-grid,
+  .compras-summary-box,
+  .compra-lote-item {
+    grid-template-columns: 1fr;
+  }
+
+  .account-config-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 430px) {
+  .account-config-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   ORDELY COMPRAS - AYUDAS CORTAS Y DESCUENTO PORCENTAJE
+   ========================================================= */
+.compras-form-section-title {
+  display: grid;
+  gap: 4px;
+  padding: 13px 14px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f8fafc, #eef2ff);
+  border: 1px solid #e5e7eb;
+}
+
+.compras-form-section-title strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+
+.compras-form-section-title span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.compras-form-section-title-money {
+  margin-top: 4px;
+  background: linear-gradient(135deg, #fffbeb, #fff7ed);
+  border-color: #fde68a;
+}
+
+.compras-help-field {
+  gap: 9px;
+  padding: 13px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
+}
+
+.compras-help-field label {
+  color: #475569;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.compras-help-field small {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.compras-help-field input,
+.compras-help-field select {
+  min-height: 44px;
+}
+
+.compras-discount-field {
+  grid-column: 1 / -1;
+}
+
+.discount-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.discount-type-toggle button {
+  border: 0;
+  min-height: 36px;
+  border-radius: 11px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.discount-type-toggle button.active {
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+}
+
+.discount-type-toggle button:not(.active):hover {
+  background: rgba(255, 255, 255, 0.82);
+  color: #0f172a;
+}
+
+@media (max-width: 800px) {
+  .compras-help-field {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .discount-type-toggle {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   ORDELY COMPRAS V6 - PREVIEW DE DESCUENTO E HISTORIAL EXPANDIBLE
+   ========================================================= */
+.compras-discount-preview {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(250, 204, 21, 0.3), transparent 42%),
+    linear-gradient(135deg, #0f172a, #1e293b);
+  color: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.16);
+}
+
+.compras-discount-preview span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.compras-discount-preview strong {
+  display: block;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.compras-discount-preview p {
+  margin: 2px 0 0 !important;
+  color: rgba(255, 255, 255, 0.76) !important;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.compras-products-preview {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.compras-products-preview-head {
+  display: grid;
+  gap: 2px;
+  padding: 2px 2px 4px;
+}
+
+.compras-products-preview-head strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.compras-products-preview-head span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.compras-preview-product {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 17px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.compras-preview-product > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.compras-preview-product strong {
+  color: #111827;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-preview-product span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-preview-price {
+  text-align: right;
+  display: grid;
+  gap: 2px;
+}
+
+.compras-preview-price del {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.compras-preview-price strong {
+  color: #16a34a;
+  font-size: 16px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.compras-preview-price small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.compra-lote-item {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.compra-lote-summary-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.15fr) repeat(4, minmax(105px, 0.7fr)) minmax(150px, auto);
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+}
+
+.compra-lote-summary-row > div {
+  min-width: 0;
+}
+
+.compra-lote-summary-row span,
+.compra-lote-product-price span,
+.compra-lote-product-discount span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.compra-lote-summary-row strong {
+  display: block;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compra-lote-summary-row p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compra-lote-toggle {
+  min-height: 42px;
+  padding-inline: 13px;
+  white-space: nowrap;
+}
+
+.compra-lote-item-open {
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.07);
+}
+
+.compra-lote-products {
+  display: grid;
+  gap: 10px;
+  padding: 0 16px 16px;
+  border-top: 1px solid #eef2f7;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+}
+
+.compra-lote-product-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(95px, 0.45fr) minmax(120px, 0.55fr) minmax(115px, 0.55fr);
+  gap: 12px;
+  align-items: center;
+  padding: 13px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.compra-lote-product-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.compra-lote-product-info strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compra-lote-product-info span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compra-lote-product-price,
+.compra-lote-product-discount {
+  display: grid;
+  gap: 2px;
+}
+
+.compra-lote-product-price del {
+  color: #94a3b8;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.compra-lote-product-final strong {
+  color: #16a34a;
+  font-size: 17px;
+  font-weight: 950;
+}
+
+.compra-lote-product-final small,
+.compra-lote-product-discount small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.compra-lote-product-discount strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.compra-lote-empty {
+  margin-top: 12px;
+  min-height: auto;
+  padding: 16px;
+}
+
+@media (max-width: 1180px) {
+  .compra-lote-summary-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .compra-lote-toggle {
+    width: 100%;
+  }
+
+  .compra-lote-product-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .compras-discount-preview strong {
+    font-size: 26px;
+  }
+
+  .compras-preview-product,
+  .compra-lote-summary-row,
+  .compra-lote-product-row {
+    grid-template-columns: 1fr;
+  }
+
+  .compras-preview-price {
+    text-align: left;
+  }
+
+  .compra-lote-summary-row {
+    padding: 14px;
+  }
+
+  .compra-lote-products {
+    padding: 0 14px 14px;
+  }
+
+  .compra-lote-toggle {
+    min-height: 46px;
+  }
+}
+
+/* =========================================================
+   ORDELY COMPRAS V7 - PLATAFORMA PRIMERO Y RESUMEN FINAL
+   ========================================================= */
+.compras-platform-card {
+  margin-bottom: 18px;
+  padding: 18px;
+}
+
+.compras-platform-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.compras-platform-head span,
+.compras-confirm-head span,
+.compras-wait-card span {
+  display: inline-flex;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.compras-platform-head h2,
+.compras-confirm-head h2,
+.compras-wait-card h2 {
+  margin: 8px 0 4px;
+  color: #0f172a;
+  letter-spacing: -0.04em;
+}
+
+.compras-platform-head p,
+.compras-confirm-head p,
+.compras-wait-card p {
+  margin: 0;
+  color: #64748b;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.compras-default-pill {
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #92400e;
+  border: 1px solid #fed7aa;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.platform-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.platform-choice {
+  min-height: 76px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: 0.18s ease;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+
+.platform-choice:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.platform-choice strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.platform-choice span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.platform-choice.active {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  border-color: #0f172a;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
+}
+
+.platform-choice.active strong,
+.platform-choice.active span {
+  color: #ffffff;
+}
+
+.compras-flow-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.compras-flow-summary div {
+  padding: 14px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.045);
+}
+
+.compras-flow-summary span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.compras-flow-summary strong {
+  display: block;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-layout-v7 {
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+}
+
+.compras-lote-card-v7 {
+  overflow: hidden;
+}
+
+.compras-wait-card {
+  display: grid;
+  min-height: 260px;
+  align-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 42%),
+    linear-gradient(135deg, #ffffff, #f8fafc);
+}
+
+.compras-confirm-card {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 20px 55px rgba(15, 23, 42, 0.08);
+}
+
+.compras-confirm-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.compras-confirm-total {
+  min-width: 220px;
+  padding: 16px;
+  border-radius: 22px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at top right, rgba(250, 204, 21, 0.28), transparent 42%),
+    linear-gradient(135deg, #0f172a, #111827);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+}
+
+.compras-confirm-total span {
+  display: block;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  background: transparent;
+  padding: 0;
+}
+
+.compras-confirm-total strong {
+  display: block;
+  font-size: 30px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.compras-confirm-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.compras-confirm-metrics div {
+  padding: 13px;
+  border-radius: 17px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.compras-confirm-metrics span {
+  display: block;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.compras-confirm-metrics strong {
+  display: block;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-confirm-products {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 22px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.compras-confirm-products-head {
+  display: grid;
+  gap: 3px;
+  padding: 2px 2px 6px;
+}
+
+.compras-confirm-products-head strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.compras-confirm-products-head span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.compras-confirm-product-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(95px, 0.45fr) minmax(110px, 0.55fr) minmax(105px, 0.55fr);
+  gap: 12px;
+  align-items: center;
+  padding: 13px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.compras-confirm-product-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.compras-confirm-product-info strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-confirm-product-info span,
+.compras-confirm-price span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.compras-confirm-product-info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-confirm-price {
+  display: grid;
+  gap: 3px;
+}
+
+.compras-confirm-price del {
+  color: #94a3b8;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.compras-confirm-price strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.compras-confirm-price.final strong {
+  color: #16a34a;
+  font-size: 17px;
+}
+
+.compras-confirm-price.discount strong {
+  color: #92400e;
+}
+
+.compras-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+@media (max-width: 1150px) {
+  .platform-choice-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .compras-flow-summary,
+  .compras-confirm-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .compras-confirm-product-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .compras-platform-card,
+  .compras-confirm-card {
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .compras-platform-head,
+  .compras-confirm-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .compras-default-pill,
+  .compras-confirm-total {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .platform-choice-grid,
+  .compras-flow-summary,
+  .compras-confirm-metrics,
+  .compras-confirm-product-row {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-choice {
+    min-height: 62px;
+  }
+
+  .compras-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .compras-confirm-actions .btn {
+    width: 100%;
+  }
+
+  .compras-confirm-total strong {
+    font-size: 26px;
+  }
+}
+
+/* =========================================================
+   ORDELY COMPRAS V8 - FIX MOBILE + RESUMEN FLOTANTE
+   ========================================================= */
+.compras-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.compras-confirm-modal {
+  position: relative;
+  width: min(1040px, 100%);
+  max-height: calc(100dvh - 36px);
+  overflow: auto;
+  margin: 0 !important;
+  border-radius: 28px;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.34);
+}
+
+.compras-modal-close {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 850;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1);
+  transition: 0.18s ease;
+}
+
+.compras-modal-close:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.compras-modal-close:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.compras-confirm-modal .compras-confirm-head {
+  align-items: flex-start;
+}
+
+@media (max-width: 800px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .compras-layout,
+  .compras-layout-v7 {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 14px !important;
+    overflow: visible !important;
+  }
+
+  .compras-pendientes-card,
+  .compras-lote-card,
+  .compras-lote-card-v7,
+  .compras-platform-card,
+  .compras-history-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden;
+    position: static !important;
+  }
+
+  .compras-wait-card {
+    min-height: auto !important;
+    padding: 18px !important;
+  }
+
+  .compras-wait-card h2 {
+    font-size: 24px;
+    line-height: 1.05;
+  }
+
+  .compras-wait-card p {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .compras-flow-summary,
+  .platform-choice-grid,
+  .compras-lote-money-grid,
+  .compras-summary-box,
+  .compras-confirm-metrics,
+  .compras-confirm-product-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .compra-product-card {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .compra-product-main strong,
+  .compra-product-main span,
+  .compras-flow-summary strong,
+  .compras-confirm-metrics strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .compras-modal-backdrop {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .compras-confirm-modal {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    border-radius: 26px 26px 18px 18px;
+    padding: 14px !important;
+  }
+
+  .compras-confirm-modal .compras-confirm-head {
+    position: relative;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding-right: 52px;
+  }
+
+  .compras-modal-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    font-size: 26px;
+  }
+
+  .compras-confirm-total {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .compras-confirm-products {
+    padding: 10px;
+  }
+
+  .compras-confirm-product-row {
+    padding: 12px;
+  }
+
+  .compras-confirm-product-info strong,
+  .compras-confirm-product-info span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 430px) {
+  .compras-platform-card,
+  .compras-pendientes-card,
+  .compras-lote-card-v7,
+  .compras-history-card {
+    padding: 14px !important;
+    border-radius: 22px !important;
+  }
+
+  .compras-header h1 {
+    font-size: 32px;
+  }
+
+  .compras-header p {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  .compras-tabs {
+    border-radius: 16px;
+  }
+
+  .compras-tabs button {
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+
+  .platform-choice {
+    min-height: 56px;
+    border-radius: 16px;
+  }
+
+  .compras-modal-backdrop {
+    padding: 8px;
+  }
+
+  .compras-confirm-modal {
+    border-radius: 24px 24px 16px 16px;
+  }
+}
+
+/* =========================================================
+   ORDELY - Dashboard V9: resumen limpio + paquetes en proceso
+   ========================================================= */
+.dashboard-main-stats-grid {
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  margin-bottom: 14px;
+}
+
+.dashboard-mini-grid-v2 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 0;
+  margin-bottom: 22px;
+}
+
+.dashboard-mini-grid-v2 div {
+  min-height: 88px;
+}
+
+.dashboard-arrivals-card {
+  background: #ffffff;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  border-radius: 28px;
+  padding: 24px;
+  box-shadow: 0 22px 58px rgba(15, 23, 42, 0.07);
+}
+
+.dashboard-arrivals-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.dashboard-arrivals-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-bottom: 8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dashboard-arrivals-header h2 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.06em;
+  color: #0f172a;
+}
+
+.dashboard-arrivals-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-weight: 650;
+}
+
+.dashboard-arrivals-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.dashboard-arrivals-list {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-arrival-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 18px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.06), transparent 34%),
+    #ffffff;
+}
+
+.dashboard-arrival-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.dashboard-arrival-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
+}
+
+.dashboard-arrival-info {
+  min-width: 0;
+}
+
+.dashboard-arrival-info strong {
+  display: block;
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-arrival-info span,
+.dashboard-arrival-info small {
+  display: block;
+  color: #64748b;
+  font-weight: 750;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-arrival-info small {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.dashboard-arrival-progress-area {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dashboard-arrival-progress-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dashboard-arrival-progress-top strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.dashboard-arrival-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.dashboard-arrival-status-normal {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.dashboard-arrival-status-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dashboard-arrival-status-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.dashboard-arrival-bar {
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e5e7eb;
+}
+
+.dashboard-arrival-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #7c3aed, #10b981);
+  transition: width 0.25s ease;
+}
+
+.dashboard-arrival-progress-area p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.dashboard-arrivals-empty {
+  display: grid;
+  gap: 5px;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.dashboard-arrivals-empty strong {
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 950;
+}
+
+.dashboard-arrivals-empty span {
+  color: #64748b;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-mini-grid-v2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-arrival-item {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .dashboard-main-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-mini-grid-v2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-arrivals-card {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .dashboard-arrivals-header {
+    display: grid;
+    gap: 12px;
+  }
+
+  .dashboard-arrivals-header h2 {
+    font-size: 24px;
+  }
+
+  .dashboard-arrivals-button {
+    width: 100%;
+  }
+
+  .dashboard-arrival-item {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .dashboard-arrival-main {
+    align-items: flex-start;
+  }
+
+  .dashboard-arrival-info strong,
+  .dashboard-arrival-info span,
+  .dashboard-arrival-info small {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 430px) {
+  .dashboard-mini-grid-v2,
+  .dashboard-main-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .dashboard-mini-grid-v2 div,
+  .dashboard-only-card {
+    padding: 14px;
+    min-height: 86px;
+  }
+
+  .dashboard-mini-grid-v2 span,
+  .dashboard-only-card span {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .dashboard-mini-grid-v2 strong,
+  .dashboard-only-card strong {
+    font-size: 22px;
+  }
+
+  .dashboard-arrival-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .dashboard-arrival-status {
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+}
+
+/* =========================================================
+   PEDIDOS V10 - TABLA COMPACTA, ACCIONES Y PROGRESO FINO
+   ========================================================= */
+.desktop-table table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.desktop-table th:nth-child(1),
+.desktop-table td:nth-child(1) { width: 9%; }
+.desktop-table th:nth-child(2),
+.desktop-table td:nth-child(2) { width: 8%; }
+.desktop-table th:nth-child(3),
+.desktop-table td:nth-child(3) { width: 11%; }
+.desktop-table th:nth-child(4),
+.desktop-table td:nth-child(4) { width: 9%; }
+.desktop-table th:nth-child(5),
+.desktop-table td:nth-child(5) { width: 14%; }
+.desktop-table th:nth-child(6),
+.desktop-table td:nth-child(6) { width: 13%; }
+.desktop-table th:nth-child(7),
+.desktop-table td:nth-child(7),
+.desktop-table th:nth-child(8),
+.desktop-table td:nth-child(8),
+.desktop-table th:nth-child(9),
+.desktop-table td:nth-child(9) { width: 8%; }
+.desktop-table th:nth-child(10),
+.desktop-table td:nth-child(10) { width: 7%; }
+.desktop-table th:nth-child(11),
+.desktop-table td:nth-child(11) { width: 13%; }
+
+.order-code-cell {
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.status-cell {
+  min-width: 170px;
+}
+
+.order-status-select {
+  width: 100%;
+  min-width: 154px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 999px;
+  min-height: 38px;
+  padding: 0 34px 0 14px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+  background-color: #ffffff;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.order-status-select.badge-gray { background-color: #f8fafc; color: #334155; }
+.order-status-select.badge-dark { background-color: #111827; color: #ffffff; }
+.order-status-select.badge-purple { background-color: #f3e8ff; color: #6d28d9; }
+.order-status-select.badge-green,
+.order-status-select.badge-green-soft { background-color: #dcfce7; color: #166534; }
+.order-status-select.badge-green-strong { background-color: #15803d; color: #ffffff; }
+.order-status-select.badge-blue { background-color: #dbeafe; color: #1e40af; }
+.order-status-select.badge-red,
+.order-status-select.badge-red-soft { background-color: #fee2e2; color: #991b1b; }
+.order-status-select.badge-red-strong { background-color: #991b1b; color: #ffffff; }
+
+.actions-th {
+  text-align: right;
+}
+
+.actions-compact {
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.actions-compact .btn {
+  min-height: 34px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.btn-action-view {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.btn-action-message {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(226, 232, 240, 0.95);
+}
+
+.btn-action-delete {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.order-progress-table-row td {
+  padding-top: 0 !important;
+  padding-bottom: 12px !important;
+  border-top: 0 !important;
+}
+
+.order-progress-table-row + tr td {
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.order-mini-progress {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.order-mini-progress-line {
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(226, 232, 240, 0.95);
+}
+
+.order-mini-progress-line span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #64748b;
+}
+
+.order-mini-progress-moving span { background: linear-gradient(90deg, #2563eb, #7c3aed); }
+.order-mini-progress-arrival span { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.order-mini-progress-received span,
+.order-mini-progress-ready span { background: linear-gradient(90deg, #22c55e, #0ea5e9); }
+.order-mini-progress-pending span { background: #94a3b8; }
+
+.order-mini-progress small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.order-progress-empty {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  display: block;
+  text-align: right;
+}
+
+.mobile-order-card-compact {
+  padding: 14px;
+  border-radius: 22px;
+  margin-bottom: 10px;
+}
+
+.mobile-order-compact-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.mobile-order-compact-head span,
+.mobile-order-compact-money span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mobile-order-compact-head h3 {
+  margin: 3px 0 0;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.mobile-order-status-select {
+  width: auto;
+  min-width: 132px;
+  max-width: 172px;
+  min-height: 34px;
+  font-size: 12px;
+  padding-left: 12px;
+  padding-right: 28px;
+}
+
+.mobile-order-compact-money {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mobile-order-compact-money div {
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  border-radius: 16px;
+  padding: 10px 12px;
+}
+
+.mobile-order-compact-money strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+  line-height: 1.1;
+  color: #0f172a;
+}
+
+.order-mini-progress-mobile {
+  margin-top: 11px;
+  gap: 3px;
+}
+
+.order-mini-progress-mobile .order-mini-progress-line {
+  height: 3px;
+}
+
+.mobile-order-actions-compact {
+  grid-template-columns: 0.8fr 1fr 0.9fr;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.mobile-order-actions-compact .btn {
+  width: 100%;
+  min-height: 38px;
+  border-radius: 14px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .mobile-list-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .mobile-list-title h2 {
+    font-size: 17px;
+  }
+}
+
+@media (max-width: 430px) {
+  .mobile-order-compact-head {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-order-status-select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .mobile-order-actions-compact {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .mobile-order-actions-compact .btn {
+    font-size: 11px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
+
+/* PEDIDOS V11 · HUD compacto, acciones desplegables y estados limpios */
+.desktop-table {
+  overflow: visible !important;
+}
+
+.desktop-table table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.status-cell .order-status-select {
+  min-width: 168px;
+  max-width: 210px;
+  text-overflow: ellipsis;
+}
+
+.actions-menu-cell {
+  position: relative;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-width: 170px;
+  white-space: nowrap;
+}
+
+.actions-menu-cell .btn-action-view,
+.actions-menu-cell .btn-action-more {
+  min-height: 32px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.actions-menu-cell .btn-action-view {
+  min-width: 48px;
+  text-align: center;
+}
+
+.order-actions-dropdown-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.order-actions-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 80;
+  width: 190px;
+  padding: 8px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 24px 55px rgba(15, 23, 42, 0.18);
+  display: grid;
+  gap: 6px;
+}
+
+.order-actions-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 22px;
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  background: #ffffff;
+  border-left: 1px solid rgba(226, 232, 240, 0.95);
+  border-top: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.order-actions-dropdown button {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-actions-dropdown button:hover {
+  background: #eef2ff;
+}
+
+.order-actions-dropdown button.danger {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.order-actions-dropdown button.danger:hover {
+  background: #fee2e2;
+}
+
+.order-actions-dropdown button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.order-progress-table-row td {
+  padding: 0 14px 12px 14px !important;
+  border-top: 0 !important;
+}
+
+.order-mini-progress {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 6px 4px 2px;
+}
+
+.order-mini-progress-item {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 10px;
+}
+
+.order-mini-progress-label {
+  display: block;
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.order-mini-progress-line {
+  height: 2px !important;
+  border-radius: 999px;
+  background: #e7edf5;
+  overflow: hidden;
+}
+
+.order-mini-progress-line span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+}
+
+.order-mini-progress-moving span { background: linear-gradient(90deg, #2563eb, #7c3aed); }
+.order-mini-progress-arrival span { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.order-mini-progress-received span,
+.order-mini-progress-ready span { background: linear-gradient(90deg, #22c55e, #0ea5e9); }
+.order-mini-progress-pending span { background: #94a3b8; }
+
+.order-mini-progress-more {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 900;
+  margin-left: 127px;
+}
+
+.payment-status-pending {
+  color: #991b1b;
+}
+
+@media (min-width: 901px) {
+  .actions-compact .btn-action-message,
+  .actions-compact .btn-action-delete {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .desktop-table {
+    overflow-x: auto !important;
+  }
+
+  .order-mini-progress-mobile {
+    gap: 4px;
+    margin-top: 10px;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 98px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-label {
+    font-size: 8px;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-line {
+    height: 2px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .mobile-order-card-compact {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .mobile-order-compact-head h3 {
+    font-size: 17px;
+  }
+
+  .mobile-order-status-select {
+    min-height: 32px;
+    font-size: 11px;
+  }
+
+  .mobile-order-compact-money {
+    margin-top: 9px;
+  }
+
+  .mobile-order-compact-money div {
+    padding: 8px 10px;
+    border-radius: 14px;
+  }
+
+  .mobile-order-actions-compact {
+    margin-top: 9px;
+  }
+}
+
+/* Ajuste fino para que los badges no choquen con importes en escritorio */
+.desktop-table table {
+  min-width: 1280px;
+}
+
+.desktop-table th,
+.desktop-table td {
+  vertical-align: middle;
+}
+
+.desktop-table th:nth-child(6),
+.desktop-table td:nth-child(6) {
+  min-width: 172px;
+}
+
+.payment-status-badge-small {
+  min-height: 28px !important;
+  padding: 5px 9px !important;
+  font-size: 11px !important;
+  gap: 6px !important;
+}
+
+.payment-status-badge-small i {
+  width: 7px !important;
+  height: 7px !important;
+}
+
+/* PEDIDOS V12 · estado limpio, progreso claro y cliente en móvil */
+.status-cell {
+  position: relative;
+  min-width: 190px;
+}
+
+.order-status-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+  max-width: 215px;
+  vertical-align: middle;
+}
+
+.order-status-button {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 999px;
+  padding: 0 12px 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  white-space: nowrap;
+}
+
+.order-status-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.order-status-button.badge-gray { background: #f8fafc; color: #334155; }
+.order-status-button.badge-purple { background: #f3e8ff; color: #6d28d9; }
+.order-status-button.badge-green,
+.order-status-button.badge-green-soft { background: #dcfce7; color: #166534; }
+.order-status-button.badge-green-strong { background: #15803d; color: #ffffff; }
+.order-status-button.badge-blue { background: #dbeafe; color: #1e40af; }
+.order-status-button.badge-red,
+.order-status-button.badge-red-soft { background: #fee2e2; color: #991b1b; }
+.order-status-button.badge-red-strong { background: #991b1b; color: #ffffff; }
+
+.order-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.order-status-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.order-status-chevron {
+  flex: 0 0 auto;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.8;
+  transform: translateY(-1px);
+}
+
+.order-status-options {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 120;
+  width: 225px;
+  padding: 8px;
+  display: grid;
+  gap: 5px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
+  box-shadow: 0 24px 55px rgba(15, 23, 42, 0.18);
+}
+
+.order-status-options button {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 11px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-status-options button:hover,
+.order-status-options button.active {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.desktop-table table {
+  min-width: 1430px;
+}
+
+.desktop-table th:nth-child(5),
+.desktop-table td:nth-child(5) {
+  min-width: 195px;
+}
+
+.desktop-table th:nth-child(6),
+.desktop-table td:nth-child(6) {
+  min-width: 205px;
+}
+
+.desktop-table th:nth-child(7),
+.desktop-table td:nth-child(7),
+.desktop-table th:nth-child(8),
+.desktop-table td:nth-child(8),
+.desktop-table th:nth-child(9),
+.desktop-table td:nth-child(9) {
+  min-width: 105px;
+}
+
+.payment-status-badge {
+  white-space: nowrap;
+}
+
+.order-mini-progress-label {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: #475569;
+}
+
+.order-mini-progress-pending span {
+  background: #cbd5e1;
+}
+
+.mobile-order-client-name {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.15;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+@media (max-width: 900px) {
+  .mobile-order-compact-head {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .mobile-order-status-wrap {
+    width: 100%;
+    max-width: none;
+  }
+
+  .mobile-order-status-button {
+    width: 100%;
+    min-height: 38px;
+    font-size: 12px;
+    padding-left: 14px;
+    padding-right: 12px;
+  }
+
+  .mobile-order-status-wrap .order-status-options {
+    width: 100%;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 105px minmax(0, 1fr);
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-label {
+    font-size: 8.5px;
+  }
+}
+
+@media (max-width: 430px) {
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 102px minmax(0, 1fr);
+  }
+}
+
+/* PEDIDOS V13 · tabla más compacta, sin tracking y móvil con pago arriba */
+.desktop-table table {
+  min-width: 1120px !important;
+  font-size: 13px;
+}
+
+.desktop-table th,
+.desktop-table td {
+  padding: 12px 12px !important;
+  font-size: 13px;
+  line-height: 1.12;
+}
+
+.desktop-table th {
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.desktop-table th:nth-child(1),
+.desktop-table td:nth-child(1) { min-width: 94px; }
+.desktop-table th:nth-child(2),
+.desktop-table td:nth-child(2) { min-width: 82px; }
+.desktop-table th:nth-child(3),
+.desktop-table td:nth-child(3) { min-width: 135px; }
+.desktop-table th:nth-child(4),
+.desktop-table td:nth-child(4) { min-width: 105px; }
+.desktop-table th:nth-child(5),
+.desktop-table td:nth-child(5) { min-width: 160px !important; }
+.desktop-table th:nth-child(6),
+.desktop-table td:nth-child(6) { min-width: 150px !important; }
+.desktop-table th:nth-child(7),
+.desktop-table td:nth-child(7),
+.desktop-table th:nth-child(8),
+.desktop-table td:nth-child(8),
+.desktop-table th:nth-child(9),
+.desktop-table td:nth-child(9) { min-width: 92px !important; }
+.desktop-table th:nth-child(10),
+.desktop-table td:nth-child(10) { min-width: 145px; }
+
+.order-status-menu-wrap {
+  max-width: 158px !important;
+}
+
+.order-status-button {
+  min-height: 34px !important;
+  padding: 5px 10px !important;
+  font-size: 12px !important;
+  line-height: 1.02 !important;
+}
+
+.order-status-text {
+  white-space: normal !important;
+  overflow: hidden;
+  text-overflow: clip;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.payment-status-badge,
+.payment-status-badge-small,
+.refund-status-badge,
+.refund-status-badge-small {
+  white-space: normal !important;
+  max-width: 145px;
+  min-height: 30px !important;
+  padding: 5px 9px !important;
+  font-size: 11px !important;
+  line-height: 1.05 !important;
+  text-align: left;
+}
+
+.payment-status-badge i,
+.payment-status-badge-small i {
+  flex: 0 0 auto;
+}
+
+.actions-menu-cell {
+  white-space: nowrap;
+}
+
+.actions-menu-cell .btn-small {
+  min-height: 30px !important;
+  padding: 7px 11px !important;
+  font-size: 12px !important;
+  border-radius: 999px !important;
+}
+
+.order-progress-table-row td {
+  padding: 0 12px 9px 12px !important;
+}
+
+.order-mini-progress {
+  gap: 3px !important;
+  padding: 3px 4px 0 !important;
+}
+
+.order-mini-progress-item {
+  grid-template-columns: 104px minmax(0, 1fr) !important;
+  gap: 5px !important;
+  min-height: 8px !important;
+}
+
+.order-mini-progress-label {
+  font-size: 8.5px !important;
+  line-height: 1 !important;
+}
+
+.order-mini-progress-line {
+  height: 1.5px !important;
+}
+
+.mobile-order-compact-head-v13 {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: start !important;
+  gap: 8px !important;
+}
+
+.mobile-order-payment-top {
+  justify-self: end;
+  max-width: 145px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mobile-order-payment-top .payment-status-badge,
+.mobile-order-payment-top .payment-status-badge-small,
+.mobile-order-payment-top .refund-status-badge,
+.mobile-order-payment-top .refund-status-badge-small {
+  max-width: 128px;
+  justify-content: flex-start;
+  font-size: 10px !important;
+  padding: 5px 8px !important;
+}
+
+.mobile-order-state-row {
+  margin-top: 9px;
+}
+
+.mobile-order-state-row .order-status-menu-wrap {
+  max-width: none !important;
+  width: 100% !important;
+}
+
+.mobile-order-state-row .order-status-button {
+  width: 100% !important;
+  min-height: 34px !important;
+  font-size: 11px !important;
+  padding: 6px 12px !important;
+}
+
+@media (max-width: 900px) {
+  .mobile-order-card-compact {
+    padding: 12px !important;
+  }
+
+  .mobile-order-main-info span {
+    font-size: 10px;
+  }
+
+  .mobile-order-main-info h3 {
+    font-size: 18px !important;
+    line-height: 1;
+  }
+
+  .mobile-order-client-name {
+    font-size: 12px !important;
+    margin-top: 4px !important;
+  }
+
+  .mobile-order-compact-money {
+    margin-top: 9px !important;
+    gap: 8px !important;
+  }
+
+  .mobile-order-compact-money div {
+    padding: 9px 10px !important;
+  }
+
+  .mobile-order-compact-money span {
+    font-size: 10px !important;
+  }
+
+  .mobile-order-compact-money strong {
+    font-size: 17px !important;
+  }
+
+  .order-mini-progress-mobile {
+    margin-top: 8px !important;
+    gap: 2px !important;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 88px minmax(0, 1fr) !important;
+    gap: 4px !important;
+    min-height: 8px !important;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-label {
+    font-size: 8px !important;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-line {
+    height: 1.5px !important;
+  }
+
+  .mobile-order-actions-compact {
+    margin-top: 9px !important;
+    gap: 8px !important;
+  }
+
+  .mobile-order-actions-compact .btn {
+    min-height: 34px !important;
+    font-size: 12px !important;
+    padding: 8px 10px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .mobile-order-payment-top .payment-status-badge,
+  .mobile-order-payment-top .payment-status-badge-small,
+  .mobile-order-payment-top .refund-status-badge,
+  .mobile-order-payment-top .refund-status-badge-small {
+    max-width: 118px;
+    font-size: 9.5px !important;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 82px minmax(0, 1fr) !important;
+  }
+}
+
+/* PEDIDOS V14 · ajuste final de tabla, badges y progreso */
+.pedidos-table-card {
+  overflow: visible !important;
+  padding-bottom: 18px !important;
+}
+
+.pedidos-table-card .pedidos-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed !important;
+  border-collapse: separate !important;
+  border-spacing: 0 0 !important;
+}
+
+.pedidos-table th,
+.pedidos-table td {
+  padding: 10px 9px !important;
+  font-size: 12px !important;
+  line-height: 1.1 !important;
+  border-bottom: 0 !important;
+}
+
+.pedidos-table th {
+  font-size: 11.5px !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.005em !important;
+}
+
+.pedidos-table th:nth-child(1),
+.pedidos-table td:nth-child(1) { width: 9% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(2),
+.pedidos-table td:nth-child(2) { width: 8% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(3),
+.pedidos-table td:nth-child(3) { width: 12% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(4),
+.pedidos-table td:nth-child(4) { width: 9% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(5),
+.pedidos-table td:nth-child(5) { width: 14% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(6),
+.pedidos-table td:nth-child(6) { width: 12% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(7),
+.pedidos-table td:nth-child(7) { width: 9% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(8),
+.pedidos-table td:nth-child(8) { width: 8% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(9),
+.pedidos-table td:nth-child(9) { width: 9% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(10),
+.pedidos-table td:nth-child(10) { width: 10% !important; min-width: 0 !important; }
+
+.pedidos-table td:not(.status-cell):not(.actions-menu-cell) {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pedidos-table .order-code-cell {
+  font-size: 12px !important;
+  font-weight: 950 !important;
+}
+
+.pedidos-table .status-cell {
+  overflow: visible !important;
+  position: relative !important;
+}
+
+.pedidos-table .order-status-menu-wrap {
+  width: 100% !important;
+  max-width: 150px !important;
+}
+
+.pedidos-table .order-status-button {
+  min-height: 32px !important;
+  height: auto !important;
+  padding: 5px 8px !important;
+  gap: 5px !important;
+  font-size: 11.2px !important;
+  border-radius: 999px !important;
+}
+
+.pedidos-table .order-status-dot {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.pedidos-table .order-status-text {
+  line-height: 1.05 !important;
+  text-align: left !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.pedidos-table .order-status-chevron {
+  width: 13px !important;
+  height: 13px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  margin-left: auto !important;
+  transform: none !important;
+  opacity: 0.75 !important;
+}
+
+.pedidos-table .order-status-options {
+  width: 190px !important;
+  left: 0 !important;
+}
+
+.pedidos-table .payment-status-badge,
+.pedidos-table .payment-status-badge-small,
+.pedidos-table .refund-status-badge,
+.pedidos-table .refund-status-badge-small {
+  max-width: 130px !important;
+  min-height: 30px !important;
+  padding: 5px 8px !important;
+  gap: 5px !important;
+  font-size: 10.5px !important;
+  line-height: 1.02 !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+}
+
+.pedidos-table .payment-status-badge span {
+  display: inline-block !important;
+  max-width: 96px !important;
+  line-height: 1.02 !important;
+}
+
+.pedidos-table .payment-status-badge i,
+.pedidos-table .payment-status-badge-small i {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.pedidos-table .actions-menu-cell {
+  overflow: visible !important;
+  white-space: nowrap !important;
+  display: table-cell !important;
+}
+
+.pedidos-table .actions-compact {
+  min-width: 0 !important;
+}
+
+.pedidos-table .actions-menu-cell > .btn,
+.pedidos-table .actions-menu-cell .btn-action-more {
+  min-height: 28px !important;
+  padding: 6px 9px !important;
+  font-size: 10.5px !important;
+  border-radius: 999px !important;
+}
+
+.pedidos-table .actions-menu-cell .btn-action-view {
+  min-width: 43px !important;
+  padding-left: 9px !important;
+  padding-right: 9px !important;
+}
+
+.pedidos-table .actions-menu-cell .btn-action-more {
+  min-width: 58px !important;
+}
+
+.order-actions-dropdown-wrap {
+  display: inline-flex !important;
+  position: relative !important;
+}
+
+.pedidos-table .order-actions-dropdown {
+  right: 0 !important;
+  left: auto !important;
+  min-width: 150px !important;
+}
+
+.pedidos-table .order-progress-table-row td {
+  padding: 0 12px 6px 12px !important;
+  border-bottom: 0 !important;
+}
+
+.pedidos-table .order-progress-table-row + tr td {
+  padding-top: 13px !important;
+}
+
+.pedidos-table .order-mini-progress {
+  padding: 0 2px 2px !important;
+  margin-top: -2px !important;
+  gap: 1px !important;
+}
+
+.pedidos-table .order-mini-progress-item,
+.order-mini-progress-item {
+  grid-template-columns: max-content minmax(0, 1fr) !important;
+  gap: 7px !important;
+  align-items: center !important;
+  min-height: 7px !important;
+}
+
+.order-mini-progress-label {
+  max-width: 108px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+  color: #64748b !important;
+}
+
+.order-mini-progress-line {
+  height: 1.35px !important;
+  background: #e2e8f0 !important;
+}
+
+.mobile-order-payment-top .payment-status-mobile-top,
+.mobile-order-payment-top .payment-status-badge,
+.mobile-order-payment-top .payment-status-badge-small,
+.mobile-order-payment-top .refund-status-badge,
+.mobile-order-payment-top .refund-status-badge-small {
+  width: auto !important;
+  max-width: 116px !important;
+  min-height: 26px !important;
+  padding: 4px 7px !important;
+  gap: 4px !important;
+  font-size: 8.8px !important;
+  line-height: 1.02 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+.mobile-order-payment-top .payment-status-badge span {
+  max-width: 82px !important;
+  display: inline-block !important;
+  line-height: 1.02 !important;
+}
+
+.mobile-order-payment-top .payment-status-badge i,
+.mobile-order-payment-top .payment-status-badge-small i {
+  width: 5.5px !important;
+  height: 5.5px !important;
+}
+
+.mobile-order-state-row .order-status-button {
+  gap: 7px !important;
+}
+
+.mobile-order-state-row .order-status-text {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+}
+
+.mobile-order-state-row .order-status-chevron {
+  width: 14px !important;
+  height: 14px !important;
+  font-size: 10px !important;
+  transform: none !important;
+}
+
+.order-mini-progress-mobile {
+  margin-top: 7px !important;
+  gap: 1px !important;
+}
+
+.order-mini-progress-mobile .order-mini-progress-item {
+  grid-template-columns: max-content minmax(0, 1fr) !important;
+  gap: 5px !important;
+  min-height: 7px !important;
+}
+
+.order-mini-progress-mobile .order-mini-progress-label {
+  max-width: 95px !important;
+  font-size: 7.8px !important;
+}
+
+.order-mini-progress-mobile .order-mini-progress-line {
+  height: 1.25px !important;
+}
+
+@media (max-width: 900px) {
+  .mobile-order-compact-head-v13 {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 6px !important;
+  }
+
+  .mobile-order-payment-top {
+    max-width: 118px !important;
+  }
+
+  .mobile-order-card-compact {
+    border-bottom: 0 !important;
+  }
+}
+
+/* =========================================================
+   Detalle pedido V15 - productos compactos + acciones
+   ========================================================= */
+.detail-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.detail-order-actions-menu-wrap,
+.detail-product-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.detail-order-actions-menu,
+.detail-product-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 210px;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, .10);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .18);
+  z-index: 70;
+}
+
+.detail-order-actions-menu button,
+.detail-product-menu button,
+.detail-product-menu a {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  font-weight: 900;
+  text-align: left;
+  padding: 12px 13px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  font-size: 14px;
+}
+
+.detail-order-actions-menu button:hover,
+.detail-product-menu button:hover,
+.detail-product-menu a:hover {
+  background: #f3f6fb;
+}
+
+.detail-product-menu button.danger {
+  color: #dc2626;
+}
+
+.detail-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.detail-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.detail-product-card {
+  width: 100%;
+  max-width: 100%;
+  background: rgba(255, 255, 255, .98);
+  border: 1px solid rgba(148, 163, 184, .22);
+  border-radius: 28px;
+  padding: 22px 24px 18px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, .07);
+  overflow: visible;
+}
+
+.detail-product-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.detail-product-title-block {
+  min-width: 0;
+}
+
+.detail-product-kicker,
+.detail-product-data-grid span,
+.detail-product-progress-row > span {
+  display: block;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.detail-product-title-block h3 {
+  margin: 2px 0 4px;
+  color: #020617;
+  font-size: 24px;
+  line-height: 1.05;
+  word-break: break-word;
+}
+
+.detail-product-title-block p {
+  margin: 0;
+  color: #64748b;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.detail-product-status-area {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+  min-width: 280px;
+}
+
+.detail-product-logistic-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 190px;
+  min-height: 36px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  color: #334155;
+  background: #f1f5f9;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.05;
+  white-space: normal;
+}
+
+.detail-product-logistic-pill::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  margin-right: 8px;
+  background: currentColor;
+  opacity: .75;
+}
+
+.detail-product-logistic-pill.is-pending {
+  color: #64748b;
+  background: #f1f5f9;
+}
+
+.detail-product-logistic-pill.is-moving {
+  color: #6d28d9;
+  background: #f3e8ff;
+}
+
+.detail-product-logistic-pill.is-received {
+  color: #047857;
+  background: #d1fae5;
+}
+
+.detail-product-logistic-pill.is-shop {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.detail-product-logistic-pill.is-delivered {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.detail-product-action-toggle {
+  min-height: 36px;
+  padding: 8px 14px !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  white-space: nowrap;
+}
+
+.detail-product-data-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(95px, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.detail-product-data-grid > div {
+  min-width: 0;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, .16);
+  padding: 13px 14px;
+}
+
+.detail-product-data-grid strong {
+  display: block;
+  margin-top: 5px;
+  color: #020617;
+  font-size: 15px;
+  line-height: 1.12;
+  font-weight: 950;
+  word-break: break-word;
+}
+
+.detail-product-progress-row {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 4px 2px 0;
+}
+
+.detail-product-progress-row > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-product-progress-line {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.detail-product-progress-line i {
+  display: block;
+  height: 100%;
+  min-width: 14px;
+  border-radius: inherit;
+  background: #64748b;
+}
+
+.detail-product-progress-line.product-progress-pending i {
+  background: #94a3b8;
+}
+
+.detail-product-progress-line.product-progress-moving i {
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+}
+
+.detail-product-progress-line.product-progress-arrived i {
+  background: linear-gradient(90deg, #f59e0b, #f97316);
+}
+
+.detail-product-progress-line.product-progress-received i,
+.detail-product-progress-line.product-progress-shop i {
+  background: linear-gradient(90deg, #0ea5e9, #2563eb);
+}
+
+.detail-product-progress-line.product-progress-delivered i {
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+@media (max-width: 1180px) {
+  .detail-product-data-grid {
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .page-header.row-between {
+    align-items: stretch;
+  }
+
+  .detail-header-actions {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .detail-header-actions .badge,
+  .detail-header-actions .payment-status-badge,
+  .detail-header-actions .refund-status-badge {
+    max-width: 100%;
+  }
+
+  .detail-order-actions-menu {
+    left: 0;
+    right: auto;
+    min-width: 220px;
+  }
+
+  .detail-products-list {
+    gap: 12px;
+  }
+
+  .detail-product-card {
+    border-radius: 24px;
+    padding: 18px;
+  }
+
+  .detail-product-top {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .detail-product-title-block h3 {
+    font-size: 22px;
+  }
+
+  .detail-product-status-area {
+    min-width: 0;
+    justify-content: flex-start;
+  }
+
+  .detail-product-logistic-pill {
+    max-width: 100%;
+  }
+
+  .detail-product-menu {
+    left: 0;
+    right: auto;
+    min-width: 230px;
+  }
+
+  .detail-product-data-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .detail-product-data-grid > div {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .detail-product-data-grid span,
+  .detail-product-progress-row > span,
+  .detail-product-kicker {
+    font-size: 11px;
+  }
+
+  .detail-product-data-grid strong {
+    font-size: 14px;
+  }
+
+  .detail-product-progress-row {
+    grid-template-columns: 128px minmax(0, 1fr);
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .detail-product-progress-line {
+    height: 3px;
+  }
+}
+
+@media (max-width: 430px) {
+  .detail-product-data-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .detail-product-progress-row {
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+
+  .detail-product-progress-row > span {
+    font-size: 10px;
+  }
+}
+
+/* =========================================================
+   ORDely V17 - ajustes detalle, compras en plataforma y móvil
+   ========================================================= */
+
+.btn-buy-lote-small {
+  min-height: 42px;
+  padding: 10px 18px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.detail-summary-grid {
+  grid-template-columns: repeat(6, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.detail-summary-grid .card {
+  min-height: 92px;
+  padding: 18px 20px;
+  border-radius: 20px;
+}
+
+.detail-summary-grid .card span {
+  font-size: 14px;
+}
+
+.detail-summary-grid .card strong {
+  font-size: 22px;
+}
+
+.detail-products-list {
+  gap: 12px;
+}
+
+.detail-product-card {
+  padding: 18px 20px 15px;
+  border-radius: 24px;
+}
+
+.detail-product-title-block h3 {
+  font-size: 21px;
+}
+
+.detail-product-title-block p {
+  font-size: 13px;
+}
+
+.detail-product-data-grid {
+  grid-template-columns: repeat(6, minmax(110px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.detail-product-data-grid > div {
+  padding: 11px 12px;
+  border-radius: 16px;
+}
+
+.detail-product-data-grid strong {
+  font-size: 14px;
+}
+
+.detail-product-progress-row {
+  margin-top: 10px;
+  grid-template-columns: 160px minmax(0, 1fr);
+}
+
+.detail-product-progress-line {
+  height: 3px;
+}
+
+.table-card td:nth-child(4) {
+  max-width: 360px;
+  word-break: break-word;
+}
+
+@media (max-width: 1180px) {
+  .detail-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .detail-product-data-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .btn-buy-lote-small {
+    min-height: 36px;
+    padding: 9px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+  }
+
+  .detail-summary-grid.cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px;
+  }
+
+  .detail-summary-grid .card {
+    min-height: 82px;
+    padding: 14px 15px;
+    border-radius: 18px;
+  }
+
+  .detail-summary-grid .card span {
+    font-size: 13px;
+  }
+
+  .detail-summary-grid .card strong {
+    font-size: 19px;
+    line-height: 1.05;
+  }
+
+  .detail-product-card {
+    padding: 15px;
+    border-radius: 22px;
+  }
+
+  .detail-product-title-block h3 {
+    font-size: 20px;
+  }
+
+  .detail-product-title-block p {
+    font-size: 12px;
+  }
+
+  .detail-product-status-area {
+    gap: 7px;
+  }
+
+  .detail-product-logistic-pill,
+  .mini-status-pill,
+  .detail-product-action-toggle {
+    min-height: 30px;
+    padding: 7px 10px !important;
+    font-size: 12px !important;
+  }
+
+  .detail-product-data-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .detail-product-data-grid > div {
+    padding: 10px;
+    border-radius: 15px;
+  }
+
+  .detail-product-data-grid span,
+  .detail-product-progress-row > span,
+  .detail-product-kicker {
+    font-size: 10px;
+    letter-spacing: .07em;
+  }
+
+  .detail-product-data-grid strong {
+    font-size: 13px;
+  }
+
+  .detail-product-progress-row {
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 7px;
+    margin-top: 9px;
+  }
+
+  .detail-product-progress-line {
+    height: 3px;
+  }
+}
+
+@media (max-width: 430px) {
+  .detail-summary-grid.cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .detail-summary-grid .card {
+    min-height: 76px;
+    padding: 12px;
+  }
+
+  .detail-summary-grid .card strong {
+    font-size: 18px;
+  }
+
+  .detail-product-card {
+    padding: 14px;
+  }
+
+  .detail-product-data-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-product-progress-row {
+    grid-template-columns: 104px minmax(0, 1fr);
   }
 }
