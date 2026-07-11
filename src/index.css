@@ -9596,3 +9596,524 @@ body,
     grid-template-columns: 104px minmax(0, 1fr);
   }
 }
+
+/* =========================================================
+   Pedidos V18 - mensajes, seguimiento, fecha y móvil limpio
+   ========================================================= */
+.filters-date-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tracking-link-modal {
+  display: grid;
+  gap: 14px;
+}
+
+.tracking-link-box {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.message-preview-box pre {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+}
+
+.pedidos-table .order-actions-dropdown {
+  min-width: 178px !important;
+}
+
+.mobile-order-created-date {
+  margin: 3px 0 0 !important;
+  color: #94a3b8 !important;
+  font-size: 10.5px !important;
+  line-height: 1.15 !important;
+  font-weight: 800 !important;
+}
+
+@media (max-width: 900px) {
+  .mobile-order-main-info span {
+    font-size: 9.5px !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .mobile-order-main-info h3 {
+    font-size: 15px !important;
+    line-height: 1 !important;
+    margin-top: 2px !important;
+  }
+
+  .mobile-order-client-name {
+    font-size: 19px !important;
+    line-height: 1.08 !important;
+    margin-top: 5px !important;
+    font-weight: 950 !important;
+    color: #64748b !important;
+  }
+
+  .mobile-order-created-date {
+    font-size: 10px !important;
+  }
+
+  .mobile-order-payment-top {
+    max-width: 126px !important;
+  }
+
+  .mobile-order-payment-top .payment-status-badge,
+  .mobile-order-payment-top .payment-status-badge-small,
+  .mobile-order-payment-top .refund-status-badge,
+  .mobile-order-payment-top .refund-status-badge-small {
+    max-width: 126px !important;
+    min-height: 28px !important;
+    border-radius: 18px !important;
+    font-size: 8.6px !important;
+    padding: 5px 8px !important;
+  }
+
+  .mobile-order-actions-compact {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .mobile-order-actions-compact .btn {
+    width: 100% !important;
+  }
+
+  .mobile-order-actions-compact .btn-danger {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 520px) {
+  .filters-date-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-order-client-name {
+    font-size: 18px !important;
+  }
+
+  .mobile-order-main-info h3 {
+    font-size: 14px !important;
+  }
+}
+
+/* ORDERS V19 · fechas, agrupación y configuración */
+.pedidos-date-toggle {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+}
+
+.pedidos-date-toggle span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.date-toggle-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.date-toggle-button-on {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.order-created-cell {
+  color: #64748b;
+  font-size: 12px !important;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.orders-date-divider-row td {
+  padding: 18px 10px 8px !important;
+  background: transparent !important;
+}
+
+.orders-date-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.orders-date-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, rgba(100, 116, 139, 0.35), rgba(226, 232, 240, 0.2));
+}
+
+.orders-date-divider span {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.mobile-date-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 4px 8px;
+}
+
+.mobile-date-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, rgba(100, 116, 139, 0.38), rgba(226, 232, 240, 0.1));
+}
+
+.mobile-date-divider span {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: capitalize;
+}
+
+.mobile-order-created-date {
+  margin: 4px 0 0;
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 850;
+}
+
+.account-date-config-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.config-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.config-switch-row div {
+  display: grid;
+  gap: 2px;
+}
+
+.config-switch-row strong {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.config-switch-row span {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.config-switch-row input[type="checkbox"] {
+  width: 46px;
+  height: 26px;
+  accent-color: #0f172a;
+  flex: 0 0 auto;
+}
+
+.filters-date-group-switch {
+  margin-top: 2px;
+}
+
+@media (min-width: 901px) {
+  .desktop-table table.pedidos-table {
+    min-width: 1240px !important;
+  }
+
+  .desktop-table th:nth-child(2),
+  .desktop-table td:nth-child(2) {
+    min-width: 86px !important;
+  }
+
+  .desktop-table th:nth-child(11),
+  .desktop-table td:nth-child(11) {
+    min-width: 130px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .pedidos-date-toggle {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 12px;
+  }
+
+  .config-switch-row {
+    align-items: flex-start;
+  }
+}
+
+/* =========================================================
+   ORDELY V20 · Fechas más visibles + Mi cuenta ordenada
+   ========================================================= */
+
+/* Separadores de fecha más grandes y marcados */
+.orders-date-divider-row td {
+  padding: 24px 12px 12px !important;
+}
+
+.orders-date-divider {
+  gap: 18px !important;
+  min-height: 32px;
+}
+
+.orders-date-divider::after {
+  height: 2px !important;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.55), rgba(148, 163, 184, 0.45), rgba(226, 232, 240, 0.05)) !important;
+  border-radius: 999px;
+}
+
+.orders-date-divider span {
+  font-size: 20px !important;
+  line-height: 1.1 !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.03em !important;
+  text-transform: none !important;
+  color: #0f172a !important;
+}
+
+.mobile-date-divider {
+  gap: 12px !important;
+  margin: 20px 2px 12px !important;
+  min-height: 28px;
+}
+
+.mobile-date-divider::after {
+  height: 2px !important;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.6), rgba(148, 163, 184, 0.45), rgba(226, 232, 240, 0.08)) !important;
+  border-radius: 999px;
+}
+
+.mobile-date-divider span {
+  font-size: 17px !important;
+  line-height: 1.1 !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.03em !important;
+  text-transform: none !important;
+  color: #0f172a !important;
+  white-space: nowrap;
+}
+
+/* Modal de Mi cuenta más ancho y mejor distribuido en computadora */
+.modal-card:has(.account-details-modal-edit) {
+  max-width: min(920px, calc(100vw - 36px)) !important;
+  max-height: min(88vh, 860px) !important;
+  overflow-y: auto !important;
+  padding: 24px !important;
+}
+
+.account-details-modal-edit {
+  gap: 16px !important;
+}
+
+.account-details-modal-edit .account-details-user {
+  padding: 14px 16px !important;
+  border-radius: 22px !important;
+  background: linear-gradient(135deg, #f8fafc, #ffffff) !important;
+}
+
+.account-name-edit-field {
+  padding: 14px 16px !important;
+  border-radius: 22px !important;
+}
+
+.account-details-modal-edit .account-details-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.account-details-modal-edit .account-details-grid div {
+  padding: 14px 15px !important;
+  border-radius: 20px !important;
+  min-height: 82px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.account-details-modal-edit .account-details-grid span,
+.account-config-section .form-field > span,
+.account-date-config-section .form-field > span {
+  font-size: 11px !important;
+  letter-spacing: 0.09em !important;
+}
+
+.account-details-modal-edit .account-details-grid strong {
+  font-size: 15px !important;
+  line-height: 1.25 !important;
+}
+
+.account-config-section {
+  margin-top: 0 !important;
+  padding: 16px !important;
+  border-radius: 24px !important;
+  background: linear-gradient(135deg, #f8fafc, #ffffff) !important;
+}
+
+.account-config-heading {
+  margin-bottom: 14px !important;
+}
+
+.account-config-heading strong {
+  font-size: 18px !important;
+  letter-spacing: -0.03em;
+}
+
+.account-config-heading span {
+  font-size: 13px !important;
+}
+
+.account-config-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.account-date-config-grid {
+  grid-template-columns: minmax(220px, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  align-items: stretch;
+  gap: 12px !important;
+}
+
+.account-date-config-grid .form-field,
+.account-date-config-grid .config-switch-row,
+.account-business-grid .form-field,
+.account-config-grid .form-field {
+  min-width: 0;
+}
+
+.config-switch-row {
+  min-height: 72px;
+  border-radius: 20px !important;
+  background: #ffffff !important;
+}
+
+.config-switch-row input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.account-business-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.account-modal-actions {
+  position: sticky;
+  bottom: -24px;
+  z-index: 2;
+  margin-top: 4px;
+  padding-top: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0), #ffffff 35%);
+}
+
+@media (max-width: 980px) {
+  .account-details-modal-edit .account-details-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .account-config-grid,
+  .account-date-config-grid,
+  .account-business-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 800px) {
+  .modal-card:has(.account-details-modal-edit) {
+    max-width: none !important;
+    width: 100% !important;
+    max-height: 90dvh !important;
+    padding: 18px !important;
+    border-radius: 28px 28px 0 0 !important;
+  }
+
+  .account-details-modal-edit .account-details-user {
+    align-items: flex-start !important;
+  }
+
+  .account-details-modal-edit .account-details-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  .account-details-modal-edit .account-details-grid div {
+    min-height: 76px;
+    padding: 12px !important;
+  }
+
+  .account-details-modal-edit .account-details-grid strong {
+    font-size: 13px !important;
+  }
+
+  .account-config-section {
+    padding: 14px !important;
+    border-radius: 22px !important;
+  }
+
+  .account-config-heading strong {
+    font-size: 16px !important;
+  }
+
+  .account-config-grid,
+  .account-date-config-grid,
+  .account-business-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .config-switch-row {
+    min-height: 64px;
+    align-items: center !important;
+  }
+
+  .account-modal-actions {
+    bottom: -18px;
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .account-details-modal-edit .account-details-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mobile-date-divider span {
+    font-size: 15px !important;
+  }
+}

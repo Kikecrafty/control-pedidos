@@ -1181,72 +1181,41 @@ ${url}` : ''}`
   }
 
   const generarMensajeEstado = (pedidoBase = pedido) => {
-    const nombre = pedidoBase?.clientes?.nombre || 'cliente'
-    const codigo = pedidoBase?.codigo || ''
-    const plataforma = pedidoBase?.plataforma || 'SHEIN'
-    const estado = normalizarEstado(pedidoBase?.estado)
-    const total = formatearDinero(pedidoBase?.total_cliente)
-    const pagado = formatearDinero(pedidoBase?.anticipo)
-    const restante = formatearDinero(pedidoBase?.restante)
-    const tracking = pedidoBase?.tracking || ''
-    const url = pedidoBase?.public_token
-      ? `${obtenerBasePublica()}/seguimiento/${pedidoBase.public_token}`
-      : ''
-    const lineaSeguimiento = url ? `
+    const nombre = pedidoBase?.clientes?.nombre || pedido?.clientes?.nombre || 'cliente'
+    const codigo = pedidoBase?.codigo || pedido?.codigo || ''
+    const estado = normalizarEstado(pedidoBase?.estado || pedido?.estado)
+    const total = formatearDinero(pedidoBase?.total_cliente ?? pedido?.total_cliente)
+    const anticipo = formatearDinero(pedidoBase?.anticipo ?? pedido?.anticipo)
+    const restante = formatearDinero(pedidoBase?.restante ?? pedido?.restante)
+    const productosTexto = (productos || []).length
+      ? productos
+          .map((producto) => {
+            const cantidad = Number(producto?.cantidad || 0)
+            const prefijo = cantidad > 0 ? `${cantidad} x ` : ''
+            return `- ${prefijo}${producto?.nombre_producto || 'Producto sin nombre'}`
+          })
+          .join('\n')
+      : 'Sin productos registrados'
 
-Puedes revisar el seguimiento aquí:
-${url}` : ''
-
-    if (estado === 'Cotizado') {
-      return `Hola ${nombre}, tu pedido ${codigo} ya fue cotizado.
-
-Plataforma: ${plataforma}
-Total: ${total}
-Restante: ${restante}${lineaSeguimiento}`
+    const encabezados = {
+      Cotizado: `Hola ${nombre}, tu pedido ${codigo} ya quedó cotizado.`,
+      'En camino': `Hola ${nombre}, tu pedido ${codigo} ya va en camino.`,
+      Recibido: `Hola ${nombre}, tu pedido ${codigo} ya fue recibido.`,
+      'Dejado en negocio': `Hola ${nombre}, tu pedido ${codigo} ya está listo para recoger.`,
+      Entregado: `Hola ${nombre}, tu pedido ${codigo} ya fue entregado.`,
+      Cancelado: `Hola ${nombre}, te aviso que tu pedido ${codigo} fue cancelado.`,
+      Devuelto: `Hola ${nombre}, te aviso que tu pedido ${codigo} fue marcado como devuelto.`
     }
 
-    if (estado === 'En camino') {
-      return `Hola ${nombre}, tu pedido ${codigo} ya está en camino.
+    return `${encabezados[estado] || `Hola ${nombre}, tu pedido ${codigo} fue actualizado.`}
 
-Plataforma: ${plataforma}${tracking ? `
-Guía / tracking: ${tracking}` : ''}${lineaSeguimiento}`
-    }
-
-    if (estado === 'Recibido') {
-      return `Hola ${nombre}, tu pedido ${codigo} ya fue recibido.
-
-Total: ${total}
-Pagado: ${pagado}
-Restante pendiente: ${restante}${lineaSeguimiento}`
-    }
-
-    if (estado === 'Dejado en negocio') {
-      return `Hola ${nombre}, tu pedido ${codigo} ya está listo en el negocio.
-
-Puedes pasar a recogerlo cuando gustes.${lineaSeguimiento}`
-    }
-
-    if (estado === 'Entregado') {
-      return `Hola ${nombre}, tu pedido ${codigo} ya fue entregado.
-
-Gracias por tu compra.${lineaSeguimiento}`
-    }
-
-    if (estado === 'Cancelado') {
-      return `Hola ${nombre}, te aviso que el pedido ${codigo} fue marcado como cancelado.
-
-Cualquier duda quedo al pendiente.${lineaSeguimiento}`
-    }
-
-    if (estado === 'Devuelto') {
-      return `Hola ${nombre}, te aviso que el pedido ${codigo} fue marcado como devuelto.
-
-Cualquier duda quedo al pendiente.${lineaSeguimiento}`
-    }
-
-    return `Hola ${nombre}, tu pedido ${codigo} cambió de estado.
-
-Estado actual: ${estado}${lineaSeguimiento}`
+Nombre: ${nombre}
+Productos:
+${productosTexto}
+Estado: ${estado}
+Costo total: ${total}
+Anticipo: ${anticipo}
+Restante: ${restante}`
   }
 
   const enviarSeguimientoWhatsApp = () => {

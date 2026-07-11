@@ -12,6 +12,37 @@ const plataformas = [
   'Otro'
 ]
 
+
+const formatosFecha = [
+  { valor: 'dd/mm/yyyy', texto: 'dd/mm/aaaa' },
+  { valor: 'yyyy/mm/dd', texto: 'aaaa/mm/dd' },
+  { valor: 'mm/dd/yyyy', texto: 'mm/dd/aaaa' },
+  { valor: 'dd-mm-yyyy', texto: 'dd-mm-aaaa' },
+  { valor: 'texto', texto: '10 de julio del 2026' }
+]
+
+const guardarPreferenciasFechaLocal = ({ formato, mostrarAnio, separarPorFecha }) => {
+  if (typeof window === 'undefined') return
+  if (formato) localStorage.setItem('ordely_fecha_formato', formato)
+  if (typeof mostrarAnio === 'boolean') localStorage.setItem('ordely_fecha_mostrar_anio', String(mostrarAnio))
+  if (typeof separarPorFecha === 'boolean') localStorage.setItem('ordely_pedidos_separar_fecha', String(separarPorFecha))
+}
+
+const leerBooleanoPreferencia = (valor, predeterminado = true) => {
+  if (valor === true || valor === 'true') return true
+  if (valor === false || valor === 'false') return false
+  return predeterminado
+}
+
+const leerPreferenciaLocal = (llave) => {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(llave)
+}
+
+const valorBooleanoConfig = (valor, predeterminado = true) => {
+  return leerBooleanoPreferencia(valor, predeterminado)
+}
+
 const PERFIL_CACHE_KEY = 'control_pedidos_perfil_cache'
 
 const leerPerfilCache = () => {
@@ -135,7 +166,10 @@ export default function Layout({ children }) {
     tiempo_otro_dias: 15,
     negocio_nombre: '',
     negocio_direccion: '',
-    negocio_horario: ''
+    negocio_horario: '',
+    fecha_formato: typeof window !== 'undefined' ? (localStorage.getItem('ordely_fecha_formato') || 'dd/mm/yyyy') : 'dd/mm/yyyy',
+    fecha_mostrar_anio: typeof window !== 'undefined' ? leerBooleanoPreferencia(localStorage.getItem('ordely_fecha_mostrar_anio'), true) : true,
+    pedidos_separar_por_fecha: typeof window !== 'undefined' ? leerBooleanoPreferencia(localStorage.getItem('ordely_pedidos_separar_fecha'), true) : true
   })
 
   useEffect(() => {
@@ -180,7 +214,24 @@ export default function Layout({ children }) {
       tiempo_otro_dias: Number(perfil?.tiempo_otro_dias || 15),
       negocio_nombre: perfil?.negocio_nombre || '',
       negocio_direccion: perfil?.negocio_direccion || '',
-      negocio_horario: perfil?.negocio_horario || ''
+      negocio_horario: perfil?.negocio_horario || '',
+      fecha_formato: leerPreferenciaLocal('ordely_fecha_formato') || perfil?.fecha_formato || 'dd/mm/yyyy',
+      fecha_mostrar_anio: leerPreferenciaLocal('ordely_fecha_mostrar_anio') !== null
+        ? leerBooleanoPreferencia(leerPreferenciaLocal('ordely_fecha_mostrar_anio'), true)
+        : (typeof perfil?.fecha_mostrar_anio === 'boolean' ? perfil.fecha_mostrar_anio : true),
+      pedidos_separar_por_fecha: leerPreferenciaLocal('ordely_pedidos_separar_fecha') !== null
+        ? leerBooleanoPreferencia(leerPreferenciaLocal('ordely_pedidos_separar_fecha'), true)
+        : (typeof perfil?.pedidos_separar_por_fecha === 'boolean' ? perfil.pedidos_separar_por_fecha : true)
+    })
+
+    guardarPreferenciasFechaLocal({
+      formato: leerPreferenciaLocal('ordely_fecha_formato') || perfil?.fecha_formato || 'dd/mm/yyyy',
+      mostrarAnio: leerPreferenciaLocal('ordely_fecha_mostrar_anio') !== null
+        ? leerBooleanoPreferencia(leerPreferenciaLocal('ordely_fecha_mostrar_anio'), true)
+        : (typeof perfil?.fecha_mostrar_anio === 'boolean' ? perfil.fecha_mostrar_anio : true),
+      separarPorFecha: leerPreferenciaLocal('ordely_pedidos_separar_fecha') !== null
+        ? leerBooleanoPreferencia(leerPreferenciaLocal('ordely_pedidos_separar_fecha'), true)
+        : (typeof perfil?.pedidos_separar_por_fecha === 'boolean' ? perfil.pedidos_separar_por_fecha : true)
     })
     setMensajeCuenta(null)
   }, [modalCuenta])
@@ -223,6 +274,16 @@ export default function Layout({ children }) {
         setPlataformaPredeterminada(perfilData.plataforma_predeterminada)
         localStorage.setItem('plataforma_predeterminada', perfilData.plataforma_predeterminada)
       }
+
+      guardarPreferenciasFechaLocal({
+        formato: perfilData.fecha_formato || leerPreferenciaLocal('ordely_fecha_formato') || 'dd/mm/yyyy',
+        mostrarAnio: typeof perfilData.fecha_mostrar_anio === 'boolean'
+          ? perfilData.fecha_mostrar_anio
+          : leerBooleanoPreferencia(leerPreferenciaLocal('ordely_fecha_mostrar_anio'), true),
+        separarPorFecha: typeof perfilData.pedidos_separar_por_fecha === 'boolean'
+          ? perfilData.pedidos_separar_por_fecha
+          : leerBooleanoPreferencia(leerPreferenciaLocal('ordely_pedidos_separar_fecha'), true)
+      })
     }
 
     setPerfilCargando(false)
@@ -308,7 +369,26 @@ export default function Layout({ children }) {
   }
 
   const actualizarConfigEntrega = (campo, valor) => {
-    setConfigEntrega((actual) => ({ ...actual, [campo]: valor }))
+    const esBooleano = campo === 'fecha_mostrar_anio' || campo === 'pedidos_separar_por_fecha'
+    const valorNormalizado = esBooleano ? valorBooleanoConfig(valor, true) : valor
+
+    setConfigEntrega((actual) => {
+      const siguiente = { ...actual, [campo]: valorNormalizado }
+
+      if (campo === 'fecha_formato' || campo === 'fecha_mostrar_anio' || campo === 'pedidos_separar_por_fecha') {
+        guardarPreferenciasFechaLocal({
+          formato: siguiente.fecha_formato || 'dd/mm/yyyy',
+          mostrarAnio: valorBooleanoConfig(siguiente.fecha_mostrar_anio, true),
+          separarPorFecha: valorBooleanoConfig(siguiente.pedidos_separar_por_fecha, true)
+        })
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('ordelyConfigFechasActualizada'))
+        }
+      }
+
+      return siguiente
+    })
   }
 
   const normalizarDiasConfig = (valor, respaldo) => {
@@ -351,6 +431,9 @@ export default function Layout({ children }) {
         negocio_nombre: String(configEntrega.negocio_nombre || '').trim(),
         negocio_direccion: String(configEntrega.negocio_direccion || '').trim(),
         negocio_horario: String(configEntrega.negocio_horario || '').trim(),
+        fecha_formato: configEntrega.fecha_formato || 'dd/mm/yyyy',
+        fecha_mostrar_anio: valorBooleanoConfig(configEntrega.fecha_mostrar_anio, true),
+        pedidos_separar_por_fecha: valorBooleanoConfig(configEntrega.pedidos_separar_por_fecha, true),
         actualizado_en: new Date().toISOString()
       })
       .eq('user_id', userId)
@@ -373,12 +456,25 @@ export default function Layout({ children }) {
       negocio_nombre: String(configEntrega.negocio_nombre || '').trim(),
       negocio_direccion: String(configEntrega.negocio_direccion || '').trim(),
       negocio_horario: String(configEntrega.negocio_horario || '').trim(),
+      fecha_formato: configEntrega.fecha_formato || 'dd/mm/yyyy',
+      fecha_mostrar_anio: valorBooleanoConfig(configEntrega.fecha_mostrar_anio, true),
+      pedidos_separar_por_fecha: valorBooleanoConfig(configEntrega.pedidos_separar_por_fecha, true),
       actualizado_en: new Date().toISOString()
     } : perfil
 
     if (perfilActualizado) {
       setPerfil(perfilActualizado)
       guardarPerfilCache(perfilActualizado)
+    }
+
+    guardarPreferenciasFechaLocal({
+      formato: configEntrega.fecha_formato || 'dd/mm/yyyy',
+      mostrarAnio: valorBooleanoConfig(configEntrega.fecha_mostrar_anio, true),
+      separarPorFecha: valorBooleanoConfig(configEntrega.pedidos_separar_por_fecha, true)
+    })
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ordelyConfigFechasActualizada'))
     }
 
     setMensajeCuenta({ tipo: 'success', texto: 'Cuenta actualizada.' })
@@ -594,6 +690,54 @@ export default function Layout({ children }) {
           </div>
         </div>
 
+        <div className="account-config-section account-date-config-section">
+          <div className="account-config-heading">
+            <strong>Fechas y agrupación</strong>
+            <span>Controla el formato de fecha, el año y la separación de pedidos por día.</span>
+          </div>
+
+          <div className="account-date-config-grid">
+            <label className="form-field">
+              <span>Formato</span>
+              <select
+                value={configEntrega.fecha_formato}
+                onChange={(e) => actualizarConfigEntrega('fecha_formato', e.target.value)}
+                disabled={guardandoCuenta}
+              >
+                {formatosFecha.map((formato) => (
+                  <option key={formato.valor} value={formato.valor}>{formato.texto}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="config-switch-row">
+              <div>
+                <strong>Mostrar año</strong>
+                <span>Quita o muestra el año en pedidos y separadores.</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={valorBooleanoConfig(configEntrega.fecha_mostrar_anio, true)}
+                onChange={(e) => actualizarConfigEntrega('fecha_mostrar_anio', e.target.checked)}
+                disabled={guardandoCuenta}
+              />
+            </label>
+
+            <label className="config-switch-row">
+              <div>
+                <strong>Separar pedidos por fecha</strong>
+                <span>Agrupa la lista por día de creación.</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={valorBooleanoConfig(configEntrega.pedidos_separar_por_fecha, true)}
+                onChange={(e) => actualizarConfigEntrega('pedidos_separar_por_fecha', e.target.checked)}
+                disabled={guardandoCuenta}
+              />
+            </label>
+          </div>
+        </div>
+
         <div className="account-config-section">
           <div className="account-config-heading">
             <strong>Punto de entrega</strong>
@@ -651,7 +795,7 @@ export default function Layout({ children }) {
             className="btn btn-primary"
             disabled={guardandoCuenta}
           >
-            {guardandoCuenta ? 'Guardando...' : 'Guardar nombre'}
+            {guardandoCuenta ? 'Guardando...' : 'Guardar cambios'}
           </button>
         </div>
       </form>
