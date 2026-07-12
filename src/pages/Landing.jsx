@@ -44,13 +44,14 @@ export default function Landing({ session }) {
             <span className="ordely-logo-text-fallback ordely-hero-fallback">Ordely</span>
           </div>
 
-          <span className="ordely-kicker">Sistema para pedidos, clientes y pagos</span>
+          <span className="ordely-kicker">Control de pedidos, clientes y pagos</span>
 
           <h1>Pedidos claros, ventas en orden.</h1>
 
           <p>
-            Ordely te ayuda a administrar pedidos, clientes, pagos y entregas desde una
-            plataforma simple, rápida y lista para trabajar desde celular o computadora.
+            Ordely te ayuda a administrar pedidos de SHEIN, Temu y compras por encargo,
+            además de clientes, anticipos, pagos, entregas y seguimiento desde una
+            plataforma simple para celular o computadora.
           </p>
 
           <div className="ordely-mini-points" aria-label="Funciones principales">

@@ -1,0 +1,25 @@
+{
+  "name": "MiOrdely",
+  "short_name": "Ordely",
+  "description": "Control de pedidos, clientes, anticipos, pagos, entregas y seguimiento.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f9fd",
+  "theme_color": "#0f172a",
+  "lang": "es-MX",
+  "icons": [
+    {
+      "src": "/brand/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

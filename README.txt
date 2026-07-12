@@ -1,22 +1,26 @@
-ORDELY - FIX ICONO ARRIBA + LOGOS TRANSPARENTES
+ORDELY V38 - SEO, FAVICON Y VISTA PARA REDES
 
-Reemplaza estos archivos/carpetas en tu proyecto:
+1. Copia el contenido de esta carpeta sobre la raíz de tu proyecto.
+2. Conserva las mismas rutas de archivos.
+3. Ejecuta:
 
-1) src/pages/Landing.jsx
-2) src/pages/Login.jsx
-3) src/components/Layout.jsx
-4) src/index.css
-5) index.html
-6) public/brand/ordely-logo.png
-7) public/brand/ordely-icon.png
+npm run build
+git status
+git add .
+git commit -m "Mejorar SEO favicon y vista previa de Ordely"
+git push -u origin HEAD
 
-Cambios:
-- En la esquina superior de la página principal ahora va el ícono solo.
-- En medio queda el logo completo con letras.
-- Las imágenes se guardaron con fondo transparente para quitar el rectángulo blanco.
-- Se quitaron fondos blancos/paddings en los íconos internos.
+CAMBIOS PRINCIPALES
+- Título SEO: MiOrdely | Control de pedidos, clientes y pagos
+- Descripción orientada a SHEIN, Temu y compras por encargo
+- Favicon en tamaños compatibles con buscadores y navegadores
+- Imagen 1200x630 para WhatsApp, Facebook y otras redes
+- Web manifest para dispositivos móviles
+- Datos estructurados WebSite y WebApplication
+- Texto de portada mejorado sin cambiar la marca visible Ordely
 
-Después ejecuta:
-npm run dev
-
-Si el navegador conserva cache, usa Ctrl + F5.
+DESPUÉS DEL DESPLIEGUE
+- Abre https://miordely.com/favicon.ico
+- Abre https://miordely.com/brand/ordely-social.png
+- En Search Console inspecciona https://miordely.com/ y solicita indexación una sola vez.
+- El cambio de título, descripción y favicon puede tardar varios días en mostrarse.
