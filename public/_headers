@@ -1,0 +1,43 @@
+# Evita que la URL temporal de Cloudflare Pages compita con el dominio oficial.
+https://control-pedidos.pages.dev/*
+  X-Robots-Tag: noindex, nofollow
+
+# Rutas privadas o sensibles: deben poder cargarse, pero no aparecer en buscadores.
+/login
+  X-Robots-Tag: noindex, nofollow
+
+/actualizar-password
+  X-Robots-Tag: noindex, nofollow
+
+/seguimiento/*
+  X-Robots-Tag: noindex, nofollow
+
+/panel
+  X-Robots-Tag: noindex, nofollow
+
+/clientes
+  X-Robots-Tag: noindex, nofollow
+
+/pedidos
+  X-Robots-Tag: noindex, nofollow
+
+/pedidos/*
+  X-Robots-Tag: noindex, nofollow
+
+/nuevo-pedido
+  X-Robots-Tag: noindex, nofollow
+
+/compras
+  X-Robots-Tag: noindex, nofollow
+
+/planes
+  X-Robots-Tag: noindex, nofollow
+
+/estadisticas
+  X-Robots-Tag: noindex, nofollow
+
+/metricas
+  X-Robots-Tag: noindex, nofollow
+
+/admin-control
+  X-Robots-Tag: noindex, nofollow
