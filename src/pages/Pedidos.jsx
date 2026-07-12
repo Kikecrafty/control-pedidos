@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
@@ -9,6 +10,30 @@ import { cargarEstadoPlan, estaBloqueadoPorPlan, puedeCrearPedido } from '../lib
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100]
 const PEDIDOS_CACHE_LIMIT = 50
+
+const obtenerEstiloMenuPortal = (elemento, ancho = 225, altoEstimado = 320, alinear = 'izquierda') => {
+  if (!elemento || typeof window === 'undefined') return null
+
+  const rect = elemento.getBoundingClientRect()
+  const margen = 10
+  const espacioAbajo = window.innerHeight - rect.bottom - margen
+  const espacioArriba = rect.top - margen
+  const abrirArriba = espacioAbajo < Math.min(altoEstimado, 260) && espacioArriba > espacioAbajo
+
+  let left = alinear === 'derecha' ? rect.right - ancho : rect.left
+  left = Math.max(margen, Math.min(left, window.innerWidth - ancho - margen))
+
+  return {
+    position: 'fixed',
+    left: `${left}px`,
+    top: abrirArriba ? 'auto' : `${rect.bottom + 7}px`,
+    bottom: abrirArriba ? `${window.innerHeight - rect.top + 7}px` : 'auto',
+    width: `${ancho}px`,
+    maxHeight: `${Math.max(150, abrirArriba ? espacioArriba - 12 : espacioAbajo - 12)}px`,
+    overflowY: 'auto',
+    zIndex: 2147483000
+  }
+}
 
 const obtenerIdUsuarioCache = () => {
   if (typeof window === 'undefined') return 'sin_usuario'
@@ -47,6 +72,8 @@ const leerPedidosCache = () => {
 const DATE_FORMAT_STORAGE_KEY = 'ordely_fecha_formato'
 const DATE_YEAR_STORAGE_KEY = 'ordely_fecha_mostrar_anio'
 const GROUP_BY_DATE_STORAGE_KEY = 'ordely_pedidos_separar_fecha'
+const DATE_FILTER_TYPE_STORAGE_KEY = 'ordely_pedidos_fecha_tipo_busqueda'
+const DATE_GROUP_TYPE_STORAGE_KEY = 'ordely_pedidos_fecha_tipo_agrupacion'
 
 const normalizarBooleanoLocal = (valor, predeterminado = true) => {
   if (valor === null || valor === undefined) return predeterminado
@@ -57,21 +84,25 @@ const normalizarBooleanoLocal = (valor, predeterminado = true) => {
 
 const obtenerConfigFechaLocal = () => {
   if (typeof window === 'undefined') {
-    return { formato: 'dd/mm/yyyy', mostrarAnio: true, separarPorFecha: true }
+    return { formato: 'dd/mm/yyyy', mostrarAnio: true, separarPorFecha: true, tipoFechaBusqueda: 'creado_en', tipoFechaAgrupacion: 'creado_en' }
   }
 
   return {
     formato: localStorage.getItem(DATE_FORMAT_STORAGE_KEY) || 'dd/mm/yyyy',
     mostrarAnio: normalizarBooleanoLocal(localStorage.getItem(DATE_YEAR_STORAGE_KEY), true),
-    separarPorFecha: normalizarBooleanoLocal(localStorage.getItem(GROUP_BY_DATE_STORAGE_KEY), true)
+    separarPorFecha: normalizarBooleanoLocal(localStorage.getItem(GROUP_BY_DATE_STORAGE_KEY), true),
+    tipoFechaBusqueda: localStorage.getItem(DATE_FILTER_TYPE_STORAGE_KEY) || 'creado_en',
+    tipoFechaAgrupacion: localStorage.getItem(DATE_GROUP_TYPE_STORAGE_KEY) || 'creado_en'
   }
 }
 
-const guardarConfigFechaLocal = ({ formato, mostrarAnio, separarPorFecha }) => {
+const guardarConfigFechaLocal = ({ formato, mostrarAnio, separarPorFecha, tipoFechaBusqueda, tipoFechaAgrupacion }) => {
   if (typeof window === 'undefined') return
   if (formato) localStorage.setItem(DATE_FORMAT_STORAGE_KEY, formato)
   if (typeof mostrarAnio === 'boolean') localStorage.setItem(DATE_YEAR_STORAGE_KEY, String(mostrarAnio))
   if (typeof separarPorFecha === 'boolean') localStorage.setItem(GROUP_BY_DATE_STORAGE_KEY, String(separarPorFecha))
+  if (tipoFechaBusqueda) localStorage.setItem(DATE_FILTER_TYPE_STORAGE_KEY, tipoFechaBusqueda)
+  if (tipoFechaAgrupacion) localStorage.setItem(DATE_GROUP_TYPE_STORAGE_KEY, tipoFechaAgrupacion)
 }
 
 const guardarPedidosCache = (pedidos) => {
@@ -136,6 +167,8 @@ export default function Pedidos() {
   const [montoReembolso, setMontoReembolso] = useState('')
   const [menuAccionesAbierto, setMenuAccionesAbierto] = useState(null)
   const [menuEstadoAbierto, setMenuEstadoAbierto] = useState(null)
+  const [estiloMenuAcciones, setEstiloMenuAcciones] = useState(null)
+  const [estiloMenuEstado, setEstiloMenuEstado] = useState(null)
 
   useEffect(() => {
     cargarPlan()
@@ -155,11 +188,43 @@ export default function Pedidos() {
 
   useEffect(() => {
     cargarPedidos()
-  }, [pagina, tamanoPagina, busqueda, filtroEstado, filtroPlataforma, fechaDesde, fechaHasta])
+  }, [pagina, tamanoPagina, busqueda, filtroEstado, filtroPlataforma, fechaDesde, fechaHasta, configFechaPedidos.tipoFechaBusqueda, configFechaPedidos.tipoFechaAgrupacion])
 
   useEffect(() => {
     setPagina(1)
-  }, [busqueda, filtroEstado, filtroPlataforma, fechaDesde, fechaHasta, tamanoPagina])
+  }, [busqueda, filtroEstado, filtroPlataforma, fechaDesde, fechaHasta, tamanoPagina, configFechaPedidos.tipoFechaBusqueda, configFechaPedidos.tipoFechaAgrupacion])
+
+  useEffect(() => {
+    if (!menuAccionesAbierto && !menuEstadoAbierto) return undefined
+
+    const cerrarMenus = () => {
+      setMenuAccionesAbierto(null)
+      setMenuEstadoAbierto(null)
+      setEstiloMenuAcciones(null)
+      setEstiloMenuEstado(null)
+    }
+
+    const cerrarAlPulsarFuera = (evento) => {
+      const objetivo = evento.target
+      if (!(objetivo instanceof Element)) return
+
+      if (objetivo.closest('.order-status-options-portal, .order-actions-dropdown-portal, .order-status-button, .btn-action-more')) {
+        return
+      }
+
+      cerrarMenus()
+    }
+
+    window.addEventListener('resize', cerrarMenus)
+    window.addEventListener('scroll', cerrarMenus, true)
+    document.addEventListener('pointerdown', cerrarAlPulsarFuera)
+
+    return () => {
+      window.removeEventListener('resize', cerrarMenus)
+      window.removeEventListener('scroll', cerrarMenus, true)
+      document.removeEventListener('pointerdown', cerrarAlPulsarFuera)
+    }
+  }, [menuAccionesAbierto, menuEstadoAbierto])
 
   const totalPaginas = useMemo(() => {
     return Math.max(1, Math.ceil(totalPedidos / tamanoPagina))
@@ -212,7 +277,9 @@ export default function Pedidos() {
       const configDb = {
         formato: data.fecha_formato || configLocal.formato || 'dd/mm/yyyy',
         mostrarAnio: typeof data.fecha_mostrar_anio === 'boolean' ? data.fecha_mostrar_anio : configLocal.mostrarAnio,
-        separarPorFecha: typeof data.pedidos_separar_por_fecha === 'boolean' ? data.pedidos_separar_por_fecha : configLocal.separarPorFecha
+        separarPorFecha: typeof data.pedidos_separar_por_fecha === 'boolean' ? data.pedidos_separar_por_fecha : configLocal.separarPorFecha,
+        tipoFechaBusqueda: configLocal.tipoFechaBusqueda || 'creado_en',
+        tipoFechaAgrupacion: configLocal.tipoFechaAgrupacion || 'creado_en'
       }
 
       guardarConfigFechaLocal(configDb)
@@ -239,6 +306,22 @@ export default function Pedidos() {
     } catch (error) {
       console.log(error)
     }
+  }
+
+  const cambiarTipoFechaBusqueda = (valor) => {
+    const nuevaConfig = { ...configFechaPedidos, tipoFechaBusqueda: valor }
+    setConfigFechaPedidos(nuevaConfig)
+    guardarConfigFechaLocal(nuevaConfig)
+  }
+
+  const cambiarTipoFechaAgrupacion = (valor) => {
+    const nuevaConfig = { ...configFechaPedidos, tipoFechaAgrupacion: valor }
+    setConfigFechaPedidos(nuevaConfig)
+    guardarConfigFechaLocal(nuevaConfig)
+  }
+
+  const obtenerEtiquetaTipoFecha = (tipo) => {
+    return tipo === 'fecha_pedido' ? 'Fecha del pedido' : 'Registro en Ordely'
   }
 
   const bloqueado = estaBloqueadoPorPlan(estadoPlan)
@@ -469,9 +552,13 @@ export default function Pedidos() {
     const hasta = desde + tamanoPagina - 1
     const texto = busqueda.trim().toLowerCase()
 
+    const campoFechaFiltro = configFechaPedidos.tipoFechaBusqueda === 'fecha_pedido' ? 'fecha_pedido' : 'creado_en'
+    const campoFechaOrden = configFechaPedidos.tipoFechaAgrupacion === 'fecha_pedido' ? 'fecha_pedido' : 'creado_en'
+
     let consulta = supabase
       .from('pedidos')
-      .select('*, clientes(nombre, telefono), productos_pedido(id, nombre_producto, cantidad, entregado, estado_compra, fecha_comprado, fecha_estimada_llegada, fecha_recibido, fecha_dejado_negocio, fecha_entregado_cliente)', { count: 'exact' })
+      .select('*, clientes(nombre, telefono, medio_contacto, usuario_contacto), productos_pedido(id, nombre_producto, cantidad, entregado, estado_compra, fecha_comprado, fecha_estimada_llegada, fecha_recibido, fecha_dejado_negocio, fecha_entregado_cliente)', { count: 'exact' })
+      .order(campoFechaOrden, { ascending: false, nullsFirst: false })
       .order('creado_en', { ascending: false })
 
     if (filtroEstado !== 'Todos') {
@@ -483,11 +570,15 @@ export default function Pedidos() {
     }
 
     if (fechaDesde) {
-      consulta = consulta.gte('creado_en', `${fechaDesde}T00:00:00`)
+      consulta = campoFechaFiltro === 'fecha_pedido'
+        ? consulta.gte('fecha_pedido', fechaDesde)
+        : consulta.gte('creado_en', `${fechaDesde}T00:00:00`)
     }
 
     if (fechaHasta) {
-      consulta = consulta.lte('creado_en', `${fechaHasta}T23:59:59`)
+      consulta = campoFechaFiltro === 'fecha_pedido'
+        ? consulta.lte('fecha_pedido', fechaHasta)
+        : consulta.lte('creado_en', `${fechaHasta}T23:59:59`)
     }
 
     if (!texto) {
@@ -526,13 +617,15 @@ export default function Pedidos() {
         .map((producto) => `${producto?.nombre_producto || ''} ${producto?.cantidad || ''}`)
         .join(' ')
         .toLowerCase()
-      const fechaTexto = formatearFechaCorta(pedido.creado_en).toLowerCase()
+      const fechaTexto = `${formatearFechaCorta(pedido.creado_en)} ${formatearFechaCorta(pedido.fecha_pedido || pedido.fecha_cotizado || pedido.creado_en)}`.toLowerCase()
 
       return (
         pedido.codigo?.toLowerCase().includes(texto) ||
         plataformaPedido.toLowerCase().includes(texto) ||
         pedido.clientes?.nombre?.toLowerCase().includes(texto) ||
         pedido.clientes?.telefono?.toLowerCase().includes(texto) ||
+        pedido.clientes?.medio_contacto?.toLowerCase().includes(texto) ||
+        pedido.clientes?.usuario_contacto?.toLowerCase().includes(texto) ||
         estadoNormal?.toLowerCase().includes(texto) ||
         pagoTexto.includes(texto) ||
         productosTexto.includes(texto) ||
@@ -550,6 +643,17 @@ export default function Pedidos() {
     return String(telefono || '').replace(/\D/g, '')
   }
 
+  const obtenerMedioContactoVisible = (cliente) => {
+    const medio = String(cliente?.medio_contacto || 'WhatsApp').trim()
+    const medioNormalizado = medio.toLowerCase()
+
+    if (medioNormalizado.includes('facebook') || medioNormalizado.includes('messenger')) {
+      return 'Messenger'
+    }
+
+    return medio || 'WhatsApp'
+  }
+
   const obtenerTelefonoWhatsApp = (telefono) => {
     const limpio = limpiarTelefono(telefono)
 
@@ -559,13 +663,62 @@ export default function Pedidos() {
     return `52${limpio}`
   }
 
+  const obtenerContactoCliente = (cliente) => {
+    const medio = cliente?.medio_contacto || 'WhatsApp'
+    const telefono = limpiarTelefono(cliente?.telefono || '')
+    const usuario = String(cliente?.usuario_contacto || '').trim()
+
+    if (medio.toLowerCase().includes('whatsapp') && telefono) return `+52 ${telefono.startsWith('52') ? telefono.slice(2) : telefono}`
+    if (usuario) return usuario
+    if (telefono) return `+52 ${telefono.startsWith('52') ? telefono.slice(2) : telefono}`
+    return 'Sin contacto'
+  }
+
+  const obtenerContactoTabla = (cliente) => {
+    const medio = String(cliente?.medio_contacto || 'WhatsApp')
+    const telefono = limpiarTelefono(cliente?.telefono || '')
+    const usuario = String(cliente?.usuario_contacto || '').trim()
+
+    if (medio.toLowerCase().includes('whatsapp') && telefono) {
+      return telefono.startsWith('52') && telefono.length > 10 ? telefono.slice(2) : telefono
+    }
+
+    if (usuario) return usuario
+    if (telefono) return telefono.startsWith('52') && telefono.length > 10 ? telefono.slice(2) : telefono
+    return 'Sin contacto'
+  }
+
+  const esContactoWhatsApp = (cliente) => {
+    return String(cliente?.medio_contacto || 'WhatsApp').toLowerCase().includes('whatsapp')
+  }
+
+  const puedeEnviarPorWhatsApp = (cliente) => {
+    return esContactoWhatsApp(cliente) && Boolean(obtenerTelefonoWhatsApp(cliente?.telefono))
+  }
+
+  const obtenerTextoMedioContacto = (cliente) => {
+    const medio = obtenerMedioContactoVisible(cliente)
+    const contacto = obtenerContactoCliente(cliente)
+    return `${medio}${contacto && contacto !== 'Sin contacto' ? ` · ${contacto}` : ''}`
+  }
+
   const formatearDinero = (valor) => {
     return `$${Number(valor || 0).toFixed(2)}`
   }
 
   const obtenerPartesFecha = (valor) => {
     if (!valor) return null
-    const fecha = new Date(valor)
+
+    let fecha
+    const textoValor = String(valor)
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(textoValor)) {
+      const [anioTexto, mesTexto, diaTexto] = textoValor.split('-')
+      fecha = new Date(Number(anioTexto), Number(mesTexto) - 1, Number(diaTexto))
+    } else {
+      fecha = new Date(valor)
+    }
+
     if (Number.isNaN(fecha.getTime())) return null
 
     const dia = String(fecha.getDate()).padStart(2, '0')
@@ -607,6 +760,16 @@ export default function Pedidos() {
     const partes = obtenerPartesFecha(valor)
     if (!partes) return 'sin-fecha'
     return `${partes.anio}-${partes.mes}-${partes.dia}`
+  }
+
+  const obtenerFechaPedidoCliente = (pedido) => {
+    return pedido?.fecha_pedido || pedido?.fecha_cotizado || pedido?.creado_en
+  }
+
+  const obtenerFechaAgrupacionPedido = (pedido) => {
+    return configFechaPedidos.tipoFechaAgrupacion === 'fecha_pedido'
+      ? obtenerFechaPedidoCliente(pedido)
+      : pedido?.creado_en
   }
 
   const obtenerResumenProductos = (pedido) => {
@@ -656,6 +819,18 @@ Estado: ${estado}
 Costo total: ${total}
 Anticipo: ${anticipo}
 Restante: ${restante}`
+  }
+
+
+  const generarMensajeSeguimiento = (pedido) => {
+    const url = obtenerUrlSeguimiento(pedido)
+    if (!url) return ''
+
+    const nombre = pedido?.clientes?.nombre || 'cliente'
+    const codigo = pedido?.codigo || ''
+
+    return `Hola ${nombre}, puedes revisar el seguimiento de tu pedido ${codigo} aquí:
+${url}`
   }
 
   const aplicarCambioEstado = async (pedido, estadoNuevo, opciones = {}) => {
@@ -840,28 +1015,30 @@ Restante: ${restante}`
   const enviarMensajeWhatsApp = () => {
     if (!pedidoMensaje) return
 
-    const telefono = obtenerTelefonoWhatsApp(pedidoMensaje?.clientes?.telefono)
-
-    if (!telefono) {
-      mostrarToast('Este cliente no tiene teléfono', 'error')
+    if (!puedeEnviarPorWhatsApp(pedidoMensaje?.clientes)) {
+      mostrarToast('Este cliente no está configurado para WhatsApp. Copia el mensaje y envíalo por su medio de contacto.', 'error')
       return
     }
 
+    const telefono = obtenerTelefonoWhatsApp(pedidoMensaje?.clientes?.telefono)
     const mensaje = encodeURIComponent(generarMensajeEstado(pedidoMensaje))
     window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank')
   }
 
-
   const enviarMensajePedidoDirecto = (pedido) => {
     setMenuAccionesAbierto(null)
     setMenuEstadoAbierto(null)
-    const telefono = obtenerTelefonoWhatsApp(pedido?.clientes?.telefono)
+    setEstiloMenuAcciones(null)
+    setEstiloMenuEstado(null)
 
-    if (!telefono) {
-      mostrarToast('Este cliente no tiene teléfono', 'error')
+    if (!puedeEnviarPorWhatsApp(pedido?.clientes)) {
+      setPedidoMensaje(pedido)
+      setModalMensaje(true)
+      mostrarToast('Cliente registrado por otro medio. Copia el mensaje para enviarlo manualmente.', 'success')
       return
     }
 
+    const telefono = obtenerTelefonoWhatsApp(pedido?.clientes?.telefono)
     const mensaje = encodeURIComponent(generarMensajeEstado(pedido))
     window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank')
   }
@@ -869,6 +1046,8 @@ Restante: ${restante}`
   const abrirModalSeguimiento = (pedido) => {
     setMenuAccionesAbierto(null)
     setMenuEstadoAbierto(null)
+    setEstiloMenuAcciones(null)
+    setEstiloMenuEstado(null)
     setPedidoSeguimiento(pedido)
     setModalSeguimiento(true)
   }
@@ -890,25 +1069,50 @@ Restante: ${restante}`
     }
   }
 
-  const enviarLinkSeguimiento = () => {
-    const url = obtenerUrlSeguimiento(pedidoSeguimiento)
-    const telefono = obtenerTelefonoWhatsApp(pedidoSeguimiento?.clientes?.telefono)
+  const enviarSeguimientoPedido = async (pedidoBase) => {
+    const texto = generarMensajeSeguimiento(pedidoBase)
 
-    if (!url) {
+    if (!texto) {
       mostrarToast('Este pedido no tiene link de seguimiento', 'error')
       return
     }
 
-    if (!telefono) {
-      mostrarToast('Este cliente no tiene teléfono', 'error')
+    if (!puedeEnviarPorWhatsApp(pedidoBase?.clientes)) {
+      try {
+        await navigator.clipboard.writeText(texto)
+        mostrarToast('Seguimiento copiado. Envíalo por el medio del cliente.')
+      } catch (error) {
+        console.log(error)
+        mostrarToast('No se pudo copiar el seguimiento', 'error')
+      }
       return
     }
 
-    const nombre = pedidoSeguimiento?.clientes?.nombre || 'cliente'
-    const codigo = pedidoSeguimiento?.codigo || ''
-    const mensaje = encodeURIComponent(`Hola ${nombre}, aquí está el link para revisar el seguimiento de tu pedido ${codigo}:
-${url}`)
+    const telefono = obtenerTelefonoWhatsApp(pedidoBase?.clientes?.telefono)
+    const mensaje = encodeURIComponent(texto)
     window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank')
+  }
+
+  const enviarLinkSeguimiento = async () => {
+    if (!pedidoSeguimiento) return
+    await enviarSeguimientoPedido(pedidoSeguimiento)
+  }
+
+  const copiarContactoMensaje = async (pedidoBase = pedidoMensaje) => {
+    const contacto = obtenerContactoCliente(pedidoBase?.clientes)
+
+    if (!contacto || contacto === 'Sin contacto') {
+      mostrarToast('Este cliente no tiene contacto guardado', 'error')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(contacto)
+      mostrarToast('Contacto copiado')
+    } catch (error) {
+      console.log(error)
+      mostrarToast('No se pudo copiar el contacto', 'error')
+    }
   }
 
   const copiarMensaje = async () => {
@@ -926,6 +1130,8 @@ ${url}`)
   const eliminarPedido = async (id) => {
     setMenuAccionesAbierto(null)
     setMenuEstadoAbierto(null)
+    setEstiloMenuAcciones(null)
+    setEstiloMenuEstado(null)
     if (bloquearSiNoPuede()) return
 
     const confirmar = confirm('¿Seguro que quieres eliminar este pedido?')
@@ -958,6 +1164,7 @@ ${url}`)
 
   const seleccionarEstadoPedido = async (pedido, estado) => {
     setMenuEstadoAbierto(null)
+    setEstiloMenuEstado(null)
     await cambiarEstado(pedido, estado)
   }
 
@@ -966,14 +1173,30 @@ ${url}`)
     const menuAbierto = menuEstadoAbierto === pedido.id
 
     return (
-      <div className={`order-status-menu-wrap ${compacto ? 'mobile-order-status-wrap' : ''}`}>
+      <div className={`order-status-menu-wrap ${compacto ? 'mobile-order-status-wrap' : ''} ${menuAbierto ? 'order-status-menu-open' : ''}`.trim()}>
         <button
           type="button"
           className={`order-status-button ${estadoClase(estadoActual)} ${compacto ? 'mobile-order-status-button' : ''}`}
-          onClick={() => {
+          onClick={(evento) => {
             if (bloqueado || estaProcesando) return
+
+            if (menuAbierto) {
+              setMenuEstadoAbierto(null)
+              setEstiloMenuEstado(null)
+              return
+            }
+
+            const estilo = obtenerEstiloMenuPortal(
+              evento.currentTarget,
+              compacto ? 210 : 225,
+              340,
+              'izquierda'
+            )
+
             setMenuAccionesAbierto(null)
-            setMenuEstadoAbierto(menuAbierto ? null : pedido.id)
+            setEstiloMenuAcciones(null)
+            setEstiloMenuEstado(estilo)
+            setMenuEstadoAbierto(pedido.id)
           }}
           disabled={bloqueado || estaProcesando}
           aria-haspopup="menu"
@@ -985,8 +1208,12 @@ ${url}`)
           <span className="order-status-chevron">▾</span>
         </button>
 
-        {menuAbierto && (
-          <div className="order-status-options" role="menu">
+        {menuAbierto && typeof document !== 'undefined' && createPortal(
+          <div
+            className="order-status-options order-status-options-portal"
+            role="menu"
+            style={estiloMenuEstado}
+          >
             {estadosPedido.map((estado) => (
               <button
                 type="button"
@@ -998,7 +1225,8 @@ ${url}`)
                 {estado}
               </button>
             ))}
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     )
@@ -1014,15 +1242,16 @@ ${url}`)
     const mapa = new Map()
 
     pedidosFiltrados.forEach((pedido) => {
-      const clave = obtenerClaveFechaGrupo(pedido.creado_en)
-      const fecha = clave === 'sin-fecha' ? 'Sin fecha registrada' : formatearFechaGrupo(pedido.creado_en)
+      const fechaBase = obtenerFechaAgrupacionPedido(pedido)
+      const clave = obtenerClaveFechaGrupo(fechaBase)
+      const fecha = clave === 'sin-fecha' ? 'Sin fecha registrada' : formatearFechaGrupo(fechaBase)
 
       if (!mapa.has(clave)) mapa.set(clave, { clave, fecha, pedidos: [] })
       mapa.get(clave).pedidos.push(pedido)
     })
 
     return Array.from(mapa.values())
-  }, [pedidosFiltrados, configFechaPedidos.formato, configFechaPedidos.mostrarAnio, configFechaPedidos.separarPorFecha])
+  }, [pedidosFiltrados, configFechaPedidos.formato, configFechaPedidos.mostrarAnio, configFechaPedidos.separarPorFecha, configFechaPedidos.tipoFechaAgrupacion])
 
   const filtrosActivos =
     busqueda.trim() !== '' ||
@@ -1084,16 +1313,26 @@ ${url}`)
 
             <p>Lista de pedidos registrados</p>
 
-            <div className="pedidos-date-toggle">
-              <span>Separar por fecha</span>
+            <div className="pedidos-date-toggle pedidos-date-toggle-wrap">
+              <span className="date-toggle-label">Separar&nbsp;por<br />fecha</span>
               <button
                 type="button"
                 className={configFechaPedidos.separarPorFecha ? 'date-toggle-button date-toggle-button-on' : 'date-toggle-button'}
                 onClick={() => cambiarSeparacionPorFecha(!configFechaPedidos.separarPorFecha)}
-                title="Agrupar pedidos por fecha de creación"
+                title="Agrupar pedidos por fecha"
               >
                 {configFechaPedidos.separarPorFecha ? 'Activado' : 'Desactivado'}
               </button>
+
+              <select
+                className="date-group-select"
+                value={configFechaPedidos.tipoFechaAgrupacion || 'creado_en'}
+                onChange={(e) => cambiarTipoFechaAgrupacion(e.target.value)}
+                title="Elegir fecha para organizar pedidos"
+              >
+                <option value="creado_en">Registro en Ordely</option>
+                <option value="fecha_pedido">Fecha del pedido</option>
+              </select>
             </div>
           </div>
 
@@ -1117,7 +1356,7 @@ ${url}`)
             <span>Filtros activos</span>
             <strong>
               {busqueda || 'Sin texto'} · {filtroPlataforma} · {filtroEstado}
-              {(fechaDesde || fechaHasta) ? ` · ${fechaDesde || 'Inicio'} a ${fechaHasta || 'Hoy'}` : ''}
+              {(fechaDesde || fechaHasta) ? ` · ${obtenerEtiquetaTipoFecha(configFechaPedidos.tipoFechaBusqueda)}: ${fechaDesde || 'Inicio'} a ${fechaHasta || 'Hoy'}` : ''}
             </strong>
           </div>
 
@@ -1169,9 +1408,20 @@ ${url}`)
             </select>
           </div>
 
+          <div className="form-field">
+            <label>Buscar fechas por</label>
+            <select
+              value={configFechaPedidos.tipoFechaBusqueda || 'creado_en'}
+              onChange={(e) => cambiarTipoFechaBusqueda(e.target.value)}
+            >
+              <option value="creado_en">Fecha de registro en Ordely</option>
+              <option value="fecha_pedido">Fecha en que se hizo el pedido</option>
+            </select>
+          </div>
+
           <div className="filters-date-grid">
             <div className="form-field">
-              <label>Creado desde</label>
+              <label>Desde</label>
               <input
                 type="date"
                 value={fechaDesde}
@@ -1180,7 +1430,7 @@ ${url}`)
             </div>
 
             <div className="form-field">
-              <label>Creado hasta</label>
+              <label>Hasta</label>
               <input
                 type="date"
                 value={fechaHasta}
@@ -1192,7 +1442,7 @@ ${url}`)
           <label className="config-switch-row filters-date-group-switch">
             <div>
               <strong>Separar pedidos por fecha</strong>
-              <span>Divide la lista por día de creación.</span>
+              <span>Divide la lista por la fecha elegida para organizar.</span>
             </div>
             <input
               type="checkbox"
@@ -1244,14 +1494,13 @@ ${url}`)
         <table className="pedidos-table">
           <thead>
             <tr>
-              <th>Código</th>
-              <th>Creado</th>
-              <th>Plataforma</th>
+              <th>ID</th>
+              <th>Registro</th>
+              <th>Pedido</th>
               <th>Cliente</th>
-              <th>Teléfono</th>
-              <th>Estado</th>
-              <th>Pago</th>
-              <th>Total cliente</th>
+              <th>Contacto</th>
+              <th className="status-payment-th">Estado / pago</th>
+              <th>Total</th>
               <th>Anticipo</th>
               <th>Restante</th>
               <th className="actions-th">Acciones</th>
@@ -1263,7 +1512,7 @@ ${url}`)
               <Fragment key={grupo.clave}>
                 {configFechaPedidos.separarPorFecha && (
                   <tr className="orders-date-divider-row">
-                    <td colSpan="11">
+                    <td colSpan="10">
                       <div className="orders-date-divider">
                         <span>{grupo.fecha}</span>
                       </div>
@@ -1277,34 +1526,65 @@ ${url}`)
 
                   return (
                     <Fragment key={pedido.id}>
-                      <tr className={esEstadoReembolso(pedido.estado) ? 'refund-censored-row' : ''} data-refund-label={esEstadoReembolso(pedido.estado) ? obtenerEtiquetaReembolso(pedido.estado) : undefined}>
-                        <td className="order-code-cell">{pedido.codigo}</td>
-                        <td className="order-created-cell">{formatearFechaCorta(pedido.creado_en)}</td>
-                        <td>{pedido.plataforma || 'SHEIN'}</td>
-                        <td>{pedido.clientes?.nombre || 'Sin cliente'}</td>
-                        <td>{pedido.clientes?.telefono || '-'}</td>
-                        <td className="status-cell">
-                          {renderEstadoControl(pedido)}
+                      <tr
+                        className={`${esEstadoReembolso(pedido.estado) ? 'refund-censored-row' : ''} ${(menuAbierto || menuEstadoAbierto === pedido.id) ? 'order-row-menu-open' : ''}`.trim()}
+                        data-refund-label={esEstadoReembolso(pedido.estado) ? obtenerEtiquetaReembolso(pedido.estado) : undefined}
+                      >
+                        <td className="order-id-cell">
+                          <strong>{pedido.codigo}</strong>
+                          <span>{pedido.plataforma || 'SHEIN'}</span>
                         </td>
-                        <td>{renderPagoBadge(pedido, true)}</td>
-                        <td>{formatearDinero(pedido.total_cliente)}</td>
-                        <td>{formatearDinero(pedido.anticipo)}</td>
-                        <td>{formatearDinero(pedido.restante)}</td>
-                        <td className="actions actions-compact actions-menu-cell">
-                          <Link
+                        <td className="order-created-cell">{formatearFechaCorta(pedido.creado_en)}</td>
+                        <td className="order-created-cell">{formatearFechaCorta(obtenerFechaPedidoCliente(pedido))}</td>
+                        <td className="order-client-cell">{pedido.clientes?.nombre || 'Sin cliente'}</td>
+                        <td className="contact-cell order-contact-cell" title={obtenerContactoTabla(pedido.clientes)}>
+                          <span>{obtenerMedioContactoVisible(pedido.clientes)}</span>
+                          <strong>{obtenerContactoTabla(pedido.clientes)}</strong>
+                        </td>
+                        <td className="status-payment-cell">
+                          <div className="status-payment-stack">
+                            <div className="status-cell">
+                              {renderEstadoControl(pedido)}
+                            </div>
+                            <div className="payment-cell">
+                              {renderPagoBadge(pedido, true)}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="money-cell">{formatearDinero(pedido.total_cliente)}</td>
+                        <td className="money-cell">{formatearDinero(pedido.anticipo)}</td>
+                        <td className="money-cell">{formatearDinero(pedido.restante)}</td>
+                        <td className="actions-menu-cell">
+                          <div className="actions-compact order-actions-inline">
+                            <Link
                             to={`/pedidos/${pedido.id}`}
                             className="btn btn-small btn-action-view"
                           >
                             Ver
                           </Link>
 
-                          <div className="order-actions-dropdown-wrap">
+                          <div className={`order-actions-dropdown-wrap ${menuAbierto ? 'order-actions-dropdown-open' : ''}`}>
                             <button
                               type="button"
                               className="btn btn-light-bordered btn-small btn-action-more"
-                              onClick={() => {
+                              onClick={(evento) => {
+                                if (menuAbierto) {
+                                  setMenuAccionesAbierto(null)
+                                  setEstiloMenuAcciones(null)
+                                  return
+                                }
+
+                                const estilo = obtenerEstiloMenuPortal(
+                                  evento.currentTarget,
+                                  190,
+                                  190,
+                                  'derecha'
+                                )
+
                                 setMenuEstadoAbierto(null)
-                                setMenuAccionesAbierto(menuAbierto ? null : pedido.id)
+                                setEstiloMenuEstado(null)
+                                setEstiloMenuAcciones(estilo)
+                                setMenuAccionesAbierto(pedido.id)
                               }}
                               aria-haspopup="menu"
                               aria-expanded={menuAbierto}
@@ -1312,8 +1592,12 @@ ${url}`)
                               Más ▾
                             </button>
 
-                            {menuAbierto && (
-                              <div className="order-actions-dropdown" role="menu">
+                            {menuAbierto && typeof document !== 'undefined' && createPortal(
+                              <div
+                                className="order-actions-dropdown order-actions-dropdown-portal"
+                                role="menu"
+                                style={estiloMenuAcciones}
+                              >
                                 <button
                                   type="button"
                                   onClick={() => enviarMensajePedidoDirecto(pedido)}
@@ -1327,7 +1611,7 @@ ${url}`)
                                   onClick={() => abrirModalSeguimiento(pedido)}
                                   role="menuitem"
                                 >
-                                  Link de seguimiento
+                                  Enviar seguimiento
                                 </button>
 
                                 <button
@@ -1339,15 +1623,17 @@ ${url}`)
                                 >
                                   Eliminar
                                 </button>
-                              </div>
+                              </div>,
+                              document.body
                             )}
+                          </div>
                           </div>
                         </td>
                       </tr>
 
                       {progresoPedido && (
                         <tr className="order-progress-table-row">
-                          <td colSpan="11">
+                          <td colSpan="10">
                             {progresoPedido}
                           </td>
                         </tr>
@@ -1360,7 +1646,7 @@ ${url}`)
 
             {pedidosFiltrados.length === 0 && (
               <tr>
-                <td colSpan="11">No se encontraron pedidos.</td>
+                <td colSpan="10">No se encontraron pedidos.</td>
               </tr>
             )}
           </tbody>
@@ -1387,10 +1673,13 @@ ${url}`)
               <div className={`mobile-card mobile-order-card-compact ${esEstadoReembolso(pedido.estado) ? 'refund-censored-card' : ''}`} data-refund-label={esEstadoReembolso(pedido.estado) ? obtenerEtiquetaReembolso(pedido.estado) : undefined} key={pedido.id}>
                 <div className="mobile-order-compact-head mobile-order-compact-head-v13">
                   <div className="mobile-order-main-info">
-                    <span>Orden</span>
+                    <span>ID</span>
                     <h3>{pedido.codigo}</h3>
+                    <p className="mobile-order-platform">{pedido.plataforma || 'SHEIN'}</p>
                     <p className="mobile-order-client-name">{pedido.clientes?.nombre || 'Sin cliente'}</p>
-                    <p className="mobile-order-created-date">Creado: {formatearFechaCorta(pedido.creado_en)}</p>
+                    <p className="mobile-order-contact">{obtenerMedioContactoVisible(pedido.clientes)} · {obtenerContactoTabla(pedido.clientes)}</p>
+                    <p className="mobile-order-created-date">Registro: {formatearFechaCorta(pedido.creado_en)}</p>
+                    <p className="mobile-order-created-date">Pedido: {formatearFechaCorta(obtenerFechaPedidoCliente(pedido))}</p>
                   </div>
 
                   <div className="mobile-order-payment-top">
@@ -1429,7 +1718,7 @@ ${url}`)
                     onClick={() => enviarMensajePedidoDirecto(pedido)}
                     className="btn btn-light-bordered"
                   >
-                    Mensaje
+                    Enviar mensaje
                   </button>
 
                   <button
@@ -1437,7 +1726,7 @@ ${url}`)
                     onClick={() => abrirModalSeguimiento(pedido)}
                     className="btn btn-light-bordered"
                   >
-                    Seguimiento
+                    Enviar seguimiento
                   </button>
 
                   <button
@@ -1536,7 +1825,7 @@ ${url}`)
         {reembolsoPendiente?.pedido && (
           <div className="refund-confirm-modal">
             <p className="muted">
-              Este pedido quedará como {reembolsoPendiente.estadoNuevo} y no contará para métricas.
+              Este pedido quedará como {reembolsoPendiente.estadoNuevo} y no contará para estadísticas.
             </p>
 
             <div className="confirm-delivery-amount">
@@ -1597,14 +1886,18 @@ ${url}`)
 
       <Modal
         abierto={modalSeguimiento}
-        titulo="Link de seguimiento"
+        titulo="Enviar seguimiento"
         onClose={() => setModalSeguimiento(false)}
       >
         {pedidoSeguimiento && (
           <div className="tracking-link-modal">
             <p className="muted">
-              Usa este enlace cuando solo quieras compartir el seguimiento público del pedido.
+              Este envío contiene únicamente el enlace para que el cliente consulte su pedido.
             </p>
+            <div className="contact-delivery-hint">
+              <span>Medio del cliente</span>
+              <strong>{obtenerTextoMedioContacto(pedidoSeguimiento.clientes)}</strong>
+            </div>
 
             <div className="tracking-link-box">
               {obtenerUrlSeguimiento(pedidoSeguimiento) || 'Este pedido todavía no tiene link de seguimiento.'}
@@ -1624,7 +1917,7 @@ ${url}`)
                 className="btn btn-light-bordered"
                 onClick={enviarLinkSeguimiento}
               >
-                Enviar link
+                {puedeEnviarPorWhatsApp(pedidoSeguimiento.clientes) ? 'Enviar seguimiento' : 'Copiar seguimiento'}
               </button>
 
               <button
@@ -1655,29 +1948,65 @@ ${url}`)
             </div>
 
             <p className="muted">
-              El estado se guardó correctamente. Puedes enviar el mensaje sugerido al cliente por WhatsApp.
+              {puedeEnviarPorWhatsApp(pedidoMensaje.clientes)
+                ? 'Puedes enviar este mensaje directo por WhatsApp.'
+                : 'Este cliente usa otro medio de contacto. Copia el mensaje y envíalo manualmente.'}
             </p>
+            <div className="contact-delivery-hint">
+              <span>Medio del cliente</span>
+              <strong>{obtenerTextoMedioContacto(pedidoMensaje.clientes)}</strong>
+            </div>
 
             <div className="message-preview-box">
               <pre>{generarMensajeEstado(pedidoMensaje)}</pre>
             </div>
 
             <div className="modal-actions modal-actions-wrap">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={enviarMensajeWhatsApp}
-              >
-                Enviar WhatsApp
-              </button>
+              {puedeEnviarPorWhatsApp(pedidoMensaje.clientes) ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={enviarMensajeWhatsApp}
+                >
+                  Enviar mensaje
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={copiarMensaje}
+                >
+                  Copiar mensaje
+                </button>
+              )}
 
               <button
                 type="button"
                 className="btn btn-light-bordered"
-                onClick={copiarMensaje}
+                onClick={() => enviarSeguimientoPedido(pedidoMensaje)}
               >
-                Copiar mensaje
+                Enviar seguimiento
               </button>
+
+              {!puedeEnviarPorWhatsApp(pedidoMensaje.clientes) && (
+                <button
+                  type="button"
+                  className="btn btn-light-bordered"
+                  onClick={() => copiarContactoMensaje(pedidoMensaje)}
+                >
+                  Copiar contacto
+                </button>
+              )}
+
+              {puedeEnviarPorWhatsApp(pedidoMensaje.clientes) && (
+                <button
+                  type="button"
+                  className="btn btn-light-bordered"
+                  onClick={copiarMensaje}
+                >
+                  Copiar mensaje
+                </button>
+              )}
 
               <button
                 type="button"

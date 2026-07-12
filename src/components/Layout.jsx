@@ -831,7 +831,7 @@ export default function Layout({ children }) {
             <NavLink to="/pedidos" className={navClass}>Pedidos</NavLink>
             <NavLink to="/nuevo-pedido" className={navClass}>Nuevo pedido</NavLink>
             <NavLink to="/compras" className={navClass}>Compras</NavLink>
-            <NavLink to="/metricas" className={navClass}>Métricas</NavLink>
+            <NavLink to="/estadisticas" className={navClass}>Estadísticas</NavLink>
             <NavLink to="/planes" className={navClass}>Planes</NavLink>
 
             {datosCuenta.esAdmin && (
@@ -912,7 +912,7 @@ export default function Layout({ children }) {
           <NavLink to="/pedidos" className={navClass} onClick={cerrarDrawer}>Pedidos</NavLink>
           <NavLink to="/nuevo-pedido" className={navClass} onClick={cerrarDrawer}>Nuevo pedido</NavLink>
           <NavLink to="/compras" className={navClass} onClick={cerrarDrawer}>Compras</NavLink>
-          <NavLink to="/metricas" className={navClass} onClick={cerrarDrawer}>Métricas</NavLink>
+          <NavLink to="/estadisticas" className={navClass} onClick={cerrarDrawer}>Estadísticas</NavLink>
           <NavLink to="/planes" className={navClass} onClick={cerrarDrawer}>Planes</NavLink>
 
           {datosCuenta.esAdmin && (
@@ -942,8 +942,8 @@ export default function Layout({ children }) {
           <span>Compras</span>
         </NavLink>
 
-        <NavLink to="/metricas" className={bottomNavClass}>
-          <span>Métricas</span>
+        <NavLink to="/estadisticas" className={bottomNavClass}>
+          <span>Estadísticas</span>
         </NavLink>
 
         <NavLink to="/planes" className={bottomNavClass}>

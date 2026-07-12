@@ -157,12 +157,17 @@ export default function App() {
         />
 
         <Route
-          path="/metricas"
+          path="/estadisticas"
           element={
             <ProtectedRoute session={session}>
               <Metricas />
             </ProtectedRoute>
           }
+        />
+
+        <Route
+          path="/metricas"
+          element={<Navigate to="/estadisticas" replace />}
         />
 
         <Route

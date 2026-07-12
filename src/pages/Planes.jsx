@@ -4,7 +4,7 @@ import PlanLimitNotice from '../components/PlanLimitNotice'
 import { supabase } from '../supabaseClient'
 import { cargarEstadoPlan, nombrePlan } from '../lib/planes'
 
-const WHATSAPP_ADMIN = '525549075616'
+const WHATSAPP_ADMIN = '527122460748'
 
 const formatearFecha = (fecha) => {
   if (!fecha) return 'Sin vencimiento'
@@ -44,7 +44,7 @@ const planes = [
       'Productos y pagos',
       'Seguimiento público',
       'WhatsApp automático',
-      'Métricas bloqueadas con ejemplo'
+      'Estadísticas bloqueadas con ejemplo'
     ]
   },
   {
@@ -76,7 +76,7 @@ const planes = [
     icono: '✦',
     funciones: [
       'Todo Premium',
-      'Métricas reales por fecha',
+      'Estadísticas reales por fecha',
       'Filtro por plataforma',
       'Gráficas de barras y pastel',
       'Top clientes y plataformas',
@@ -91,7 +91,7 @@ const comparacion = [
   { funcion: 'Productos y pagos', basico: 'Sí', premium: 'Sí', pro: 'Sí' },
   { funcion: 'Seguimiento público', basico: 'Sí', premium: 'Sí', pro: 'Sí' },
   { funcion: 'WhatsApp por estado', basico: 'Sí', premium: 'Sí', pro: 'Sí' },
-  { funcion: 'Métricas avanzadas', basico: 'Ejemplo bloqueado', premium: 'Ejemplo bloqueado', pro: 'Sí' },
+  { funcion: 'Estadísticas avanzadas', basico: 'Ejemplo bloqueado', premium: 'Ejemplo bloqueado', pro: 'Sí' },
   { funcion: 'Gráficas', basico: 'No', premium: 'No', pro: 'Sí' },
   { funcion: 'Filtros por fecha/plataforma', basico: 'No', premium: 'No', pro: 'Sí' }
 ]
@@ -204,7 +204,7 @@ export default function Planes() {
   const limiteAlcanzado = Boolean(estadoPlan?.limite_alcanzado)
 
   const mensajeEstado = useMemo(() => {
-    if (planActual === 'pro') return 'Tienes acceso completo a pedidos, métricas y funciones avanzadas.'
+    if (planActual === 'pro') return 'Tienes acceso completo a pedidos, estadísticas y funciones avanzadas.'
     if (planActual === 'premium') return 'Tienes pedidos ilimitados y funciones principales desbloqueadas.'
     if (limiteAlcanzado) return 'Tu Plan Básico llegó al límite. Actualiza para seguir creando y editando.'
     if (cercaLimite) return `Te quedan ${restante} pedidos gratis. Actualiza antes de llegar al límite.`
@@ -462,7 +462,7 @@ export default function Planes() {
       <section className="pro-preview-card">
         <div>
           <span className="plan-kicker">Vista Pro</span>
-          <h2>Qué desbloquean las métricas</h2>
+          <h2>Qué desbloquean las estadísticas</h2>
           <p>Los usuarios Básico y Premium ven este tipo de ejemplo bloqueado. Los Pro ven datos reales.</p>
         </div>
 

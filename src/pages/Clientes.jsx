@@ -9,6 +9,18 @@ import { cargarEstadoPlan, estaBloqueadoPorPlan } from '../lib/planes'
 const PAGE_SIZE_OPTIONS = [25, 50, 100]
 const CLIENTES_CACHE_LIMIT = 50
 
+const MEDIOS_CONTACTO = [
+  'WhatsApp',
+  'Facebook / Messenger',
+  'Instagram',
+  'TikTok',
+  'Telegram',
+  'Local / en persona',
+  'Otro'
+]
+
+const requiereTelefono = (medio) => String(medio || 'WhatsApp').toLowerCase().includes('whatsapp')
+
 const obtenerIdUsuarioCache = () => {
   if (typeof window === 'undefined') return 'sin_usuario'
 
@@ -76,7 +88,9 @@ export default function Clientes() {
   const [accionEnProceso, setAccionEnProceso] = useState('')
 
   const [nombre, setNombre] = useState('')
+  const [medioContacto, setMedioContacto] = useState('WhatsApp')
   const [telefono, setTelefono] = useState('')
+  const [usuarioContacto, setUsuarioContacto] = useState('')
   const [direccion, setDireccion] = useState('')
   const [notas, setNotas] = useState('')
 
@@ -131,10 +145,21 @@ export default function Clientes() {
     const limpio = String(valor || '').replace(/\D/g, '')
 
     if (limpio.startsWith('52') && limpio.length > 10) {
-      return limpio.slice(2)
+      return limpio.slice(2, 12)
     }
 
-    return limpio
+    return limpio.slice(0, 10)
+  }
+
+  const obtenerContactoPrincipal = (cliente) => {
+    const medio = cliente?.medio_contacto || 'WhatsApp'
+    const telefonoCliente = normalizarTelefono(cliente?.telefono || '')
+    const usuario = String(cliente?.usuario_contacto || '').trim()
+
+    if (requiereTelefono(medio) && telefonoCliente) return `+52 ${telefonoCliente}`
+    if (usuario) return usuario
+    if (telefonoCliente) return `+52 ${telefonoCliente}`
+    return 'Sin contacto directo'
   }
 
   const cargarClientes = async () => {
@@ -152,7 +177,7 @@ export default function Clientes() {
 
     if (texto) {
       const limpio = texto.replace(/[%_]/g, '')
-      consulta = consulta.or(`nombre.ilike.%${limpio}%,telefono.ilike.%${limpio}%,direccion.ilike.%${limpio}%,notas.ilike.%${limpio}%`)
+      consulta = consulta.or(`nombre.ilike.%${limpio}%,telefono.ilike.%${limpio}%,medio_contacto.ilike.%${limpio}%,usuario_contacto.ilike.%${limpio}%,direccion.ilike.%${limpio}%,notas.ilike.%${limpio}%`)
     }
 
     const { data, error, count } = await consulta
@@ -174,7 +199,9 @@ export default function Clientes() {
   const limpiarFormulario = () => {
     setClienteEditando(null)
     setNombre('')
+    setMedioContacto('WhatsApp')
     setTelefono('')
+    setUsuarioContacto('')
     setDireccion('')
     setNotas('')
   }
@@ -189,7 +216,9 @@ export default function Clientes() {
     if (bloquearSiNoPuede()) return
     setClienteEditando(cliente)
     setNombre(cliente.nombre || '')
+    setMedioContacto(cliente.medio_contacto || 'WhatsApp')
     setTelefono(normalizarTelefono(cliente.telefono || ''))
+    setUsuarioContacto(cliente.usuario_contacto || '')
     setDireccion(cliente.direccion || '')
     setNotas(cliente.notas || '')
     setModalCliente(true)
@@ -214,8 +243,8 @@ export default function Clientes() {
       return
     }
 
-    if (!telefonoFinal) {
-      mostrarToast('El teléfono es obligatorio', 'error')
+    if (requiereTelefono(medioContacto) && (!telefonoFinal || telefonoFinal.length < 10)) {
+      mostrarToast('Para WhatsApp escribe un teléfono válido de 10 dígitos', 'error')
       return
     }
 
@@ -227,7 +256,9 @@ export default function Clientes() {
           .from('clientes')
           .update({
             nombre: nombre.trim(),
-            telefono: telefonoFinal,
+            medio_contacto: medioContacto,
+            telefono: telefonoFinal || null,
+            usuario_contacto: usuarioContacto.trim(),
             direccion,
             notas
           })
@@ -251,7 +282,9 @@ export default function Clientes() {
         .insert([
           {
             nombre: nombre.trim(),
-            telefono: telefonoFinal,
+            medio_contacto: medioContacto,
+            telefono: telefonoFinal || null,
+            usuario_contacto: usuarioContacto.trim(),
             direccion,
             notas
           }
@@ -369,7 +402,7 @@ export default function Clientes() {
           <input
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Nombre, teléfono, dirección o notas"
+            placeholder="Nombre, medio, usuario, teléfono o notas"
           />
         </div>
 
@@ -404,10 +437,10 @@ export default function Clientes() {
           <thead>
             <tr>
               <th>Nombre</th>
-              <th>Teléfono</th>
+              <th>Medio</th>
+              <th>Contacto</th>
               <th>Dirección</th>
               <th>Notas</th>
-              <th>WhatsApp</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -416,20 +449,10 @@ export default function Clientes() {
             {clientes.map((cliente) => (
               <tr key={cliente.id}>
                 <td>{cliente.nombre}</td>
-                <td>+52 {cliente.telefono}</td>
+                <td><span className="contact-medium-pill">{cliente.medio_contacto || 'WhatsApp'}</span></td>
+                <td>{obtenerContactoPrincipal(cliente)}</td>
                 <td>{cliente.direccion || '-'}</td>
                 <td>{cliente.notas || '-'}</td>
-                <td>
-                  {cliente.telefono && (
-                    <a
-                      href={`https://wa.me/52${limpiarTelefono(cliente.telefono)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Enviar mensaje
-                    </a>
-                  )}
-                </td>
                 <td className="actions">
                   <button
                     onClick={() => abrirEditarCliente(cliente)}
@@ -472,11 +495,21 @@ export default function Clientes() {
             <div className="mobile-card-header">
               <div>
                 <h3>{cliente.nombre}</h3>
-                <p>+52 {cliente.telefono || 'Sin teléfono'}</p>
+                <p>{cliente.medio_contacto || 'WhatsApp'} · {obtenerContactoPrincipal(cliente)}</p>
               </div>
             </div>
 
             <div className="mobile-card-info">
+              <div>
+                <span>Medio</span>
+                <strong>{cliente.medio_contacto || 'WhatsApp'}</strong>
+              </div>
+
+              <div>
+                <span>Contacto</span>
+                <strong>{obtenerContactoPrincipal(cliente)}</strong>
+              </div>
+
               <div>
                 <span>Dirección</span>
                 <strong>{cliente.direccion || '-'}</strong>
@@ -489,7 +522,7 @@ export default function Clientes() {
             </div>
 
             <div className="mobile-card-actions multi-actions">
-              {cliente.telefono && (
+              {requiereTelefono(cliente.medio_contacto) && cliente.telefono && (
                 <a
                   href={`https://wa.me/52${limpiarTelefono(cliente.telefono)}`}
                   target="_blank"
@@ -560,16 +593,41 @@ export default function Clientes() {
             </label>
 
             <label className="form-field">
-              <span>Teléfono*</span>
+              <span>Medio de contacto*</span>
+              <select
+                value={medioContacto}
+                onChange={(e) => setMedioContacto(e.target.value)}
+                required
+              >
+                {MEDIOS_CONTACTO.map((medio) => (
+                  <option key={medio} value={medio}>{medio}</option>
+                ))}
+              </select>
+              <small className="field-help-text">Elige por dónde te escribió el cliente.</small>
+            </label>
+
+            <label className="form-field">
+              <span>Teléfono{requiereTelefono(medioContacto) ? '*' : ''}</span>
               <div className="phone-field">
                 <span>+52</span>
                 <input
                   value={telefono}
-                  onChange={(e) => setTelefono(e.target.value)}
+                  onChange={(e) => setTelefono(normalizarTelefono(e.target.value))}
                   inputMode="numeric"
-                  required
+                  required={requiereTelefono(medioContacto)}
                 />
               </div>
+              <small className="field-help-text">Solo es obligatorio si el medio es WhatsApp.</small>
+            </label>
+
+            <label className="form-field">
+              <span>Usuario / perfil</span>
+              <input
+                value={usuarioContacto}
+                onChange={(e) => setUsuarioContacto(e.target.value)}
+                placeholder="Ej. @cliente o nombre en Facebook"
+              />
+              <small className="field-help-text">Opcional para Facebook, Instagram, TikTok u otro medio.</small>
             </label>
 
             <label className="form-field">

@@ -39,6 +39,16 @@ const fechaPedido = (pedido) => {
   return Number.isNaN(fecha.getTime()) ? new Date() : fecha
 }
 
+const fechaLote = (lote) => {
+  const raw = lote?.fecha_compra || lote?.creado_en
+  const fecha = raw ? new Date(raw) : new Date()
+  return Number.isNaN(fecha.getTime()) ? new Date() : fecha
+}
+
+const sumarLotes = (lotes, campo) => {
+  return lotes.reduce((sum, lote) => sum + Number(lote?.[campo] || 0), 0)
+}
+
 const pedidoCuentaComoVenta = (pedido) => {
   return !['Cancelado', 'Devuelto'].includes(normalizarEstado(pedido?.estado))
 }
@@ -293,7 +303,7 @@ function DemoBloqueado() {
     <Layout>
       <div className="metrics-locked-hero">
         <span className="lock-pill">🔒 Solo Plan Pro</span>
-        <h1>Métricas avanzadas</h1>
+        <h1>Estadísticas avanzadas</h1>
         <p>
           Esta sección está disponible para usuarios Pro. Aquí podrás elegir plataforma,
           seleccionar fechas exactas, ver ganancias, ventas, clientes frecuentes y gráficas.
@@ -306,7 +316,7 @@ function DemoBloqueado() {
 
       <div className="locked-preview metrics-blur-preview">
         <div className="locked-preview-cover">
-          <strong>Ejemplo de Métricas Pro</strong>
+          <strong>Ejemplo de Estadísticas Pro</strong>
           <span>Desbloquea Pro para ver tus datos reales por plataforma y fechas.</span>
         </div>
 
@@ -336,6 +346,7 @@ function DemoBloqueado() {
 export default function Metricas() {
   const [perfil, setPerfil] = useState(null)
   const [pedidos, setPedidos] = useState([])
+  const [lotes, setLotes] = useState([])
   const [fechaInicio, setFechaInicio] = useState(toInputDate(inicioMes(new Date())))
   const [fechaFin, setFechaFin] = useState(toInputDate(new Date()))
   const [plataformaFiltro, setPlataformaFiltro] = useState('SHEIN')
@@ -377,6 +388,19 @@ export default function Metricas() {
       }
 
       setPedidos(pedidosData || [])
+
+      const { data: lotesData, error: lotesError } = await supabase
+        .from('lotes_compra')
+        .select('id, codigo_lote, plataforma, fecha_compra, subtotal_pagina, descuento_cupon, puntos_total, descuento_total, envio, importacion, impuestos, comisiones, total_productos_con_descuento, costos_extra_total, total_pagado, ahorro_total, cupon_usado, numero_orden_plataforma, creado_en')
+        .order('fecha_compra', { ascending: false })
+        .limit(500)
+
+      if (lotesError) {
+        console.log('Error cargando compras para estadísticas:', lotesError)
+        setLotes([])
+      } else {
+        setLotes(lotesData || [])
+      }
     }
 
     setCargando(false)
@@ -434,6 +458,44 @@ export default function Metricas() {
     const margen = totalVendido ? (ganancia / totalVendido) * 100 : 0
 
     const ventasPorPeriodo = agruparVentasPorRango(pedidosVenta, inicio, fin)
+
+    const lotesFiltrados = lotes.filter((lote) => {
+      const fecha = fechaLote(lote)
+      const plataformaLote = lote.plataforma || 'SHEIN'
+      const coincidePlataforma = plataformaFiltro === 'Todas' || plataformaLote === plataformaFiltro
+      const coincideInicio = !inicio || fecha >= inicio
+      const coincideFin = !fin || fecha <= fin
+
+      return coincidePlataforma && coincideInicio && coincideFin
+    })
+
+    const comprasRegistradas = lotesFiltrados.length
+    const subtotalProductos = sumarLotes(lotesFiltrados, 'subtotal_pagina')
+    const descuentoCupon = sumarLotes(lotesFiltrados, 'descuento_cupon')
+    const puntosUsados = sumarLotes(lotesFiltrados, 'puntos_total')
+    const ahorroTotal = sumarLotes(lotesFiltrados, 'descuento_total') || sumarLotes(lotesFiltrados, 'ahorro_total')
+    const totalProductosConDescuento = sumarLotes(lotesFiltrados, 'total_productos_con_descuento') || Math.max(subtotalProductos - ahorroTotal, 0)
+    const envioPagado = sumarLotes(lotesFiltrados, 'envio')
+    const importacionPagada = sumarLotes(lotesFiltrados, 'importacion')
+    const impuestosPagados = sumarLotes(lotesFiltrados, 'impuestos')
+    const comisionesPagadas = sumarLotes(lotesFiltrados, 'comisiones')
+    const costosExtraTotal = sumarLotes(lotesFiltrados, 'costos_extra_total') || (envioPagado + importacionPagada + impuestosPagados + comisionesPagadas)
+    const totalPagadoPlataforma = sumarLotes(lotesFiltrados, 'total_pagado') || (totalProductosConDescuento + costosExtraTotal)
+    const gananciaNetaDespuesCostos = ganancia - costosExtraTotal
+
+    const costosExtraGrafica = [
+      { label: 'Envío', valor: envioPagado, texto: money(envioPagado) },
+      { label: 'Importación', valor: importacionPagada, texto: money(importacionPagada) },
+      { label: 'Impuestos', valor: impuestosPagados, texto: money(impuestosPagados) },
+      { label: 'Comisiones', valor: comisionesPagadas, texto: money(comisionesPagadas) }
+    ]
+
+    const descuentosGrafica = [
+      { label: 'Cupón', valor: descuentoCupon, texto: money(descuentoCupon) },
+      { label: 'Puntos/saldo', valor: puntosUsados, texto: money(puntosUsados) }
+    ]
+
+    const ultimosLotes = lotesFiltrados.slice(0, 6)
 
     const porPlataforma = plataformas
       .map((plataforma) => ({
@@ -499,19 +561,36 @@ export default function Metricas() {
       ventasPorPlataforma,
       topClientes,
       plataformaTop,
-      ultimos
+      ultimos,
+      lotesFiltrados,
+      comprasRegistradas,
+      subtotalProductos,
+      descuentoCupon,
+      puntosUsados,
+      ahorroTotal,
+      totalProductosConDescuento,
+      envioPagado,
+      importacionPagada,
+      impuestosPagados,
+      comisionesPagadas,
+      costosExtraTotal,
+      totalPagadoPlataforma,
+      gananciaNetaDespuesCostos,
+      costosExtraGrafica,
+      descuentosGrafica,
+      ultimosLotes
     }
-  }, [pedidos, fechaInicio, fechaFin, plataformaFiltro])
+  }, [pedidos, lotes, fechaInicio, fechaFin, plataformaFiltro])
 
   if (cargando) {
     return (
       <Layout>
-        <div className="loading">Cargando métricas...</div>
+        <div className="loading">Cargando estadísticas...</div>
       </Layout>
     )
   }
 
-  const esPro = perfil?.plan_actual === 'pro' || perfil?.es_admin
+  const esPro = perfil?.plan_actual === 'pro'
 
   if (!esPro) {
     return <DemoBloqueado />
@@ -521,7 +600,7 @@ export default function Metricas() {
     <Layout>
       <div className="page-header metrics-header-pro metrics-header-with-filters">
         <div>
-          <h1>Métricas Pro</h1>
+          <h1>Estadísticas Pro</h1>
           <p>
             Primero se muestran los datos de tu plataforma predeterminada:
             {' '}<strong>{perfil?.plataforma_predeterminada || 'SHEIN'}</strong>.
@@ -532,7 +611,7 @@ export default function Metricas() {
       <div className="metrics-filter-card">
         <div className="metrics-filter-top">
           <div>
-            <span>Filtros de métricas</span>
+            <span>Filtros de estadísticas</span>
             <strong>{plataformaFiltro === 'Todas' ? 'Todas las plataformas' : plataformaFiltro}</strong>
           </div>
           <button type="button" className="btn btn-light-bordered" onClick={() => {
@@ -610,6 +689,70 @@ export default function Metricas() {
         <div className="card"><span>Cancelados / devueltos</span><strong>{number(resumen.cancelados)}</strong></div>
         <div className="card"><span>Top plataforma</span><strong>{resumen.plataformaTop?.label || '-'}</strong></div>
         <div className="card"><span>Filtro</span><strong>{plataformaFiltro === 'Todas' ? 'Todas' : plataformaFiltro}</strong></div>
+      </div>
+
+      <div className="metrics-section-title">
+        <div>
+          <span>Compras en plataforma</span>
+          <h2>Costos extra y descuentos</h2>
+        </div>
+        <p>Cupón y puntos se aplican a productos. Envío, importación, impuestos y comisiones se muestran separados.</p>
+      </div>
+
+      <div className="cards-grid metrics-main-cards metrics-cost-cards">
+        <div className="card"><span>Compras registradas</span><strong>{number(resumen.comprasRegistradas)}</strong></div>
+        <div className="card"><span>Total pagado en plataforma</span><strong>{money(resumen.totalPagadoPlataforma)}</strong></div>
+        <div className="card"><span>Productos antes de descuento</span><strong>{money(resumen.subtotalProductos)}</strong></div>
+        <div className="card"><span>Productos con descuento</span><strong>{money(resumen.totalProductosConDescuento)}</strong></div>
+        <div className="card"><span>Descuento por cupón</span><strong>{money(resumen.descuentoCupon)}</strong></div>
+        <div className="card"><span>Puntos / saldo usado</span><strong>{money(resumen.puntosUsados)}</strong></div>
+        <div className="card"><span>Envíos pagados</span><strong>{money(resumen.envioPagado)}</strong></div>
+        <div className="card"><span>Impuestos pagados</span><strong>{money(resumen.impuestosPagados)}</strong></div>
+        <div className="card"><span>Importación pagada</span><strong>{money(resumen.importacionPagada)}</strong></div>
+        <div className="card"><span>Comisiones pagadas</span><strong>{money(resumen.comisionesPagadas)}</strong></div>
+        <div className="card"><span>Costos extra total</span><strong>{money(resumen.costosExtraTotal)}</strong></div>
+        <div className="card"><span>Ganancia neta estimada</span><strong>{money(resumen.gananciaNetaDespuesCostos)}</strong></div>
+      </div>
+
+      <div className="metrics-grid-two">
+        <div className="table-card">
+          <div className="metrics-card-title">
+            <h2>Costos extra</h2>
+            <span>Envío, impuestos e importación</span>
+          </div>
+          <GraficaBarras datos={resumen.costosExtraGrafica.some((item) => item.valor > 0) ? resumen.costosExtraGrafica : [{ label: 'Sin costos', valor: 0, texto: money(0) }]} formato="dinero" />
+        </div>
+
+        <div className="table-card">
+          <div className="metrics-card-title">
+            <h2>Descuentos aplicados</h2>
+            <span>Cupón y puntos/saldo</span>
+          </div>
+          <GraficaBarras datos={resumen.descuentosGrafica.some((item) => item.valor > 0) ? resumen.descuentosGrafica : [{ label: 'Sin descuento', valor: 0, texto: money(0) }]} formato="dinero" />
+        </div>
+      </div>
+
+      <div className="table-card metrics-platform-purchases">
+        <div className="metrics-card-title">
+          <h2>Últimas compras en plataforma</h2>
+          <span>Resumen de lotes registrados</span>
+        </div>
+
+        {resumen.ultimosLotes.length > 0 ? (
+          <div className="metrics-lotes-list">
+            {resumen.ultimosLotes.map((lote) => (
+              <div key={lote.id}>
+                <strong>{lote.codigo_lote || 'Compra'}</strong>
+                <span>{lote.plataforma || 'SHEIN'}</span>
+                <span>{fechaLote(lote).toLocaleDateString('es-MX')}</span>
+                <span>Cupón: {lote.cupon_usado || '-'}</span>
+                <b>{money(lote.total_pagado)}</b>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">Todavía no hay compras en plataforma en este rango.</p>
+        )}
       </div>
 
       <div className="metrics-grid-two">

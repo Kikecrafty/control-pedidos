@@ -6,6 +6,18 @@ import Toast from '../components/Toast'
 import PlanLimitNotice from '../components/PlanLimitNotice'
 import { cargarEstadoPlan, estaBloqueadoPorPlan, puedeCrearPedido } from '../lib/planes'
 
+const MEDIOS_CONTACTO = [
+  'WhatsApp',
+  'Facebook / Messenger',
+  'Instagram',
+  'TikTok',
+  'Telegram',
+  'Local / en persona',
+  'Otro'
+]
+
+const requiereTelefono = (medio) => String(medio || 'WhatsApp').toLowerCase().includes('whatsapp')
+
 const crearProductoVacio = () => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
   nombre_producto: '',
@@ -38,13 +50,15 @@ export default function NuevoPedido() {
 
   const [nuevoCliente, setNuevoCliente] = useState({
     nombre: '',
+    medio_contacto: 'WhatsApp',
     telefono: '',
+    usuario_contacto: '',
     direccion: '',
     notas: ''
   })
 
   const [plataforma, setPlataforma] = useState('SHEIN')
-  const [fechaCreacion, setFechaCreacion] = useState(() => obtenerFechaLocalHoy())
+  const [fechaPedido, setFechaPedido] = useState(() => obtenerFechaLocalHoy())
   const [estado, setEstado] = useState('Cotizado')
   const [tracking, setTracking] = useState('')
   const [notas, setNotas] = useState('')
@@ -132,6 +146,17 @@ export default function NuevoPedido() {
     return limpio.slice(0, 10)
   }
 
+  const obtenerContactoCliente = (cliente) => {
+    const medio = cliente?.medio_contacto || 'WhatsApp'
+    const telefono = normalizarTelefono(cliente?.telefono || '')
+    const usuario = String(cliente?.usuario_contacto || '').trim()
+
+    if (requiereTelefono(medio) && telefono) return `+52 ${telefono}`
+    if (usuario) return usuario
+    if (telefono) return `+52 ${telefono}`
+    return 'Sin contacto directo'
+  }
+
   const cargarClientes = async () => {
     const { data, error } = await supabase
       .from('clientes')
@@ -158,11 +183,15 @@ export default function NuevoPedido() {
       .filter((cliente) => {
         const nombre = String(cliente.nombre || '').toLowerCase()
         const telefono = limpiarTelefono(cliente.telefono)
+        const medio = String(cliente.medio_contacto || '').toLowerCase()
+        const usuario = String(cliente.usuario_contacto || '').toLowerCase()
         const direccion = String(cliente.direccion || '').toLowerCase()
         const busquedaNumerica = limpiarTelefono(texto)
 
         return (
           nombre.includes(texto) ||
+          medio.includes(texto) ||
+          usuario.includes(texto) ||
           (busquedaNumerica && telefono.includes(busquedaNumerica)) ||
           direccion.includes(texto)
         )
@@ -182,7 +211,9 @@ export default function NuevoPedido() {
     if (bloquearSiNoPuede()) return
     setNuevoCliente({
       nombre: clienteBusqueda || '',
+      medio_contacto: 'WhatsApp',
       telefono: '',
+      usuario_contacto: '',
       direccion: '',
       notas: ''
     })
@@ -201,7 +232,9 @@ export default function NuevoPedido() {
     if (bloquearSiNoPuede()) return
 
     const nombre = nuevoCliente.nombre.trim()
+    const medioContacto = nuevoCliente.medio_contacto || 'WhatsApp'
     const telefono = normalizarTelefono(nuevoCliente.telefono)
+    const usuarioContacto = String(nuevoCliente.usuario_contacto || '').trim()
     const direccion = nuevoCliente.direccion.trim()
     const notasCliente = nuevoCliente.notas.trim()
 
@@ -210,8 +243,8 @@ export default function NuevoPedido() {
       return
     }
 
-    if (!telefono || telefono.length < 10) {
-      mostrarToast('Escribe un teléfono válido de 10 dígitos', 'error')
+    if (requiereTelefono(medioContacto) && (!telefono || telefono.length < 10)) {
+      mostrarToast('Para WhatsApp escribe un teléfono válido de 10 dígitos', 'error')
       return
     }
 
@@ -222,7 +255,9 @@ export default function NuevoPedido() {
       .insert([
         {
           nombre,
-          telefono,
+          medio_contacto: medioContacto,
+          telefono: telefono || null,
+          usuario_contacto: usuarioContacto,
           direccion,
           notas: notasCliente
         }
@@ -245,7 +280,7 @@ export default function NuevoPedido() {
     setClientes(listaActualizada)
     seleccionarCliente(data)
     setModalClienteAbierto(false)
-    setNuevoCliente({ nombre: '', telefono: '', direccion: '', notas: '' })
+    setNuevoCliente({ nombre: '', medio_contacto: 'WhatsApp', telefono: '', usuario_contacto: '', direccion: '', notas: '' })
     mostrarToast('Cliente registrado correctamente')
   }
 
@@ -387,8 +422,8 @@ export default function NuevoPedido() {
       return
     }
 
-    if (!fechaCreacion) {
-      mostrarToast('Selecciona la fecha del pedido', 'error')
+    if (!fechaPedido) {
+      mostrarToast('Selecciona la fecha en que se hizo el pedido', 'error')
       return
     }
 
@@ -404,7 +439,7 @@ export default function NuevoPedido() {
         p_notas: notas.trim(),
         p_productos: productosParaGuardar,
         p_anticipo: pagoInicial,
-        p_fecha_creacion: fechaCreacion || obtenerFechaLocalHoy()
+        p_fecha_creacion: fechaPedido || obtenerFechaLocalHoy()
       })
 
       if (errorPedidoCompleto) {
@@ -469,7 +504,23 @@ export default function NuevoPedido() {
             </div>
 
             <div className="form-field">
-              <label>Teléfono*</label>
+              <label>Medio de contacto*</label>
+              <select
+                value={nuevoCliente.medio_contacto}
+                onChange={(e) =>
+                  setNuevoCliente({ ...nuevoCliente, medio_contacto: e.target.value })
+                }
+                required
+              >
+                {MEDIOS_CONTACTO.map((medio) => (
+                  <option key={medio} value={medio}>{medio}</option>
+                ))}
+              </select>
+              <small className="field-help-text">Selecciona por dónde te habla el cliente.</small>
+            </div>
+
+            <div className="form-field">
+              <label>Teléfono{requiereTelefono(nuevoCliente.medio_contacto) ? '*' : ''}</label>
               <div className="phone-field">
                 <span>+52</span>
                 <input
@@ -481,9 +532,21 @@ export default function NuevoPedido() {
                     })
                   }
                   inputMode="numeric"
-                  required
+                  required={requiereTelefono(nuevoCliente.medio_contacto)}
                 />
               </div>
+              <small className="field-help-text">Solo obligatorio para WhatsApp.</small>
+            </div>
+
+            <div className="form-field">
+              <label>Usuario / perfil</label>
+              <input
+                value={nuevoCliente.usuario_contacto}
+                onChange={(e) =>
+                  setNuevoCliente({ ...nuevoCliente, usuario_contacto: e.target.value })
+                }
+                placeholder="Ej. @cliente o nombre en Facebook"
+              />
             </div>
 
             <div className="form-field">
@@ -587,9 +650,7 @@ export default function NuevoPedido() {
             {clienteSeleccionado && (
               <div className="selected-client-pill">
                 Cliente seleccionado: <strong>{clienteSeleccionado.nombre}</strong>
-                {clienteSeleccionado.telefono
-                  ? ` · +52 ${normalizarTelefono(clienteSeleccionado.telefono)}`
-                  : ''}
+                {` · ${clienteSeleccionado.medio_contacto || 'WhatsApp'} · ${obtenerContactoCliente(clienteSeleccionado)}`}
               </div>
             )}
 
@@ -614,9 +675,7 @@ export default function NuevoPedido() {
                     >
                       <strong>{cliente.nombre}</strong>
                       <span>
-                        {cliente.telefono
-                          ? `+52 ${normalizarTelefono(cliente.telefono)}`
-                          : 'Sin teléfono'}
+                        {cliente.medio_contacto || 'WhatsApp'} · {obtenerContactoCliente(cliente)}
                         {cliente.direccion ? ` · ${cliente.direccion}` : ''}
                       </span>
                     </button>
@@ -644,14 +703,14 @@ export default function NuevoPedido() {
           </div>
 
           <div className="form-field">
-            <label>Fecha del pedido*</label>
+            <label>Fecha en que se hizo el pedido*</label>
             <input
               type="date"
-              value={fechaCreacion}
-              onChange={(e) => setFechaCreacion(e.target.value)}
+              value={fechaPedido}
+              onChange={(e) => setFechaPedido(e.target.value)}
               required
             />
-            <small className="field-help-text">Por defecto usa la fecha de hoy. Puedes cambiarla si registras un pedido atrasado.</small>
+            <small className="field-help-text">Por defecto usa la fecha de hoy. Cámbiala si el cliente hizo el pedido otro día.</small>
           </div>
 
           <div className="form-field">

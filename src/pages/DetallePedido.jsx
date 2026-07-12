@@ -346,7 +346,7 @@ export default function DetallePedido() {
   const cargarTodo = async () => {
     const { data: pedidoData, error: errorPedido } = await supabase
       .from('pedidos')
-      .select('*, clientes(nombre, telefono, direccion)')
+      .select('*, clientes(nombre, telefono, direccion, medio_contacto, usuario_contacto)')
       .eq('id', id)
       .single()
 
@@ -1136,48 +1136,45 @@ export default function DetallePedido() {
     return `52${limpio}`
   }
 
+  const obtenerContactoCliente = (cliente) => {
+    const medio = cliente?.medio_contacto || 'WhatsApp'
+    const telefono = limpiarTelefono(cliente?.telefono || '')
+    const usuario = String(cliente?.usuario_contacto || '').trim()
+
+    if (medio.toLowerCase().includes('whatsapp') && telefono) return `+52 ${telefono.startsWith('52') ? telefono.slice(2) : telefono}`
+    if (usuario) return usuario
+    if (telefono) return `+52 ${telefono.startsWith('52') ? telefono.slice(2) : telefono}`
+    return 'Sin contacto'
+  }
+
+  const esContactoWhatsApp = (cliente) => {
+    return String(cliente?.medio_contacto || 'WhatsApp').toLowerCase().includes('whatsapp')
+  }
+
+  const puedeEnviarPorWhatsApp = (cliente) => {
+    return esContactoWhatsApp(cliente) && Boolean(obtenerTelefonoWhatsApp(cliente?.telefono))
+  }
+
+  const obtenerTextoMedioContacto = (cliente) => {
+    const medio = cliente?.medio_contacto || 'WhatsApp'
+    const contacto = obtenerContactoCliente(cliente)
+    return `${medio}${contacto && contacto !== 'Sin contacto' ? ` · ${contacto}` : ''}`
+  }
+
   const obtenerUrlSeguimiento = () => {
     if (!pedido?.public_token) return ''
     return `${obtenerBasePublica()}/seguimiento/${pedido.public_token}`
   }
 
-  const copiarLinkSeguimiento = async () => {
-    const url = obtenerUrlSeguimiento()
-
-    if (!url) {
-      mostrarToast('Este pedido no tiene link de seguimiento', 'error')
-      return
-    }
-
-    try {
-      await navigator.clipboard.writeText(url)
-      mostrarToast('Link de seguimiento copiado')
-    } catch (error) {
-      console.log(error)
-      mostrarToast('No se pudo copiar el link', 'error')
-    }
-  }
-
   const generarMensajeSeguimiento = () => {
+    const url = obtenerUrlSeguimiento()
+    if (!url) return ''
+
     const nombre = pedido?.clientes?.nombre || 'cliente'
     const codigo = pedido?.codigo || ''
-    const plataforma = pedido?.plataforma || 'SHEIN'
-    const estado = normalizarEstado(pedido?.estado)
-    const total = formatearDinero(pedido?.total_cliente)
-    const pagado = formatearDinero(pedido?.anticipo)
-    const restante = formatearDinero(pedido?.restante)
-    const url = obtenerUrlSeguimiento()
 
-    return `Hola ${nombre}, te comparto el seguimiento de tu pedido ${codigo}.
-
-Plataforma: ${plataforma}
-Estado: ${estado}
-Total: ${total}
-Pagado: ${pagado}
-Restante: ${restante}${url ? `
-
-Link de seguimiento:
-${url}` : ''}`
+    return `Hola ${nombre}, puedes revisar el seguimiento de tu pedido ${codigo} aquí:
+${url}`
   }
 
   const generarMensajeEstado = (pedidoBase = pedido) => {
@@ -1218,30 +1215,77 @@ Anticipo: ${anticipo}
 Restante: ${restante}`
   }
 
-  const enviarSeguimientoWhatsApp = () => {
-    const telefono = obtenerTelefonoWhatsApp(pedido?.clientes?.telefono)
+  const enviarSeguimientoWhatsApp = async () => {
+    const texto = generarMensajeSeguimiento()
 
-    if (!telefono) {
-      mostrarToast('Este cliente no tiene teléfono', 'error')
+    if (!texto) {
+      mostrarToast('Este pedido no tiene link de seguimiento', 'error')
       return
     }
 
-    const mensaje = encodeURIComponent(generarMensajeSeguimiento())
+    if (!puedeEnviarPorWhatsApp(pedido?.clientes)) {
+      try {
+        await navigator.clipboard.writeText(texto)
+        mostrarToast('Mensaje de seguimiento copiado. Envíalo por el medio del cliente.')
+      } catch (error) {
+        console.log(error)
+        mostrarToast('No se pudo copiar el mensaje de seguimiento', 'error')
+      }
+      return
+    }
+
+    const telefono = obtenerTelefonoWhatsApp(pedido?.clientes?.telefono)
+    const mensaje = encodeURIComponent(texto)
+    window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank')
+  }
+
+  const enviarMensajePedidoActual = async () => {
+    const texto = generarMensajeEstado(pedido)
+
+    if (!puedeEnviarPorWhatsApp(pedido?.clientes)) {
+      try {
+        await navigator.clipboard.writeText(texto)
+        mostrarToast('Mensaje copiado. Envíalo por el medio del cliente.')
+      } catch (error) {
+        console.log(error)
+        mostrarToast('No se pudo copiar el mensaje', 'error')
+      }
+      return
+    }
+
+    const telefono = obtenerTelefonoWhatsApp(pedido?.clientes?.telefono)
+    const mensaje = encodeURIComponent(texto)
     window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank')
   }
 
   const enviarMensajeEstadoWhatsApp = () => {
     if (!pedidoMensajeEstado) return
 
-    const telefono = obtenerTelefonoWhatsApp(pedidoMensajeEstado?.clientes?.telefono)
-
-    if (!telefono) {
-      mostrarToast('Este cliente no tiene teléfono', 'error')
+    if (!puedeEnviarPorWhatsApp(pedidoMensajeEstado?.clientes)) {
+      mostrarToast('Este cliente usa otro medio. Copia el mensaje para enviarlo manualmente.', 'error')
       return
     }
 
+    const telefono = obtenerTelefonoWhatsApp(pedidoMensajeEstado?.clientes?.telefono)
     const mensaje = encodeURIComponent(generarMensajeEstado(pedidoMensajeEstado))
     window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank')
+  }
+
+  const copiarContactoMensajeEstado = async () => {
+    const contacto = obtenerContactoCliente(pedidoMensajeEstado?.clientes || pedido?.clientes)
+
+    if (!contacto || contacto === 'Sin contacto') {
+      mostrarToast('Este cliente no tiene contacto guardado', 'error')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(contacto)
+      mostrarToast('Contacto copiado')
+    } catch (error) {
+      console.log(error)
+      mostrarToast('No se pudo copiar el contacto', 'error')
+    }
   }
 
   const copiarMensajeEstado = async () => {
@@ -1410,7 +1454,7 @@ Restante: ${restante}`
       <div className="page-header row-between">
         <div>
           <h1>Pedido {pedido.codigo}</h1>
-          <p>{pedido.plataforma || 'SHEIN'} · Cliente: {pedido.clientes?.nombre || 'Sin cliente'}</p>
+          <p>{pedido.plataforma || 'SHEIN'} · Cliente: {pedido.clientes?.nombre || 'Sin cliente'} · {pedido.clientes?.medio_contacto || 'WhatsApp'}: {obtenerContactoCliente(pedido.clientes)}</p>
         </div>
 
         <div className="actions detail-header-actions">
@@ -1440,10 +1484,10 @@ Restante: ${restante}`
                   type="button"
                   onClick={() => {
                     setMenuPedidoAbierto(false)
-                    copiarLinkSeguimiento()
+                    enviarMensajePedidoActual()
                   }}
                 >
-                  Copiar seguimiento
+                  Enviar mensaje
                 </button>
 
                 <button
@@ -1478,7 +1522,7 @@ Restante: ${restante}`
         <div className="refund-locked-notice">
           <strong>{obtenerEtiquetaReembolso()}</strong>
           <span>
-            Este pedido quedó fuera de métricas. Reembolso registrado: {formatearDinero(pedido.reembolso_monto || 0)}. Para hacer cambios, reactívalo desde "Editar pedido".
+            Este pedido quedó fuera de estadísticas. Reembolso registrado: {formatearDinero(pedido.reembolso_monto || 0)}. Para hacer cambios, reactívalo desde "Editar pedido".
           </span>
         </div>
       )}
@@ -1670,7 +1714,7 @@ Restante: ${restante}`
                 <option value="">Selecciona cliente</option>
                 {clientes.map((cliente) => (
                   <option key={cliente.id} value={cliente.id}>
-                    {cliente.nombre}
+                    {cliente.nombre} · {cliente.medio_contacto || 'WhatsApp'}
                   </option>
                 ))}
               </select>
@@ -1988,7 +2032,7 @@ Restante: ${restante}`
       >
         <div className="refund-confirm-modal">
           <p className="muted">
-            Este pedido quedará como {reembolsoPendiente?.estadoNuevo || 'cancelado/devuelto'} y no contará para métricas.
+            Este pedido quedará como {reembolsoPendiente?.estadoNuevo || 'cancelado/devuelto'} y no contará para estadísticas.
           </p>
 
           <div className="confirm-delivery-amount">
@@ -2062,29 +2106,65 @@ Restante: ${restante}`
             </div>
 
             <p className="muted">
-              El estado se guardó correctamente. Puedes enviar el mensaje sugerido al cliente por WhatsApp.
+              {puedeEnviarPorWhatsApp(pedidoMensajeEstado.clientes)
+                ? 'Puedes enviar este mensaje directo por WhatsApp.'
+                : 'Este cliente usa otro medio de contacto. Copia el mensaje y envíalo manualmente.'}
             </p>
+            <div className="contact-delivery-hint">
+              <span>Medio del cliente</span>
+              <strong>{obtenerTextoMedioContacto(pedidoMensajeEstado.clientes)}</strong>
+            </div>
 
             <div className="message-preview-box">
               <pre>{generarMensajeEstado(pedidoMensajeEstado)}</pre>
             </div>
 
             <div className="modal-actions modal-actions-wrap">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={enviarMensajeEstadoWhatsApp}
-              >
-                Enviar WhatsApp
-              </button>
+              {puedeEnviarPorWhatsApp(pedidoMensajeEstado.clientes) ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={enviarMensajeEstadoWhatsApp}
+                >
+                  Enviar mensaje
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={copiarMensajeEstado}
+                >
+                  Copiar mensaje
+                </button>
+              )}
 
               <button
                 type="button"
                 className="btn btn-light-bordered"
-                onClick={copiarMensajeEstado}
+                onClick={enviarSeguimientoWhatsApp}
               >
-                Copiar mensaje
+                Enviar seguimiento
               </button>
+
+              {!puedeEnviarPorWhatsApp(pedidoMensajeEstado.clientes) && (
+                <button
+                  type="button"
+                  className="btn btn-light-bordered"
+                  onClick={copiarContactoMensajeEstado}
+                >
+                  Copiar contacto
+                </button>
+              )}
+
+              {puedeEnviarPorWhatsApp(pedidoMensajeEstado.clientes) && (
+                <button
+                  type="button"
+                  className="btn btn-light-bordered"
+                  onClick={copiarMensajeEstado}
+                >
+                  Copiar mensaje
+                </button>
+              )}
 
               <button
                 type="button"
