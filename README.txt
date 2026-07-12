@@ -1,26 +1,23 @@
-ORDELY V38 - SEO, FAVICON Y VISTA PARA REDES
+ORDELY V39 - OFERTA GRATUITA EN DATOS ESTRUCTURADOS
 
-1. Copia el contenido de esta carpeta sobre la raíz de tu proyecto.
-2. Conserva las mismas rutas de archivos.
-3. Ejecuta:
+1. Copia el archivo index.html sobre la raíz de tu proyecto.
+2. Ejecuta:
 
 npm run build
 git status
 git add .
-git commit -m "Mejorar SEO favicon y vista previa de Ordely"
+git commit -m "Agregar oferta gratuita a datos estructurados"
 git push -u origin HEAD
 
-CAMBIOS PRINCIPALES
-- Título SEO: MiOrdely | Control de pedidos, clientes y pagos
-- Descripción orientada a SHEIN, Temu y compras por encargo
-- Favicon en tamaños compatibles con buscadores y navegadores
-- Imagen 1200x630 para WhatsApp, Facebook y otras redes
-- Web manifest para dispositivos móviles
-- Datos estructurados WebSite y WebApplication
-- Texto de portada mejorado sin cambiar la marca visible Ordely
+CAMBIO PRINCIPAL
+- Agrega offers al marcado WebApplication:
+  - Precio: 0
+  - Moneda: MXN
+  - Descripción: Plan gratuito disponible
+
+NO SE AGREGA aggregateRating porque solo debe utilizarse cuando existan calificaciones reales y visibles.
 
 DESPUÉS DEL DESPLIEGUE
-- Abre https://miordely.com/favicon.ico
-- Abre https://miordely.com/brand/ordely-social.png
-- En Search Console inspecciona https://miordely.com/ y solicita indexación una sola vez.
-- El cambio de título, descripción y favicon puede tardar varios días en mostrarse.
+- Repite la Prueba de resultados enriquecidos en https://miordely.com/
+- Debe desaparecer la advertencia de offers.
+- La advertencia de aggregateRating puede permanecer como opcional.
