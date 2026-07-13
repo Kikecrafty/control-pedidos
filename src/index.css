@@ -3120,36 +3120,84 @@ textarea:disabled,
 .ordely-auth-page {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 31%),
-    radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.16), transparent 32%),
-    #0f172a;
+    radial-gradient(circle at 8% 10%, rgba(59, 130, 246, 0.22), transparent 22%),
+    radial-gradient(circle at 88% 14%, rgba(14, 165, 233, 0.18), transparent 20%),
+    radial-gradient(circle at 84% 82%, rgba(124, 58, 237, 0.22), transparent 26%),
+    linear-gradient(140deg, #0b1328 0%, #111b36 54%, #1a1f4b 100%);
   color: #ffffff;
   display: grid;
   place-items: center;
   padding: 28px;
   position: relative;
+  overflow: hidden;
+}
+
+.ordely-auth-page::before,
+.ordely-auth-page::after {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(10px);
+}
+
+.ordely-auth-page::before {
+  width: 220px;
+  height: 220px;
+  top: 8%;
+  right: -60px;
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.18), transparent 68%);
+}
+
+.ordely-auth-page::after {
+  width: 280px;
+  height: 280px;
+  left: -100px;
+  bottom: -70px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.16), transparent 70%);
 }
 
 .ordely-auth-back {
   position: fixed;
   top: 22px;
   left: 24px;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.82);
   font-weight: 900;
-  z-index: 2;
+  z-index: 3;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
 }
 
 .ordely-auth-card {
-  width: min(430px, 100%);
-  background: #ffffff;
+  width: min(470px, 100%);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
   color: #0f172a;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 32px;
+  border: 1px solid rgba(226, 232, 240, 0.98);
+  border-radius: 34px;
   padding: 26px;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.28);
+  box-shadow:
+    0 32px 90px rgba(2, 8, 23, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.ordely-auth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 150px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(167, 139, 250, 0.1));
+  pointer-events: none;
 }
 
 .ordely-auth-brand {
+  position: relative;
+  z-index: 1;
   display: grid;
   justify-items: center;
   text-align: center;
@@ -3164,64 +3212,147 @@ textarea:disabled,
   object-fit: contain;
 }
 
-.ordely-auth-brand span {
+.ordely-auth-brand .ordely-logo-text-fallback {
+  display: none;
+  color: #0f172a;
+  font-size: 26px;
+  font-weight: 950;
+  letter-spacing: -0.06em;
+}
+
+.ordely-auth-brand span:last-child {
   color: #64748b;
   font-size: 13px;
   font-weight: 850;
 }
 
 .ordely-auth-tabs {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 7px;
-  padding: 6px;
-  border-radius: 20px;
-  background: #f1f5f9;
-  margin-bottom: 22px;
+  gap: 8px;
+  padding: 7px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #eef2ff 0%, #f1f5f9 100%);
+  border: 1px solid #dbe3f0;
+  margin-bottom: 24px;
 }
 
 .ordely-auth-tabs button {
   border: 0;
   background: transparent;
   border-radius: 16px;
-  padding: 12px 10px;
+  padding: 14px 12px;
   color: #64748b;
   cursor: pointer;
   font-weight: 950;
+  font-size: 15px;
+  transition: 0.22s ease;
 }
 
 .ordely-auth-tabs button.active {
-  background: #0f172a;
+  background: linear-gradient(135deg, #0f172a 0%, #182a54 100%);
   color: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.22);
 }
 
 .ordely-auth-form {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 15px;
 }
 
 .ordely-auth-heading h1 {
-  margin: 0 0 6px;
-  font-size: 32px;
-  letter-spacing: -0.06em;
+  margin: 0 0 8px;
+  font-size: clamp(34px, 4vw, 42px);
+  line-height: 0.98;
+  letter-spacing: -0.07em;
 }
 
 .ordely-auth-heading p {
   margin: 0;
   color: #64748b;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.form-field span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.form-field input {
+  min-height: 56px;
+  border-radius: 18px;
+  border: 1px solid #dbe3f0;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 6px 18px rgba(148, 163, 184, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.form-field input:focus {
+  border-color: #6d7cff;
+  box-shadow:
+    0 0 0 4px rgba(99, 102, 241, 0.14),
+    0 12px 26px rgba(99, 102, 241, 0.08);
+  transform: translateY(-1px);
+}
+
+.ordely-forgot-password {
+  justify-self: end;
+  border: 0;
+  background: transparent;
+  color: #3b5bdb;
+  cursor: pointer;
+  font-weight: 950;
+  padding: 2px 0;
+}
+
+.ordely-auth-error,
+.ordely-auth-success {
+  margin: 0;
+  padding: 13px 14px;
+  border-radius: 18px;
+  font-weight: 850;
+  line-height: 1.42;
+}
+
+.ordely-auth-error {
+  display: grid;
+  gap: 10px;
+  background: linear-gradient(180deg, #fff1f2 0%, #ffe4e6 100%);
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+}
+
+.ordely-auth-success {
+  background: linear-gradient(180deg, #ecfdf3 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0;
+  color: #166534;
 }
 
 .ordely-auth-submit {
-  min-height: 52px;
+  min-height: 56px;
   border-radius: 18px;
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 950;
+  background: linear-gradient(135deg, #355cff 0%, #6d43ff 100%);
+  box-shadow: 0 18px 35px rgba(77, 91, 255, 0.25);
 }
 
 .ordely-auth-switch {
-  margin: 0;
+  margin: 6px 0 0;
   text-align: center;
   color: #64748b;
   font-size: 14px;
+  line-height: 1.45;
 }
 
 .ordely-auth-switch button {
@@ -3231,27 +3362,127 @@ textarea:disabled,
   cursor: pointer;
   font-weight: 950;
   padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
-.ordely-auth-error,
-.ordely-auth-success {
-  margin: 0;
-  padding: 12px;
-  border-radius: 16px;
-  font-weight: 850;
-  line-height: 1.35;
+@media (min-width: 900px) {
+  .ordely-auth-card {
+    width: min(500px, 100%);
+    padding: 28px;
+  }
 }
 
-.ordely-auth-error {
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+@media (max-width: 800px) {
+  .ordely-auth-page {
+    padding: 16px;
+    align-items: start;
+  }
+
+  .ordely-auth-back {
+    position: static;
+    justify-self: start;
+    margin-bottom: 14px;
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .ordely-auth-card {
+    width: min(460px, 100%);
+    border-radius: 28px;
+    padding: 20px;
+  }
+
+  .ordely-auth-card::before {
+    height: 120px;
+  }
+
+  .ordely-auth-brand {
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .ordely-auth-brand img {
+    width: min(210px, 64vw);
+  }
+
+  .ordely-auth-tabs {
+    margin-bottom: 18px;
+  }
+
+  .ordely-auth-tabs button {
+    padding: 13px 10px;
+    font-size: 14px;
+  }
+
+  .ordely-auth-heading h1 {
+    font-size: 28px;
+  }
+
+  .ordely-auth-heading p {
+    font-size: 15px;
+  }
+
+  .form-field input {
+    min-height: 52px;
+    border-radius: 16px;
+  }
+
+  .ordely-auth-submit {
+    min-height: 54px;
+  }
 }
 
-.ordely-auth-success {
-  background: #dcfce7;
-  border: 1px solid #bbf7d0;
-  color: #166534;
+@media (max-width: 420px) {
+  .ordely-auth-page {
+    padding: 12px;
+  }
+
+  .ordely-auth-card {
+    padding: 16px;
+    border-radius: 24px;
+  }
+
+  .ordely-auth-brand img {
+    width: min(188px, 58vw);
+  }
+
+  .ordely-auth-brand span:last-child {
+    font-size: 12px;
+  }
+
+  .ordely-auth-tabs {
+    gap: 6px;
+    padding: 6px;
+    border-radius: 18px;
+  }
+
+  .ordely-auth-tabs button {
+    padding: 12px 8px;
+    border-radius: 14px;
+    font-size: 13px;
+  }
+
+  .ordely-auth-heading h1 {
+    font-size: 26px;
+  }
+
+  .ordely-auth-heading p {
+    font-size: 14px;
+  }
+
+  .ordely-auth-form {
+    gap: 13px;
+  }
+
+  .ordely-forgot-password {
+    justify-self: start;
+    font-size: 13px;
+  }
+
+  .ordely-auth-switch {
+    font-size: 13px;
+  }
 }
 
 /* Marca interna */
@@ -12259,34 +12490,4 @@ textarea {
 .order-actions-dropdown-portal::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 999px;
-}
-
-/* =========================================================
-   ORDely V35 — posición real de menús y acciones verticales
-   ========================================================= */
-@media (min-width: 769px) {
-  /* Ver arriba y Más abajo, ambos del mismo ancho. */
-  .pedidos-table .order-actions-inline {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: auto auto !important;
-    align-items: stretch !important;
-    gap: 4px !important;
-  }
-
-  .pedidos-table .order-actions-inline > .btn,
-  .pedidos-table .order-actions-inline .order-actions-dropdown-wrap,
-  .pedidos-table .order-actions-inline .btn-action-more {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: none !important;
-  }
-}
-
-/* Los portales reciben left/top/bottom calculados desde el botón pulsado. */
-.order-status-options-portal,
-.order-actions-dropdown-portal {
-  right: auto !important;
-  transform: none !important;
-  z-index: 2147483640 !important;
 }

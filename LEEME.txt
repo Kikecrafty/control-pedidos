@@ -1,0 +1,14 @@
+Ordely Landing V46
+
+Cambios:
+- Se eliminó el carrusel animado de plataformas que recortaba nombres.
+- Se sustituyó por una franja estática, compacta y adaptable.
+- Se redujo el espacio vacío del hero.
+- La sección de funciones se rehizo como una cuadrícula compacta 2x2.
+- Los textos ahora explican beneficios directos para el cliente.
+- No modifica Supabase, autenticación, pedidos, pagos, clientes ni seguimiento.
+
+Para probar:
+1. Reemplaza únicamente src/pages/Landing.jsx y src/pages/Landing.css.
+2. Ejecuta npm run dev.
+3. Recarga con Ctrl + Shift + R.
