@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { nombrePlan, resumenUsoPlan } from '../lib/planes'
+import { resumenUsoPlan } from '../lib/planes'
 
 export default function PlanLimitNotice({ estadoPlan, titulo, descripcion, compacto = false }) {
   if (!estadoPlan) return null

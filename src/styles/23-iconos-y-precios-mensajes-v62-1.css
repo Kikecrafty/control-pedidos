@@ -1,0 +1,121 @@
+/* Ordely V62.1 — iconografía profesional y navegación consistente */
+.ordely-nav-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.sidebar-primary-icon,
+.nav-symbol,
+.drawer-nav-icon,
+.bottom-nav-symbol,
+.account-v59-nav-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.sidebar-primary-icon .ordely-nav-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.15;
+}
+
+.sidebar .nav.nav-simple .nav-link {
+  gap: 12px;
+}
+
+.nav-symbol {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.065);
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.sidebar .nav.nav-simple .nav-link:hover .nav-symbol {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.sidebar .nav.nav-simple .nav-link.active .nav-symbol {
+  color: #4f46e5;
+  background: linear-gradient(145deg, #eef2ff, #e0e7ff);
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.09);
+}
+
+.drawer-primary-action {
+  gap: 9px;
+}
+
+.drawer-primary-action .ordely-nav-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.15;
+}
+
+.mobile-drawer .drawer-nav .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.drawer-nav-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mobile-drawer .drawer-nav .nav-link.active .drawer-nav-icon {
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.drawer-settings-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+
+.drawer-settings-button .ordely-nav-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.bottom-nav-symbol {
+  width: 24px;
+  height: 24px;
+}
+
+.bottom-nav-symbol .ordely-nav-icon {
+  width: 21px;
+  height: 21px;
+  stroke-width: 2;
+}
+
+.bottom-nav-create-circle .ordely-nav-icon {
+  width: 25px;
+  height: 25px;
+  stroke-width: 2.25;
+}
+
+.account-v59-nav-icon .ordely-nav-icon {
+  width: 19px;
+  height: 19px;
+}
+
+@media (max-width: 800px) {
+  .bottom-nav-five .bottom-nav-link.active:not(.bottom-nav-create) .bottom-nav-symbol {
+    color: #5b5cf0;
+  }
+
+  .bottom-nav-five .bottom-nav-link:not(.active) .bottom-nav-symbol {
+    color: #cbd5e1;
+  }
+}

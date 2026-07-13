@@ -1,0 +1,59 @@
+/* =========================================================
+   V61.9 · Pedidos por comprar, pagos y avisos móviles
+   ========================================================= */
+
+/* El formulario de pago conserva una distribución clara. */
+.payment-notes-field {
+  grid-column: 1 / -1;
+}
+
+.payment-delivery-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #dbe3f0;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.payment-delivery-fields .form-field {
+  margin: 0;
+}
+
+/*
+  Una regla antigua dejaba top y bottom activos al mismo tiempo.
+  Eso estiraba el Toast hasta casi toda la pantalla del teléfono.
+*/
+@media (max-width: 800px) {
+  .toast {
+    top: 12px !important;
+    right: 12px !important;
+    bottom: auto !important;
+    left: 12px !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: min(220px, calc(100vh - 120px));
+    padding: 13px 13px 15px;
+    border-radius: 18px;
+    text-align: left;
+    align-self: auto;
+  }
+
+  .toast-copy span {
+    overflow-wrap: anywhere;
+  }
+
+  .payment-delivery-fields {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+}
+
+@media (min-width: 700px) {
+  .modal-card:has(.payment-notes-field) .modal-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,1898 @@
+/* =========================================================
+   ORDELY - SIDEBAR FIJA + PLANES VISUALES
+   Pegar al final de src/index.css
+   ========================================================= */
+
+@media (min-width: 801px) {
+  .app-layout {
+    display: block;
+    min-height: 100vh;
+  }
+
+  .sidebar.desktop-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 280px;
+    height: 100vh;
+    min-height: 0;
+    padding: 18px 18px 16px;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 12px;
+    overflow: hidden;
+  }
+
+  .sidebar-main-area {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+  }
+
+  .sidebar-main-area::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar-main-area::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
+  }
+
+  .sidebar-footer {
+    flex: 0 0 auto;
+    padding-top: 8px;
+    background: #0f172a;
+  }
+
+  .sidebar-footer .btn {
+    width: 100%;
+    min-height: 46px;
+    border-radius: 18px;
+  }
+
+  .main-content {
+    margin-left: 280px;
+  }
+}
+
+.ordely-sidebar-brand {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ordely-sidebar-brand-main {
+  gap: 10px;
+}
+
+.ordely-sidebar-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.ordely-sidebar-brand-main strong {
+  font-size: 24px;
+}
+
+.ordely-sidebar-brand-main span {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.ordely-sidebar-brand p {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #dbeafe;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-account-button {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-radius: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  margin: 4px 0 10px;
+  transition: 0.18s ease;
+}
+
+.sidebar-account-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.sidebar-account-button-drawer {
+  margin-top: 0;
+}
+
+.account-plan-card {
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 12px;
+  padding: 14px;
+  border-radius: 22px;
+  isolation: isolate;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.18);
+}
+
+.account-plan-card::before,
+.account-plan-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.account-plan-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.account-plan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.account-plan-head strong {
+  display: block;
+  font-size: 23px;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.account-plan-head span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.account-plan-summary {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.account-plan-summary span {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-plan-summary strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.account-plan-card-basico {
+  background:
+    linear-gradient(135deg, #ffffff 0%, #f8fafc 48%, #e0f2fe 100%);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  color: #0f172a;
+}
+
+.account-plan-card-basico .account-plan-label,
+.account-plan-card-basico .account-plan-head span {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.account-plan-card-basico .account-plan-summary {
+  border-top-color: rgba(15, 23, 42, 0.1);
+}
+
+.account-plan-card-basico .account-plan-summary span {
+  color: #64748b;
+}
+
+.account-plan-card-premium {
+  background:
+    linear-gradient(125deg, #7c3f00 0%, #f59e0b 25%, #fff7c2 47%, #facc15 64%, #92400e 100%);
+  border: 1px solid rgba(253, 224, 71, 0.92);
+  color: #2a1600;
+}
+
+.account-plan-card-premium::before {
+  background:
+    linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.52) 43%, transparent 62%);
+  transform: translateX(-65%);
+  animation: ordelyGoldShine 4.8s ease-in-out infinite;
+}
+
+.account-plan-card-premium .account-plan-label,
+.account-plan-card-premium .account-plan-head span {
+  background: rgba(255, 255, 255, 0.42);
+  color: #713f12;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.account-plan-card-premium .account-plan-summary {
+  border-top-color: rgba(113, 63, 18, 0.25);
+}
+
+.account-plan-card-premium .account-plan-summary span {
+  color: rgba(68, 32, 0, 0.76);
+}
+
+.account-plan-card-pro {
+  background:
+    radial-gradient(circle at 16% 20%, rgba(255, 255, 255, 0.22), transparent 16%),
+    radial-gradient(circle at 86% 22%, rgba(59, 130, 246, 0.28), transparent 18%),
+    radial-gradient(circle at 20% 88%, rgba(168, 85, 247, 0.28), transparent 20%),
+    linear-gradient(145deg, #020617 0%, #111827 48%, #000000 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.account-plan-card-pro::before {
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.98) 0 1.2px, transparent 1.5px),
+    radial-gradient(circle, rgba(255,255,255,0.75) 0 1px, transparent 1.3px),
+    radial-gradient(circle, rgba(192,132,252,0.95) 0 1.2px, transparent 1.5px);
+  background-size: 58px 58px, 78px 78px, 96px 96px;
+  background-position: 10px 12px, 32px 36px, 18px 60px;
+  opacity: 0.56;
+  animation: ordelyStarTwinkle 3.2s ease-in-out infinite alternate;
+}
+
+.account-plan-card-pro::after {
+  inset: auto -40% -60% -40%;
+  height: 90px;
+  background: radial-gradient(circle, rgba(255,255,255,0.22), transparent 70%);
+}
+
+.account-plan-card-pro .account-plan-label,
+.account-plan-card-pro .account-plan-head span {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e0e7ff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.account-plan-card-pro .account-plan-summary span {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+@keyframes ordelyGoldShine {
+  0%, 38% { transform: translateX(-75%); }
+  62%, 100% { transform: translateX(80%); }
+}
+
+@keyframes ordelyStarTwinkle {
+  from { opacity: 0.38; filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+  to { opacity: 0.82; filter: drop-shadow(0 0 6px rgba(255,255,255,0.65)); }
+}
+
+.sidebar-platform-panel {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-platform-panel span {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar-platform-panel select {
+  width: 100%;
+  min-height: 42px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.sidebar .nav {
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sidebar .nav-link {
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.account-details-modal {
+  display: grid;
+  gap: 16px;
+}
+
+.account-details-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #f8fafc;
+}
+
+.account-details-user img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.account-details-user strong {
+  display: block;
+  font-size: 18px;
+  letter-spacing: -0.04em;
+}
+
+.account-details-user span {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.account-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.account-details-grid div {
+  padding: 14px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.account-details-grid span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+}
+
+.account-details-grid strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+@media (max-width: 800px) {
+  .account-plan-card {
+    margin-bottom: 14px;
+  }
+
+  .sidebar-account-button {
+    min-height: 42px;
+  }
+
+  .sidebar-platform-panel {
+    margin-bottom: 16px;
+  }
+
+  .account-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   ORDELY - SIDEBAR V2: MI CUENTA + PLANES MEJORADOS
+   Pegar al final de src/index.css, después de los estilos anteriores
+   ========================================================= */
+
+.account-plan-head-simple {
+  justify-content: flex-start !important;
+}
+
+.account-plan-head-simple strong {
+  max-width: 100%;
+}
+
+.account-plan-head-simple span {
+  display: none !important;
+}
+
+/* Tarjeta Premium: brillo corto, sin bloque blanco detenido */
+.account-plan-card-premium {
+  background:
+    radial-gradient(circle at 24% 10%, rgba(255, 255, 255, 0.82), transparent 22%),
+    linear-gradient(135deg, #8a4b00 0%, #d99107 18%, #ffd65a 36%, #fff3b0 52%, #f4bd19 70%, #9a5b07 100%) !important;
+  border: 1px solid rgba(253, 224, 71, 0.92) !important;
+  color: #2a1600 !important;
+}
+
+.account-plan-card-premium::before {
+  inset: -80% auto -80% 0 !important;
+  width: 58px !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.68), transparent) !important;
+  transform: translateX(-170%) rotate(18deg) !important;
+  animation: ordelyGoldShineClean 5.5s ease-in-out infinite !important;
+  opacity: 0 !important;
+}
+
+.account-plan-card-premium::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    linear-gradient(115deg, transparent 0 42%, rgba(255,255,255,0.24) 43% 50%, transparent 51% 100%),
+    radial-gradient(circle at 78% 22%, rgba(255,255,255,0.42), transparent 18%);
+  opacity: 0.55;
+}
+
+@keyframes ordelyGoldShineClean {
+  0%, 55% {
+    opacity: 0;
+    transform: translateX(-170%) rotate(18deg);
+  }
+
+  62% {
+    opacity: 0.95;
+  }
+
+  78% {
+    opacity: 0.95;
+    transform: translateX(520%) rotate(18deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(560%) rotate(18deg);
+  }
+}
+
+/* Tarjeta Pro: metal negro brillante + estrellas */
+.account-plan-card-pro {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255,255,255,0.20), transparent 14%),
+    radial-gradient(circle at 86% 16%, rgba(59,130,246,0.28), transparent 18%),
+    radial-gradient(circle at 30% 92%, rgba(168,85,247,0.30), transparent 22%),
+    linear-gradient(115deg, #030712 0%, #0b1120 26%, #222835 43%, #05070d 58%, #111827 77%, #000000 100%) !important;
+  border: 1px solid rgba(255,255,255,0.2) !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 24px 58px rgba(0,0,0,0.36),
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    inset 0 -18px 40px rgba(0,0,0,0.35) !important;
+}
+
+.account-plan-card-pro::before {
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,1) 0 1.25px, transparent 1.6px),
+    radial-gradient(circle, rgba(219,234,254,0.96) 0 1px, transparent 1.35px),
+    radial-gradient(circle, rgba(192,132,252,0.96) 0 1.2px, transparent 1.55px),
+    radial-gradient(circle, rgba(255,255,255,0.9) 0 0.8px, transparent 1.1px) !important;
+  background-size: 46px 46px, 68px 68px, 92px 92px, 120px 120px !important;
+  background-position: 8px 10px, 30px 34px, 12px 62px, 54px 18px !important;
+  opacity: 0.45 !important;
+  animation: ordelyProStars 2.8s ease-in-out infinite alternate !important;
+}
+
+.account-plan-card-pro::after {
+  content: '';
+  position: absolute;
+  inset: -60% auto -60% 0;
+  width: 80px;
+  pointer-events: none;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.32), rgba(125,211,252,0.16), transparent);
+  transform: translateX(-180%) rotate(18deg);
+  animation: ordelyProMetalSweep 6s ease-in-out infinite;
+  opacity: 0;
+}
+
+@keyframes ordelyProStars {
+  0% {
+    opacity: 0.28;
+    filter: drop-shadow(0 0 0 rgba(255,255,255,0));
+  }
+
+  45% {
+    opacity: 0.72;
+    filter: drop-shadow(0 0 5px rgba(255,255,255,0.6));
+  }
+
+  100% {
+    opacity: 0.50;
+    filter: drop-shadow(0 0 9px rgba(147,197,253,0.45));
+  }
+}
+
+@keyframes ordelyProMetalSweep {
+  0%, 48% {
+    opacity: 0;
+    transform: translateX(-180%) rotate(18deg);
+  }
+
+  56% {
+    opacity: 1;
+  }
+
+  74% {
+    opacity: 0.75;
+    transform: translateX(520%) rotate(18deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(560%) rotate(18deg);
+  }
+}
+
+/* Modal Mi cuenta editable */
+.account-details-modal-edit {
+  gap: 18px;
+}
+
+.account-name-edit-field {
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #ffffff;
+}
+
+.account-name-edit-field input {
+  margin-top: 2px;
+  font-weight: 800;
+}
+
+.account-modal-message {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.account-modal-message-success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.account-modal-message-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.account-modal-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.account-modal-actions .btn {
+  width: 100%;
+}
+
+@media (max-width: 800px) {
+  .account-modal-actions {
+    grid-template-columns: 1fr;
+  }
+}
+/* =========================================================
+   ORDELY - FIX MENÚ MÓVIL / DRAWER
+   Corrige ancho, scroll, tarjeta de plan y botones en teléfono
+   ========================================================= */
+
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media (max-width: 800px) {
+  .mobile-drawer {
+    width: min(84vw, 340px) !important;
+    max-width: calc(100vw - 56px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 14px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    gap: 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  .mobile-drawer * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .mobile-drawer-header,
+  .ordely-drawer-brand {
+    margin-bottom: 10px !important;
+    align-items: center !important;
+  }
+
+  .ordely-drawer-brand > div {
+    min-width: 0;
+    gap: 10px !important;
+  }
+
+  .ordely-drawer-icon {
+    width: 44px !important;
+    height: 44px !important;
+    flex: 0 0 44px !important;
+  }
+
+  .mobile-drawer-header strong,
+  .ordely-drawer-brand strong {
+    font-size: 22px !important;
+    line-height: 1.05 !important;
+  }
+
+  .mobile-drawer-header span,
+  .ordely-drawer-brand span {
+    font-size: 12px !important;
+    line-height: 1.15 !important;
+  }
+
+  .drawer-close {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    border-radius: 18px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer .sidebar-account-button,
+  .mobile-drawer .sidebar-account-button-drawer {
+    min-height: 44px !important;
+    margin: 0 0 10px !important;
+    border-radius: 16px !important;
+    font-size: 15px !important;
+  }
+
+  /* Tarjeta del plan en móvil: compacta y sin recortes */
+  .mobile-drawer .account-plan-card,
+  .mobile-drawer .account-plan-card-compact {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 0 12px !important;
+    padding: 12px !important;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    transform: none !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-label {
+    min-height: 22px !important;
+    padding: 4px 8px !important;
+    font-size: 9px !important;
+    line-height: 1 !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-head,
+  .mobile-drawer .account-plan-card .account-plan-head-simple {
+    display: block !important;
+    margin-top: 8px !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-head strong {
+    display: block !important;
+    font-size: 20px !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.05em !important;
+    white-space: normal !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-summary {
+    display: grid !important;
+    grid-template-columns: 84px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-top: 9px !important;
+    padding-top: 9px !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-summary span {
+    font-size: 10px !important;
+    line-height: 1.05 !important;
+    margin: 0 !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-summary strong {
+    display: block !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    text-align: right !important;
+    word-break: normal !important;
+  }
+
+  .mobile-drawer .account-plan-card-premium::before,
+  .mobile-drawer .account-plan-card-premium::after,
+  .mobile-drawer .account-plan-card-pro::before,
+  .mobile-drawer .account-plan-card-pro::after {
+    max-width: none !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel {
+    width: 100% !important;
+    margin: 0 0 12px !important;
+    padding: 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel span {
+    font-size: 10px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel select {
+    min-height: 44px !important;
+    border-radius: 15px !important;
+    font-size: 15px !important;
+  }
+
+  .mobile-drawer .drawer-nav {
+    display: grid !important;
+    gap: 9px !important;
+    margin-top: 0 !important;
+  }
+
+  .mobile-drawer .drawer-nav .nav-link {
+    min-height: 48px !important;
+    padding: 12px 14px !important;
+    border-radius: 17px !important;
+    font-size: 17px !important;
+    line-height: 1 !important;
+  }
+
+  .mobile-drawer .drawer-logout {
+    margin-top: 12px !important;
+    min-height: 46px !important;
+    border-radius: 17px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer-overlay {
+    overflow: hidden !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .mobile-drawer {
+    width: min(86vw, 324px) !important;
+    max-width: calc(100vw - 46px) !important;
+    padding: 12px !important;
+  }
+
+  .mobile-drawer .drawer-nav .nav-link {
+    min-height: 46px !important;
+    font-size: 16px !important;
+  }
+
+  .mobile-drawer .account-plan-card .account-plan-summary {
+    grid-template-columns: 76px minmax(0, 1fr) !important;
+  }
+}
+
+/* =========================================================
+   ORDELY - FIX DEFINITIVO MENÚ MÓVIL
+   Drawer móvil independiente del sidebar de escritorio
+   ========================================================= */
+
+@media (max-width: 800px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+  }
+
+  .mobile-drawer-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 80 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    background: rgba(15, 23, 42, 0.54) !important;
+    border: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mobile-drawer {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: 90 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 18px 18px 96px !important;
+    background: #0f172a !important;
+    color: #ffffff !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    transform: translateX(-105%) !important;
+    transition: transform 0.22s ease !important;
+    box-shadow: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    box-sizing: border-box !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .mobile-drawer.mobile-drawer-open {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-drawer *,
+  .mobile-drawer *::before,
+  .mobile-drawer *::after {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+  }
+
+  .mobile-drawer-header.ordely-drawer-brand {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+    margin: 0 0 4px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .ordely-drawer-brand > div {
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 11px !important;
+  }
+
+  .ordely-drawer-icon {
+    width: 46px !important;
+    height: 46px !important;
+    flex: 0 0 46px !important;
+    object-fit: contain !important;
+  }
+
+  .ordely-drawer-brand strong {
+    display: block !important;
+    font-size: 24px !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .ordely-drawer-brand span {
+    display: block !important;
+    margin-top: 4px !important;
+    color: rgba(255,255,255,0.72) !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+
+  .drawer-close {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    border-radius: 18px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer .sidebar-account-button,
+  .mobile-drawer .sidebar-account-button-drawer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-height: 46px !important;
+    margin: 0 !important;
+    padding: 10px 14px !important;
+    border-radius: 18px !important;
+    font-size: 16px !important;
+    font-weight: 950 !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer .account-plan-card,
+  .mobile-drawer .account-plan-card-compact {
+    display: none !important;
+  }
+
+  .drawer-plan-card {
+    position: relative !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 14px !important;
+    border-radius: 22px !important;
+    overflow: hidden !important;
+    flex: 0 0 auto !important;
+    isolation: isolate !important;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .drawer-plan-card::before,
+  .drawer-plan-card::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+  }
+
+  .drawer-plan-card-basico {
+    background: linear-gradient(135deg, #ffffff, #f8fafc, #e0f2fe) !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  }
+
+  .drawer-plan-card-premium {
+    background:
+      radial-gradient(circle at 22% 8%, rgba(255,255,255,0.85), transparent 22%),
+      linear-gradient(135deg, #8a4b00 0%, #e69f09 22%, #fff3ad 48%, #facc15 70%, #8a4b00 100%) !important;
+    color: #2a1600 !important;
+    border: 1px solid rgba(253, 224, 71, 0.9) !important;
+  }
+
+  .drawer-plan-card-premium::before {
+    inset: -60% auto -60% -40% !important;
+    width: 56px !important;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.70), transparent) !important;
+    transform: translateX(-120%) rotate(18deg) !important;
+    animation: drawerGoldShine 5.2s ease-in-out infinite !important;
+  }
+
+  .drawer-plan-card-pro {
+    background:
+      radial-gradient(circle at 18% 18%, rgba(255,255,255,0.20), transparent 15%),
+      radial-gradient(circle at 86% 18%, rgba(59,130,246,0.28), transparent 20%),
+      linear-gradient(125deg, #020617 0%, #111827 38%, #030712 62%, #000000 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+  }
+
+  .drawer-plan-card-pro::before {
+    background-image:
+      radial-gradient(circle, rgba(255,255,255,1) 0 1px, transparent 1.4px),
+      radial-gradient(circle, rgba(192,132,252,0.95) 0 1px, transparent 1.4px),
+      radial-gradient(circle, rgba(147,197,253,0.95) 0 1px, transparent 1.4px) !important;
+    background-size: 42px 42px, 68px 68px, 96px 96px !important;
+    background-position: 8px 12px, 26px 34px, 58px 10px !important;
+    opacity: 0.42 !important;
+    animation: drawerStars 2.8s ease-in-out infinite alternate !important;
+  }
+
+  .drawer-plan-card-top {
+    display: grid !important;
+    gap: 5px !important;
+  }
+
+  .drawer-plan-card-top span {
+    width: fit-content !important;
+    display: inline-flex !important;
+    min-height: 24px !important;
+    align-items: center !important;
+    padding: 5px 9px !important;
+    border-radius: 999px !important;
+    background: rgba(255,255,255,0.28) !important;
+    border: 1px solid rgba(255,255,255,0.26) !important;
+    font-size: 10px !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+  }
+
+  .drawer-plan-card-top strong {
+    display: block !important;
+    font-size: 24px !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.06em !important;
+  }
+
+  .drawer-plan-card-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    margin-top: 12px !important;
+  }
+
+  .drawer-plan-card-grid div {
+    min-width: 0 !important;
+    padding: 11px !important;
+    border-radius: 16px !important;
+    background: rgba(255,255,255,0.20) !important;
+    border: 1px solid rgba(255,255,255,0.16) !important;
+  }
+
+  .drawer-plan-card-grid span {
+    display: block !important;
+    margin-bottom: 5px !important;
+    font-size: 9px !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    opacity: 0.78 !important;
+  }
+
+  .drawer-plan-card-grid strong {
+    display: block !important;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+    word-break: normal !important;
+  }
+
+  .drawer-plan-warning {
+    margin-top: 10px !important;
+    padding: 9px 10px !important;
+    border-radius: 14px !important;
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    font-weight: 950 !important;
+    text-align: center !important;
+    font-size: 12px !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 14px !important;
+    border-radius: 22px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel span {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+  }
+
+  .mobile-drawer .sidebar-platform-panel select {
+    min-height: 46px !important;
+    border-radius: 16px !important;
+    font-size: 16px !important;
+  }
+
+  .mobile-drawer .drawer-nav {
+    display: grid !important;
+    gap: 10px !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+  }
+
+  .mobile-drawer .drawer-nav .nav-link {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 52px !important;
+    padding: 12px 18px !important;
+    border-radius: 18px !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+  }
+
+  .mobile-drawer .drawer-logout {
+    width: 100% !important;
+    min-height: 48px !important;
+    border-radius: 18px !important;
+    margin: 8px 0 0 !important;
+    flex: 0 0 auto !important;
+  }
+
+  .bottom-nav {
+    z-index: 70 !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .mobile-drawer {
+    padding: 16px 14px 92px !important;
+    gap: 11px !important;
+  }
+
+  .drawer-plan-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mobile-drawer .drawer-nav .nav-link {
+    min-height: 50px !important;
+    font-size: 17px !important;
+  }
+}
+
+@keyframes drawerGoldShine {
+  0%, 52% { transform: translateX(-130%) rotate(18deg); opacity: 0; }
+  60% { opacity: 0.9; }
+  78% { transform: translateX(900%) rotate(18deg); opacity: 0.85; }
+  100% { transform: translateX(940%) rotate(18deg); opacity: 0; }
+}
+
+@keyframes drawerStars {
+  from { opacity: 0.26; filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+  to { opacity: 0.72; filter: drop-shadow(0 0 6px rgba(255,255,255,0.6)); }
+}
+
+
+/* FIX: nombre y plan visibles en drawer móvil */
+@media (max-width: 800px) {
+  .mobile-drawer .ordely-drawer-brand > div:first-child {
+    align-items: flex-start !important;
+  }
+
+  .mobile-drawer .drawer-account-line {
+    display: block !important;
+    max-width: 230px !important;
+    margin: 10px 0 0 !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+    font-weight: 850 !important;
+    letter-spacing: -0.02em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .mobile-drawer .ordely-drawer-brand span {
+    color: rgba(255, 255, 255, 0.76) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .mobile-drawer .drawer-account-line {
+    max-width: 190px !important;
+  }
+}
+
+
+/* =========================================================
+   ORDELY - Ajustes planes, sidebar y precios V3
+   ========================================================= */
+
+.ordely-sidebar-brand-main span,
+.ordely-drawer-brand span {
+  display: none !important;
+}
+
+.ordely-sidebar-brand p,
+.drawer-account-line {
+  color: #dbeafe;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-plan-upgrade-button {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  font-weight: 950;
+  font-size: 13px;
+  border: 1px solid rgba(255,255,255,0.55);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.12);
+}
+
+.account-plan-card-basico .account-plan-upgrade-button {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.account-plan-card-pro .account-plan-upgrade-button {
+  display: none;
+}
+
+.drawer-plan-upgrade-button {
+  min-height: 40px;
+  margin-top: 12px;
+}
+
+.drawer-plan-card-pro .drawer-plan-upgrade-button {
+  display: none;
+}
+
+/* Tarjetas de planes en /planes estilo presentación */
+.plans-grid-commercial {
+  align-items: stretch;
+  gap: 22px;
+}
+
+.ordely-pricing-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 520px;
+  padding: 28px;
+  border-radius: 30px;
+  box-shadow: 0 22px 70px rgba(15, 23, 42, 0.10);
+}
+
+.ordely-pricing-card .plan-kicker {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.ordely-pricing-card h2 {
+  margin: 14px 0 16px;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.ordely-pricing-card .commercial-price {
+  align-items: baseline;
+  margin: 26px 0 26px;
+}
+
+.ordely-pricing-card .commercial-price strong {
+  font-size: 52px;
+  line-height: 0.95;
+  letter-spacing: -0.08em;
+}
+
+.ordely-pricing-card .commercial-price span {
+  font-size: 20px;
+  font-weight: 950;
+  color: #64748b;
+}
+
+.ordely-pricing-card p {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.ordely-pricing-card ul {
+  gap: 13px;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.ordely-pricing-card .btn {
+  min-height: 56px;
+  border-radius: 18px;
+  font-size: 15px;
+}
+
+.ordely-pricing-card-current {
+  outline: 4px solid rgba(15, 23, 42, 0.16);
+}
+
+.ordely-pricing-card-premium {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  transform: none !important;
+}
+
+.ordely-pricing-card-premium .plan-kicker,
+.ordely-pricing-card-premium p,
+.ordely-pricing-card-premium li,
+.ordely-pricing-card-premium .commercial-price span {
+  color: rgba(255, 255, 255, 0.68) !important;
+}
+
+.ordely-pricing-card-premium .commercial-price strong {
+  color: #ffffff !important;
+}
+
+.ordely-pricing-card-pro {
+  background:
+    radial-gradient(circle at 86% 12%, rgba(59, 130, 246, 0.10), transparent 28%),
+    #ffffff !important;
+}
+
+.ordely-pricing-card-basico {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255,255,255,0.9), transparent 30%),
+    #ffffff !important;
+}
+
+@media (max-width: 1100px) {
+  .ordely-pricing-card {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 800px) {
+  .ordely-pricing-card {
+    padding: 22px;
+    border-radius: 26px;
+  }
+
+  .ordely-pricing-card .commercial-price strong {
+    font-size: 42px;
+  }
+
+  .ordely-pricing-card p,
+  .ordely-pricing-card ul {
+    font-size: 16px;
+  }
+}
+
+/* =========================================================
+   ORDELY - Planes premium V4
+   Diseño dorado Premium + galaxia Pro
+   ========================================================= */
+
+.ordely-plans-header-v4 {
+  margin-bottom: 20px;
+}
+
+.ordely-plans-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ordely-plans-title-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff7cc, #d99715 58%, #fff0a6);
+  color: #6b3c00;
+  box-shadow: 0 14px 34px rgba(217, 151, 21, 0.28), inset 0 0 0 1px rgba(255,255,255,0.65);
+  font-weight: 950;
+}
+
+.ordely-plan-status-v4 {
+  display: grid;
+  grid-template-columns: 1.1fr 0.85fr 1.1fr 1fr;
+  gap: 12px;
+  margin: 0 0 24px;
+}
+
+.ordely-plan-status-v4 > div {
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(229, 231, 235, 0.95);
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
+}
+
+.ordely-plan-status-v4 span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+
+.ordely-plan-status-v4 strong {
+  display: block;
+  color: #0f172a;
+  font-size: 18px;
+  letter-spacing: -0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ordely-plan-status-v4 p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ordely-status-progress {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.ordely-pricing-grid-v4 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  align-items: stretch;
+  margin: 0 0 14px;
+}
+
+.ordely-plan-card-v4 {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 610px;
+  border-radius: 34px;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(255,255,255,0.72);
+  background: #ffffff;
+}
+
+.ordely-plan-card-v4::before,
+.ordely-plan-card-v4::after,
+.ordely-card-glow-v4 {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.ordely-plan-card-content-v4 {
+  position: relative;
+  z-index: 3;
+  height: 100%;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ordely-plan-badge-v4 {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 9px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.ordely-plan-badge-v4 i {
+  font-style: normal;
+  line-height: 1;
+}
+
+.ordely-plan-card-v4 h2 {
+  margin: 0;
+  font-size: clamp(30px, 2.4vw, 42px);
+  line-height: 1;
+  letter-spacing: -0.07em;
+}
+
+.ordely-plan-divider-v4 {
+  height: 1px;
+  margin: 24px 0;
+  background: rgba(15, 23, 42, 0.12);
+}
+
+.ordely-plan-price-v4 {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.ordely-plan-price-v4 strong {
+  display: block;
+  font-size: clamp(48px, 5vw, 72px);
+  line-height: 0.9;
+  letter-spacing: -0.09em;
+}
+
+.ordely-plan-price-v4 span {
+  font-size: 20px;
+  font-weight: 950;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.ordely-plan-card-v4 p {
+  margin: 0 0 26px;
+  color: #475569;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.ordely-plan-features-v4 {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 14px;
+  flex: 1;
+}
+
+.ordely-plan-features-v4 li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+  color: #0f172a;
+}
+
+.ordely-plan-features-v4 li span {
+  width: 21px;
+  height: 21px;
+  margin-top: 1px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 950;
+  border: 2px solid currentColor;
+}
+
+.ordely-plan-features-v4 li strong {
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 850;
+}
+
+.ordely-plan-button-v4 {
+  width: 100%;
+  min-height: 58px;
+  margin-top: 30px;
+  border-radius: 18px;
+  font-size: 15px;
+  font-weight: 950;
+  position: relative;
+  z-index: 4;
+}
+
+.ordely-plan-button-included-v4 {
+  background: #ffffff;
+  color: #64748b;
+  border: 1px solid #e5e7eb;
+}
+
+/* Básico */
+.ordely-plan-card-basico-v4 {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(219, 234, 254, 0.65), transparent 28%),
+    linear-gradient(145deg, #ffffff 0%, #ffffff 58%, #f8fafc 100%);
+}
+
+.ordely-plan-card-basico-v4 .ordely-plan-badge-v4 {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.ordely-plan-card-basico-v4 .ordely-plan-features-v4 li span {
+  color: #3b82f6;
+}
+
+.ordely-plan-card-basico-v4 .ordely-plan-button-v4:not(.ordely-plan-button-current-v4) {
+  background: #ffffff;
+  color: #64748b;
+  border: 1px solid #e5e7eb;
+}
+
+/* Premium oro */
+.ordely-plan-card-premium-v4 {
+  color: #211200;
+  border: 2px solid rgba(255, 214, 98, 0.92);
+  background:
+    radial-gradient(circle at 86% 18%, rgba(255,255,255,0.7), transparent 20%),
+    radial-gradient(circle at 18% 96%, rgba(104, 59, 0, 0.32), transparent 34%),
+    linear-gradient(135deg, #9c5d04 0%, #f8be2e 24%, #fff1a2 48%, #e1a007 72%, #6c3b00 100%);
+  box-shadow:
+    0 0 0 5px rgba(255, 228, 119, 0.26),
+    0 34px 90px rgba(164, 97, 0, 0.32),
+    inset 0 0 0 1px rgba(255,255,255,0.55);
+}
+
+.ordely-plan-card-premium-v4::before {
+  inset: -35% auto -35% -26%;
+  width: 38%;
+  transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.78), rgba(255,255,255,0.28), transparent);
+  filter: blur(1px);
+  animation: ordelyGoldSweepV4 4.8s ease-in-out infinite;
+  z-index: 1;
+}
+
+.ordely-plan-card-premium-v4::after {
+  inset: 0;
+  background:
+    radial-gradient(circle at 72% 24%, rgba(255,255,255,0.42) 0 1px, transparent 2px),
+    radial-gradient(circle at 36% 72%, rgba(255,255,255,0.35) 0 1px, transparent 2px),
+    radial-gradient(circle at 78% 86%, rgba(255,255,255,0.28) 0 1px, transparent 2px),
+    linear-gradient(120deg, transparent 0 45%, rgba(255,255,255,0.2) 46% 49%, transparent 50% 100%);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 220% 220%;
+  mix-blend-mode: screen;
+  opacity: 0.68;
+  animation: ordelyGoldGlitterV4 3.8s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+.ordely-plan-card-premium-v4 .ordely-card-glow-v4 {
+  inset: 16px;
+  border-radius: 26px;
+  background: radial-gradient(circle at 85% 20%, rgba(255,255,255,0.5), transparent 28%);
+  border: 1px solid rgba(255,255,255,0.35);
+  z-index: 0;
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-badge-v4 {
+  color: #6b3c00;
+  background: rgba(255,255,255,0.62);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.8);
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-divider-v4 {
+  background: rgba(63, 35, 0, 0.22);
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-price-v4 span,
+.ordely-plan-card-premium-v4 p {
+  color: rgba(40, 22, 0, 0.76);
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-features-v4 li {
+  color: #211200;
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-features-v4 li span {
+  color: #211200;
+  background: rgba(255,255,255,0.32);
+  border-color: rgba(33,18,0,0.4);
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-button-v4 {
+  background: linear-gradient(135deg, #211200, #5f3a00);
+  color: #ffe9a6;
+  border: 1px solid rgba(255, 238, 166, 0.48);
+  box-shadow: 0 16px 34px rgba(61, 34, 0, 0.28);
+}
+
+/* Pro galaxia */
+.ordely-plan-card-pro-v4 {
+  color: #ffffff;
+  border: 2px solid rgba(185, 167, 255, 0.58);
+  background:
+    radial-gradient(circle at 84% 14%, rgba(255,255,255,0.25) 0 1px, transparent 2px),
+    radial-gradient(circle at 74% 45%, rgba(147, 197, 253, 0.18), transparent 25%),
+    radial-gradient(circle at 88% 60%, rgba(124, 58, 237, 0.22), transparent 30%),
+    linear-gradient(145deg, #050817 0%, #0c1222 42%, #050713 100%);
+  box-shadow:
+    0 0 0 5px rgba(124, 58, 237, 0.16),
+    0 34px 90px rgba(3, 7, 18, 0.34),
+    inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+.ordely-plan-card-pro-v4::before {
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% 18%, rgba(255,255,255,0.9) 0 1px, transparent 2px),
+    radial-gradient(circle at 32% 72%, rgba(255,255,255,0.75) 0 1px, transparent 2px),
+    radial-gradient(circle at 55% 28%, rgba(196,181,253,0.9) 0 1px, transparent 2px),
+    radial-gradient(circle at 76% 80%, rgba(255,255,255,0.8) 0 1px, transparent 2px),
+    radial-gradient(circle at 88% 34%, rgba(147,197,253,0.9) 0 1px, transparent 2px);
+  background-size: 240px 240px, 310px 310px, 280px 280px, 360px 360px, 210px 210px;
+  opacity: 0.72;
+  animation: ordelyStarDriftV4 11s linear infinite;
+  z-index: 0;
+}
+
+.ordely-plan-card-pro-v4::after {
+  right: -42%;
+  top: -18%;
+  width: 88%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 42%, transparent 0 47%, rgba(186, 164, 255, 0.24) 49%, rgba(96, 165, 250, 0.16) 52%, transparent 56%),
+    radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 64%);
+  filter: blur(0.2px);
+  opacity: 0.95;
+  animation: ordelyPlanetPulseV4 5s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+.ordely-plan-card-pro-v4 .ordely-card-glow-v4 {
+  inset: 0;
+  background:
+    radial-gradient(circle at 24% 95%, rgba(168, 85, 247, 0.22), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.16), transparent 34%);
+  z-index: 0;
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-badge-v4 {
+  color: #ffffff;
+  background: rgba(124, 58, 237, 0.48);
+  border: 1px solid rgba(196,181,253,0.35);
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.22);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-divider-v4 {
+  background: rgba(255,255,255,0.14);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-price-v4 strong,
+.ordely-plan-card-pro-v4 h2,
+.ordely-plan-card-pro-v4 .ordely-plan-features-v4 li {
+  color: #ffffff;
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-price-v4 span {
+  color: #c4b5fd;
+}
+
+.ordely-plan-card-pro-v4 p {
+  color: rgba(255,255,255,0.78);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-features-v4 li span {
+  color: #c4b5fd;
+  border-color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.14);
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-button-v4 {
+  background: linear-gradient(135deg, #a78bfa, #5b21b6 55%, #111827);
+  color: #ffffff;
+  border: 1px solid rgba(216, 180, 254, 0.42);
+  box-shadow: 0 16px 40px rgba(91, 33, 182, 0.30);
+}
+
+.ordely-plan-card-current-v4 {
+  transform: translateY(-4px);
+}
+
+.ordely-plan-card-current-v4::selection {
+  background: transparent;
+}
+
+.ordely-plan-button-current-v4:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.ordely-plan-card-basico-v4 .ordely-plan-button-current-v4,
+.ordely-plan-card-basico-v4 .ordely-plan-button-included-v4 {
+  background: #ffffff;
+  color: #64748b;
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
+}
+
+.ordely-plans-footnote-v4 {
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 750;
+  margin: 14px 0 26px;
+}
+
+@keyframes ordelyGoldSweepV4 {
+  0%, 42% { transform: translateX(-120%) rotate(18deg); opacity: 0; }
+  52% { opacity: 0.95; }
+  78% { transform: translateX(470%) rotate(18deg); opacity: 0.8; }
+  100% { transform: translateX(520%) rotate(18deg); opacity: 0; }
+}
+
+@keyframes ordelyGoldGlitterV4 {
+  from { opacity: 0.38; background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { opacity: 0.82; background-position: 0 0, 0 0, 0 0, 80% 20%; }
+}
+
+@keyframes ordelyStarDriftV4 {
+  from { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 240px 120px, -310px 180px, 160px -280px, -120px 360px, 210px -140px; }
+}
+
+@keyframes ordelyPlanetPulseV4 {
+  from { transform: scale(1) rotate(0deg); opacity: 0.72; }
+  to { transform: scale(1.035) rotate(3deg); opacity: 1; }
+}
+
+@media (max-width: 1260px) {
+  .ordely-pricing-grid-v4 {
+    grid-template-columns: 1fr;
+  }
+
+  .ordely-plan-card-v4 {
+    min-height: auto;
+  }
+
+  .ordely-plan-features-v4 {
+    margin-top: 4px;
+  }
+}
+
+@media (max-width: 980px) {
+  .ordely-plan-status-v4 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .ordely-plans-title-row {
+    align-items: flex-start;
+  }
+
+  .ordely-plans-title-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .ordely-plan-status-v4 {
+    grid-template-columns: 1fr;
+  }
+
+  .ordely-plan-card-content-v4 {
+    padding: 24px;
+  }
+
+  .ordely-plan-card-v4 {
+    border-radius: 28px;
+  }
+
+  .ordely-plan-card-v4 h2 {
+    font-size: 32px;
+  }
+
+  .ordely-plan-price-v4 strong {
+    font-size: 52px;
+  }
+
+  .ordely-plan-price-v4 span {
+    font-size: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ordely-plan-card-premium-v4::before,
+  .ordely-plan-card-premium-v4::after,
+  .ordely-plan-card-pro-v4::before,
+  .ordely-plan-card-pro-v4::after {
+    animation: none !important;
+  }
+}
+

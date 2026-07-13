@@ -2,15 +2,20 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
 import Toast from '../components/Toast'
+import EmptyState from '../components/EmptyState'
+import PageHelp from '../components/PageHelp'
+import { PLATAFORMAS } from '../lib/plataformas'
 
 const hoyISO = () => new Date().toISOString().slice(0, 10)
 
-const plataformas = ['SHEIN', 'Temu', 'AliExpress', 'Catálogo', 'Otro']
 
 const prefijosPlataforma = {
   SHEIN: 'SHE',
   Temu: 'TEM',
   AliExpress: 'ALI',
+  'TikTok Shop': 'TTS',
+  'Mercado Libre': 'ML',
+  Amazon: 'AMZ',
   Catálogo: 'CAT',
   Otro: 'OTR'
 }
@@ -33,6 +38,7 @@ export default function Compras() {
   const [plataformaSeleccionada, setPlataformaSeleccionada] = useState('SHEIN')
   const [resumenActivo, setResumenActivo] = useState(false)
   const [guiaAbierta, setGuiaAbierta] = useState(false)
+  const [errorCarga, setErrorCarga] = useState('')
 
   const [form, setForm] = useState({
     plataforma: 'SHEIN',
@@ -59,6 +65,7 @@ export default function Compras() {
 
   const cargarDatos = async () => {
     setCargando(true)
+    setErrorCarga('')
 
     if (!plataformaInicializadaRef.current) {
       try {
@@ -72,7 +79,7 @@ export default function Compras() {
             .eq('user_id', userId)
             .maybeSingle()
 
-          const plataformaPerfil = plataformas.includes(perfilData?.plataforma_predeterminada)
+          const plataformaPerfil = PLATAFORMAS.includes(perfilData?.plataforma_predeterminada)
             ? perfilData.plataforma_predeterminada
             : 'SHEIN'
 
@@ -115,7 +122,8 @@ export default function Compras() {
 
     if (errorProductos) {
       console.log('Error final productos pendientes:', errorProductos)
-      mostrarToast('No se pudieron cargar productos pendientes. Revisa que el SQL de lotes esté ejecutado.', 'error')
+      setErrorCarga('No pudimos cargar los productos pendientes. Revisa tu conexión e intenta nuevamente.')
+      mostrarToast('No se pudieron cargar los productos pendientes.', 'error')
     } else {
       setProductos(productosData || [])
     }
@@ -421,7 +429,6 @@ export default function Compras() {
     if (guardandoRef.current) return
     if (!validarLote()) return
 
-    const descuento = descuentoAplicado
     const envio = Number(form.envio || 0)
     const importacion = Number(form.importacion || 0)
     const impuestos = Number(form.impuestos || 0)
@@ -435,6 +442,8 @@ export default function Compras() {
     guardandoRef.current = true
     setGuardando(true)
 
+    const fechaCompra = form.fechaCompra || hoyISO()
+
     const { error } = await supabase.rpc('crear_lote_compra', {
       p_plataforma: plataformaSeleccionada,
       p_numero_orden: '',
@@ -446,20 +455,39 @@ export default function Compras() {
       p_impuestos: impuestos,
       p_comisiones: comisiones,
       p_total_pagado: totalPagado,
-      p_fecha_compra: form.fechaCompra || hoyISO(),
+      p_fecha_compra: fechaCompra,
       p_productos: seleccionados
     })
 
-    guardandoRef.current = false
-    setGuardando(false)
-
     if (error) {
+      guardandoRef.current = false
+      setGuardando(false)
       console.log(error)
       mostrarToast(error.message || 'No se pudo registrar la compra.', 'error')
       return
     }
 
-    mostrarToast('Compra registrada. Ordely actualizó costos reales y estados.')
+    // Algunas instalaciones antiguas de la función crear_lote_compra vinculan el lote,
+    // pero no actualizan el estado y la fecha del producto. Lo sincronizamos aquí para
+    // que el detalle, Pedidos y el seguimiento muestren la compra inmediatamente.
+    const fechaCompraISO = new Date(`${fechaCompra}T12:00:00`).toISOString()
+    const { error: errorSincronizacion } = await supabase
+      .from('productos_pedido')
+      .update({
+        estado_compra: 'Comprado',
+        fecha_comprado: fechaCompraISO
+      })
+      .in('id', seleccionados)
+
+    guardandoRef.current = false
+    setGuardando(false)
+
+    if (errorSincronizacion) {
+      console.log('La compra se guardó, pero no se sincronizó el estado:', errorSincronizacion)
+      mostrarToast('La compra se guardó, pero algunos productos necesitan recargar su estado.', 'warning')
+    } else {
+      mostrarToast('Compra registrada. Los productos ya aparecen como comprados.')
+    }
     setSeleccionados([])
     setResumenActivo(false)
     setForm({
@@ -477,7 +505,7 @@ export default function Compras() {
       fechaCompra: hoyISO()
     })
     setTab('historial')
-    cargarDatos()
+    await cargarDatos()
   }
 
   const renderCampoDescuento = () => (
@@ -518,16 +546,32 @@ export default function Compras() {
 
   return (
     <Layout>
+      <PageHelp page="compras" />
+
       <Toast
         mensaje={toast?.mensaje}
         tipo={toast?.tipo}
         onClose={() => setToast(null)}
       />
 
+      {errorCarga && (
+        <EmptyState
+          icon="error"
+          tone="error"
+          eyebrow="No se pudo actualizar"
+          title="Las compras no están disponibles por ahora."
+          description={errorCarga}
+          actionLabel="Intentar de nuevo"
+          onAction={cargarDatos}
+          compact
+          className="compras-load-error"
+        />
+      )}
+
       <div className="page-header row-between compras-header compras-header-v25">
         <div>
-          <h1>Registrar compras en plataforma</h1>
-          <p>Agrupa productos pendientes, captura lo que pagaste en la plataforma y Ordely calcula el costo real.</p>
+          <h1>Compras agrupadas</h1>
+          <p>Junta los productos que comprarás en el mismo carrito y registra el total pagado.</p>
         </div>
 
         <div className="compras-header-actions">
@@ -552,7 +596,7 @@ export default function Compras() {
             <button type="button" className="compras-modal-close" onClick={() => setGuiaAbierta(false)} aria-label="Cerrar guía">×</button>
             <span className="compras-guide-kicker">Guía rápida</span>
             <h2>¿Qué se hace aquí?</h2>
-            <p>Usa esta pantalla cuando ya vas a comprar productos en SHEIN, Temu, AliExpress o catálogo.</p>
+            <p>Usa esta pantalla cuando vas a comprar productos juntos en SHEIN, Temu, AliExpress, TikTok Shop, Mercado Libre, Amazon o catálogo.</p>
             <div className="compras-guide-steps">
               <div><strong>1</strong><span>Elige la plataforma.</span></div>
               <div><strong>2</strong><span>Selecciona los productos que meterás juntos al carrito.</span></div>
@@ -578,7 +622,7 @@ export default function Compras() {
         </div>
 
         <div className="platform-choice-grid platform-choice-grid-v25">
-          {plataformas.map((plataforma) => (
+          {PLATAFORMAS.map((plataforma) => (
             <button
               type="button"
               key={plataforma}
@@ -608,7 +652,7 @@ export default function Compras() {
                 <div>
                   <span className="compras-step-pill">Paso 2</span>
                   <h2>Selecciona productos pendientes</h2>
-                  <p className="muted">Elige los artículos que comprarás juntos en el mismo carrito de {plataformaSeleccionada}.</p>
+                  <p className="muted">Elige los artículos que formarán esta compra agrupada en {plataformaSeleccionada}.</p>
                 </div>
 
                 <button type="button" className="btn btn-light-bordered" onClick={seleccionarTodos} disabled={productosFiltrados.length === 0 || guardando}>
@@ -617,11 +661,25 @@ export default function Compras() {
               </div>
 
               {cargando ? (
-                <div className="empty-state">Cargando productos...</div>
+                <EmptyState
+                  icon="loading"
+                  eyebrow="Actualizando"
+                  title="Estamos buscando productos pendientes."
+                  description={`Revisando pedidos de ${plataformaSeleccionada}.`}
+                  compact
+                />
               ) : productosFiltrados.length === 0 ? (
-                <div className="empty-state">
-                  No hay productos pendientes de {plataformaSeleccionada}. Cambia de plataforma o registra un pedido nuevo.
-                </div>
+                <EmptyState
+                  icon="purchases"
+                  eyebrow="Sin productos pendientes"
+                  title={`No hay nada por comprar en ${plataformaSeleccionada}.`}
+                  description="Cambia de plataforma o crea un pedido nuevo para que sus productos aparezcan aquí."
+                  actionLabel="Crear nuevo pedido"
+                  actionTo="/nuevo-pedido"
+                  secondaryLabel="Ver otra plataforma"
+                  onSecondary={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  compact
+                />
               ) : (
                 <div className="compras-order-groups">
                   {productosAgrupados.map((grupo) => {
@@ -682,7 +740,7 @@ export default function Compras() {
                 <div className="compras-wait-card compras-wait-card-v25">
                   <span>Paso 3</span>
                   <h2>Captura la compra</h2>
-                  <p>Primero selecciona los productos que meterás juntos al carrito de {plataformaSeleccionada}. Después aparecerá un formulario único para cupón, puntos, envío y total final.</p>
+                  <p>Primero selecciona los productos que comprarás juntos en {plataformaSeleccionada}. Después aparecerá un formulario para cupón, puntos, envío y total final.</p>
                 </div>
               ) : (
                 <>
@@ -825,7 +883,7 @@ export default function Compras() {
 
                 <div className="compras-confirm-metrics compras-confirm-metrics-v25">
                   <div><span>Plataforma</span><strong>{plataformaSeleccionada}</strong></div>
-                  <div><span>Lote</span><strong>{numeroLoteSugerido}</strong></div>
+                  <div><span>Código de compra</span><strong>{numeroLoteSugerido}</strong></div>
                   <div><span>Fecha</span><strong>{form.fechaCompra || hoyISO()}</strong></div>
                   <div><span>Cupón</span><strong>{form.cupon || '-'}</strong></div>
                   <div><span>Subtotal productos</span><strong>{formatearDinero(subtotalSeleccionado)}</strong></div>
@@ -888,12 +946,20 @@ export default function Compras() {
           <div className="row-between table-title">
             <div>
               <h2>Compras registradas de {plataformaSeleccionada}</h2>
-              <p className="muted">Historial de compras en plataforma con descuento y costo real calculado.</p>
+              <p className="muted">Revisa cada compra agrupada, sus descuentos y el costo real calculado.</p>
             </div>
           </div>
 
           {lotesFiltrados.length === 0 ? (
-            <div className="empty-state">Todavía no tienes compras registradas para {plataformaSeleccionada}.</div>
+            <EmptyState
+              icon="history"
+              eyebrow="Historial vacío"
+              title={`Todavía no tienes compras registradas en ${plataformaSeleccionada}.`}
+              description="Cuando confirmes una compra agrupada, aquí podrás revisar sus productos, descuentos y costo real."
+              actionLabel="Ir a pendientes"
+              onAction={() => setTab('pendientes')}
+              compact
+            />
           ) : (
             <div className="compras-lotes-list compras-lotes-list-v25">
               {lotesFiltrados.map((lote) => {
@@ -921,7 +987,14 @@ export default function Compras() {
                     {abierto && (
                       <div className="compra-lote-products">
                         {productosLote.length === 0 ? (
-                          <div className="empty-state compra-lote-empty">Esta compra no tiene productos visibles.</div>
+                          <EmptyState
+                            icon="products"
+                            eyebrow="Sin detalle"
+                            title="No hay productos visibles en esta compra."
+                            description="El resumen general de la compra sigue disponible."
+                            compact
+                            className="compra-lote-empty"
+                          />
                         ) : (
                           productosLote.map((item) => {
                             const producto = item.productos_pedido || {}

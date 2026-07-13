@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import Toast from '../components/Toast'
 import PlanLimitNotice from '../components/PlanLimitNotice'
+import EmptyState from '../components/EmptyState'
+import ConfirmDialog from '../components/ConfirmDialog'
+import PageHelp from '../components/PageHelp'
 import { cargarEstadoPlan, estaBloqueadoPorPlan } from '../lib/planes'
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100]
@@ -11,7 +15,7 @@ const CLIENTES_CACHE_LIMIT = 50
 
 const MEDIOS_CONTACTO = [
   'WhatsApp',
-  'Facebook / Messenger',
+  'Messenger',
   'Instagram',
   'TikTok',
   'Telegram',
@@ -72,9 +76,66 @@ const guardarClientesCache = (clientes) => {
   }
 }
 
+const normalizarEstado = (estado) => {
+  const valor = String(estado || 'Cotizado').trim().toLowerCase()
+
+  const mapa = {
+    cotizado: 'Cotizado',
+    pendiente: 'Cotizado',
+    'comprado en shein': 'En camino',
+    comprado: 'En camino',
+    'en camino': 'En camino',
+    recibido: 'Recibido',
+    'dejado en negocio': 'Dejado en negocio',
+    entregado: 'Entregado',
+    cancelado: 'Cancelado',
+    devuelto: 'Devuelto'
+  }
+
+  return mapa[valor] || estado || 'Cotizado'
+}
+
+const esPedidoActivo = (pedido) => {
+  return !['Entregado', 'Cancelado', 'Devuelto'].includes(normalizarEstado(pedido?.estado))
+}
+
+const cuentaParaSaldo = (pedido) => {
+  return !['Cancelado', 'Devuelto'].includes(normalizarEstado(pedido?.estado))
+}
+
+const obtenerFechaPedido = (pedido) => pedido?.fecha_pedido || pedido?.creado_en || ''
+
+const ordenarPedidosRecientes = (pedidos) => {
+  return [...(pedidos || [])].sort((a, b) => {
+    return new Date(obtenerFechaPedido(b)).getTime() - new Date(obtenerFechaPedido(a)).getTime()
+  })
+}
+
+const calcularResumenPedidos = (pedidos) => {
+  const ordenados = ordenarPedidosRecientes(pedidos)
+  const activos = ordenados.filter(esPedidoActivo)
+  const saldoPendiente = ordenados
+    .filter(cuentaParaSaldo)
+    .reduce((total, pedido) => total + Math.max(0, Number(pedido?.restante || 0)), 0)
+
+  return {
+    total: ordenados.length,
+    activos: activos.length,
+    saldoPendiente,
+    ultimoPedido: ordenados[0] || null
+  }
+}
+
+const obtenerIniciales = (nombre) => {
+  const partes = String(nombre || 'Cliente').trim().split(/\s+/).filter(Boolean)
+  return partes.slice(0, 2).map((parte) => parte.charAt(0).toUpperCase()).join('') || 'CL'
+}
+
 export default function Clientes() {
+  const navigate = useNavigate()
   const [clientes, setClientes] = useState(() => leerClientesCache())
   const [totalClientes, setTotalClientes] = useState(() => leerClientesCache().length)
+  const [resumenPorCliente, setResumenPorCliente] = useState({})
   const [pagina, setPagina] = useState(1)
   const [tamanoPagina, setTamanoPagina] = useState(25)
   const [busqueda, setBusqueda] = useState('')
@@ -83,9 +144,14 @@ export default function Clientes() {
   const [estadoPlan, setEstadoPlan] = useState(null)
   const [modalCliente, setModalCliente] = useState(false)
   const [clienteEditando, setClienteEditando] = useState(null)
+  const [modalDetalle, setModalDetalle] = useState(false)
+  const [clienteDetalle, setClienteDetalle] = useState(null)
+  const [pedidosCliente, setPedidosCliente] = useState([])
+  const [cargandoDetalle, setCargandoDetalle] = useState(false)
   const [toast, setToast] = useState(null)
   const accionEnProcesoRef = useRef(false)
   const [accionEnProceso, setAccionEnProceso] = useState('')
+  const [clienteAEliminar, setClienteAEliminar] = useState(null)
 
   const [nombre, setNombre] = useState('')
   const [medioContacto, setMedioContacto] = useState('WhatsApp')
@@ -95,14 +161,6 @@ export default function Clientes() {
   const [notas, setNotas] = useState('')
 
   useEffect(() => {
-    cargarPlan()
-  }, [])
-
-  useEffect(() => {
-    cargarClientes()
-  }, [pagina, tamanoPagina, busqueda])
-
-  useEffect(() => {
     setPagina(1)
   }, [busqueda, tamanoPagina])
 
@@ -110,16 +168,18 @@ export default function Clientes() {
     return Math.max(1, Math.ceil(totalClientes / tamanoPagina))
   }, [totalClientes, tamanoPagina])
 
-  const cargarPlan = async () => {
+  const resumenDetalle = useMemo(() => calcularResumenPedidos(pedidosCliente), [pedidosCliente])
+
+  const cargarPlan = useCallback(async () => {
     const estado = await cargarEstadoPlan()
     setEstadoPlan(estado)
-  }
+  }, [])
 
   const bloqueado = estaBloqueadoPorPlan(estadoPlan)
 
-  const mostrarToast = (mensaje, tipo = 'success') => {
+  const mostrarToast = useCallback((mensaje, tipo = 'success') => {
     setToast({ mensaje, tipo })
-  }
+  }, [])
 
   const iniciarAccion = (mensaje = 'Procesando...') => {
     if (accionEnProcesoRef.current) return false
@@ -162,7 +222,74 @@ export default function Clientes() {
     return 'Sin contacto directo'
   }
 
-  const cargarClientes = async () => {
+  const formatearMoneda = (cantidad) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      maximumFractionDigits: 0
+    }).format(Number(cantidad || 0))
+  }
+
+  const formatearFecha = (fecha) => {
+    if (!fecha) return 'Sin pedidos'
+
+    const fechaSegura = String(fecha).includes('T') ? new Date(fecha) : new Date(`${fecha}T12:00:00`)
+
+    if (Number.isNaN(fechaSegura.getTime())) return 'Sin fecha'
+
+    return new Intl.DateTimeFormat('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }).format(fechaSegura)
+  }
+
+  const obtenerEstadoPago = (pedido) => {
+    const restante = Math.max(0, Number(pedido?.restante || 0))
+    const total = Math.max(0, Number(pedido?.total_cliente || 0))
+    const pagado = Math.max(0, total - restante)
+
+    if (restante <= 0 && total > 0) return { texto: 'Pagado', tipo: 'paid' }
+    if (pagado > 0) return { texto: 'Pago parcial', tipo: 'partial' }
+    return { texto: 'Pago pendiente', tipo: 'pending' }
+  }
+
+  const cargarResumenClientes = useCallback(async (clientesActuales) => {
+    const ids = (clientesActuales || []).map((cliente) => cliente.id).filter(Boolean)
+
+    if (ids.length === 0) {
+      setResumenPorCliente({})
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select('id, cliente_id, codigo, creado_en, fecha_pedido, estado, plataforma, total_cliente, anticipo, restante')
+      .in('cliente_id', ids)
+      .order('creado_en', { ascending: false })
+
+    if (error) {
+      console.log(error)
+      setResumenPorCliente({})
+      return
+    }
+
+    const agrupados = (data || []).reduce((acumulado, pedido) => {
+      const clienteId = pedido.cliente_id
+      if (!acumulado[clienteId]) acumulado[clienteId] = []
+      acumulado[clienteId].push(pedido)
+      return acumulado
+    }, {})
+
+    const resumen = {}
+    ids.forEach((id) => {
+      resumen[id] = calcularResumenPedidos(agrupados[id] || [])
+    })
+
+    setResumenPorCliente(resumen)
+  }, [])
+
+  const cargarClientes = useCallback(async () => {
     setCargandoClientes(true)
 
     const desde = (pagina - 1) * tamanoPagina
@@ -194,7 +321,16 @@ export default function Clientes() {
     setClientes(clientesFinal)
     setTotalClientes(count || 0)
     guardarClientesCache(clientesFinal)
-  }
+    await cargarResumenClientes(clientesFinal)
+  }, [busqueda, cargarResumenClientes, mostrarToast, pagina, tamanoPagina])
+
+  useEffect(() => {
+    cargarPlan()
+  }, [cargarPlan])
+
+  useEffect(() => {
+    cargarClientes()
+  }, [cargarClientes])
 
   const limpiarFormulario = () => {
     setClienteEditando(null)
@@ -214,6 +350,7 @@ export default function Clientes() {
 
   const abrirEditarCliente = (cliente) => {
     if (bloquearSiNoPuede()) return
+    setModalDetalle(false)
     setClienteEditando(cliente)
     setNombre(cliente.nombre || '')
     setMedioContacto(cliente.medio_contacto || 'WhatsApp')
@@ -228,6 +365,40 @@ export default function Clientes() {
     if (estaProcesando) return
     setModalCliente(false)
     limpiarFormulario()
+  }
+
+  const abrirDetalleCliente = async (cliente) => {
+    setClienteDetalle(cliente)
+    setPedidosCliente([])
+    setModalDetalle(true)
+    setCargandoDetalle(true)
+
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select('id, cliente_id, codigo, creado_en, fecha_pedido, estado, plataforma, total_cliente, anticipo, restante')
+      .eq('cliente_id', cliente.id)
+      .order('creado_en', { ascending: false })
+
+    setCargandoDetalle(false)
+
+    if (error) {
+      console.log(error)
+      mostrarToast('No se pudo cargar el historial del cliente', 'error')
+      return
+    }
+
+    setPedidosCliente(data || [])
+  }
+
+  const cerrarDetalleCliente = () => {
+    setModalDetalle(false)
+    setClienteDetalle(null)
+    setPedidosCliente([])
+  }
+
+  const abrirNuevoPedidoCliente = (cliente) => {
+    if (bloquearSiNoPuede()) return
+    navigate(`/nuevo-pedido?cliente=${encodeURIComponent(cliente.id)}`)
   }
 
   const guardarCliente = async (e) => {
@@ -285,7 +456,7 @@ export default function Clientes() {
             medio_contacto: medioContacto,
             telefono: telefonoFinal || null,
             usuario_contacto: usuarioContacto.trim(),
-            direccion,
+            direccion: '',
             notas
           }
         ])
@@ -307,14 +478,17 @@ export default function Clientes() {
     }
   }
 
-  const eliminarCliente = async (id) => {
+  const solicitarEliminarCliente = (cliente) => {
     if (bloquearSiNoPuede()) return
     if (accionEnProcesoRef.current) return
+    setClienteAEliminar(cliente)
+  }
 
-    const confirmar = confirm('¿Seguro que quieres eliminar este cliente?')
-
-    if (!confirmar) return
+  const eliminarClienteConfirmado = async () => {
+    if (!clienteAEliminar) return
     if (!iniciarAccion('Validando cliente...')) return
+
+    const id = clienteAEliminar.id
 
     try {
       const { count, error: errorConteo } = await supabase
@@ -324,12 +498,13 @@ export default function Clientes() {
 
       if (errorConteo) {
         console.log(errorConteo)
-        mostrarToast('No se pudo validar si el cliente tiene pedidos', 'error')
+        mostrarToast('No pudimos revisar el historial del cliente. Intenta nuevamente.', 'error')
         return
       }
 
       if ((count || 0) > 0) {
-        mostrarToast('Este cliente ya tiene pedidos. No se elimina para proteger el historial.', 'error')
+        setClienteAEliminar(null)
+        mostrarToast('Este cliente tiene pedidos y no puede eliminarse para proteger el historial.', 'error')
         return
       }
 
@@ -342,22 +517,22 @@ export default function Clientes() {
 
       if (error) {
         console.log(error)
-        mostrarToast('Error al eliminar cliente', 'error')
+        mostrarToast('No se pudo eliminar el cliente. Intenta nuevamente.', 'error')
         return
       }
 
+      setClienteAEliminar(null)
+      cerrarDetalleCliente()
       const nuevaPagina = clientes.length === 1 && pagina > 1 ? pagina - 1 : pagina
       setPagina(nuevaPagina)
       await cargarClientes()
-      mostrarToast('Cliente eliminado correctamente')
+      mostrarToast('El cliente se eliminó correctamente.')
     } finally {
       finalizarAccion()
     }
   }
 
-  const limpiarTelefono = (telefono) => {
-    return normalizarTelefono(telefono)
-  }
+  const limpiarTelefono = (telefonoCliente) => normalizarTelefono(telefonoCliente)
 
   const limpiarBusqueda = () => {
     setBusqueda('')
@@ -377,32 +552,35 @@ export default function Clientes() {
 
   return (
     <Layout>
+      <PageHelp page="clientes" />
+
       <Toast
         mensaje={toast?.mensaje}
         tipo={toast?.tipo}
         onClose={() => setToast(null)}
       />
 
-      <div className="page-header row-between">
+      <div className="page-header row-between clients-page-header">
         <div>
+          <span className="page-kicker">Clientes</span>
           <h1>Clientes</h1>
-          <p>Registra y administra tus clientes</p>
+          <p>Consulta sus pedidos, cuánto falta por cobrar y su información de contacto.</p>
         </div>
 
         <button className="btn btn-primary" onClick={abrirAgregarCliente} disabled={bloqueado || estaProcesando}>
-          Agregar cliente
+          + Agregar cliente
         </button>
       </div>
 
       <PlanLimitNotice estadoPlan={estadoPlan} compacto />
 
-      <div className="list-toolbar-card">
-        <div className="form-field">
+      <div className="list-toolbar-card clients-toolbar-card">
+        <div className="form-field clients-search-field">
           <label>Buscar cliente</label>
           <input
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Nombre, medio, usuario, teléfono o notas"
+            placeholder="Nombre, contacto, teléfono o notas"
           />
         </div>
 
@@ -425,9 +603,9 @@ export default function Clientes() {
         )}
       </div>
 
-      <div className="table-card desktop-table">
+      <div className="table-card desktop-table clients-table-card">
         <div className="row-between table-title">
-          <h2>Clientes encontrados: {totalClientes}</h2>
+          <h2>{totalClientes} {totalClientes === 1 ? 'cliente' : 'clientes'}</h2>
           <span className="pagination-range">
             {cargandoClientes ? 'Actualizando...' : `${desdeVisible}-${hastaVisible} de ${totalClientes}`}
           </span>
@@ -436,126 +614,166 @@ export default function Clientes() {
         <table>
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Medio</th>
+              <th>Cliente</th>
               <th>Contacto</th>
-              <th>Dirección</th>
-              <th>Notas</th>
+              <th>Pedidos activos</th>
+              <th>Saldo pendiente</th>
+              <th>Último pedido</th>
               <th>Acciones</th>
             </tr>
           </thead>
 
           <tbody>
-            {clientes.map((cliente) => (
-              <tr key={cliente.id}>
-                <td>{cliente.nombre}</td>
-                <td><span className="contact-medium-pill">{cliente.medio_contacto || 'WhatsApp'}</span></td>
-                <td>{obtenerContactoPrincipal(cliente)}</td>
-                <td>{cliente.direccion || '-'}</td>
-                <td>{cliente.notas || '-'}</td>
-                <td className="actions">
-                  <button
-                    onClick={() => abrirEditarCliente(cliente)}
-                    className="btn btn-light-bordered btn-small"
-                    disabled={bloqueado || estaProcesando}
-                  >
-                    Editar
-                  </button>
+            {clientes.map((cliente) => {
+              const resumen = resumenPorCliente[cliente.id] || calcularResumenPedidos([])
 
-                  <button
-                    onClick={() => eliminarCliente(cliente.id)}
-                    className="btn btn-danger btn-small"
-                    disabled={bloqueado || estaProcesando}
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
+              return (
+                <tr key={cliente.id}>
+                  <td>
+                    <button type="button" className="client-name-cell" onClick={() => abrirDetalleCliente(cliente)}>
+                      <span className="client-avatar">{obtenerIniciales(cliente.nombre)}</span>
+                      <span>
+                        <strong>{cliente.nombre}</strong>
+                        <small>{cliente.medio_contacto || 'WhatsApp'}</small>
+                      </span>
+                    </button>
+                  </td>
+                  <td>
+                    <div className="client-contact-cell">
+                      <strong>{obtenerContactoPrincipal(cliente)}</strong>
+                      <small>{cliente.direccion || 'Sin dirección registrada'}</small>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`client-metric-pill ${resumen.activos > 0 ? 'is-active' : ''}`}>
+                      {resumen.activos}
+                    </span>
+                  </td>
+                  <td>
+                    <strong className={resumen.saldoPendiente > 0 ? 'client-balance-pending' : 'client-balance-clear'}>
+                      {formatearMoneda(resumen.saldoPendiente)}
+                    </strong>
+                  </td>
+                  <td>
+                    {resumen.ultimoPedido ? (
+                      <div className="client-last-order">
+                        <strong>{resumen.ultimoPedido.codigo || 'Pedido'}</strong>
+                        <small>{formatearFecha(obtenerFechaPedido(resumen.ultimoPedido))}</small>
+                      </div>
+                    ) : (
+                      <span className="client-no-orders">Sin pedidos</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className="client-row-actions">
+                      <button
+                        type="button"
+                        onClick={() => abrirDetalleCliente(cliente)}
+                        className="btn btn-light-bordered btn-small"
+                      >
+                        Ver cliente
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => abrirNuevoPedidoCliente(cliente)}
+                        className="btn btn-primary btn-small"
+                        disabled={bloqueado || estaProcesando}
+                      >
+                        Nuevo pedido
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
 
             {clientes.length === 0 && (
               <tr>
-                <td colSpan="6">Todavía no tienes clientes registrados.</td>
+                <td colSpan="6">
+                  <EmptyState
+                    icon="clients"
+                    eyebrow="Tu lista está vacía"
+                    title="Todavía no tienes clientes."
+                    description="Agrega el primero para crear pedidos y consultar después su saldo e historial."
+                    actionLabel="Agregar primer cliente"
+                    onAction={abrirAgregarCliente}
+                    compact
+                  />
+                </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      <div className="mobile-list">
+      <div className="mobile-list clients-mobile-list">
         <div className="mobile-list-title">
-          <h2>Clientes encontrados: {totalClientes}</h2>
+          <h2>{totalClientes} {totalClientes === 1 ? 'cliente' : 'clientes'}</h2>
           <span className="pagination-range">
             {cargandoClientes ? 'Actualizando...' : `${desdeVisible}-${hastaVisible} de ${totalClientes}`}
           </span>
         </div>
 
-        {clientes.map((cliente) => (
-          <div className="mobile-card" key={cliente.id}>
-            <div className="mobile-card-header">
-              <div>
-                <h3>{cliente.nombre}</h3>
-                <p>{cliente.medio_contacto || 'WhatsApp'} · {obtenerContactoPrincipal(cliente)}</p>
-              </div>
-            </div>
+        {clientes.map((cliente) => {
+          const resumen = resumenPorCliente[cliente.id] || calcularResumenPedidos([])
 
-            <div className="mobile-card-info">
-              <div>
-                <span>Medio</span>
-                <strong>{cliente.medio_contacto || 'WhatsApp'}</strong>
+          return (
+            <article className="client-mobile-card" key={cliente.id}>
+              <button type="button" className="client-mobile-head" onClick={() => abrirDetalleCliente(cliente)}>
+                <span className="client-avatar">{obtenerIniciales(cliente.nombre)}</span>
+                <span>
+                  <strong>{cliente.nombre}</strong>
+                  <small>{cliente.medio_contacto || 'WhatsApp'} · {obtenerContactoPrincipal(cliente)}</small>
+                </span>
+                <span className="client-card-arrow">›</span>
+              </button>
+
+              <div className="client-mobile-metrics">
+                <div>
+                  <span>Activos</span>
+                  <strong>{resumen.activos}</strong>
+                </div>
+                <div>
+                  <span>Por cobrar</span>
+                  <strong className={resumen.saldoPendiente > 0 ? 'client-balance-pending' : 'client-balance-clear'}>
+                    {formatearMoneda(resumen.saldoPendiente)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Último pedido</span>
+                  <strong>{resumen.ultimoPedido?.codigo || '—'}</strong>
+                </div>
               </div>
 
-              <div>
-                <span>Contacto</span>
-                <strong>{obtenerContactoPrincipal(cliente)}</strong>
-              </div>
-
-              <div>
-                <span>Dirección</span>
-                <strong>{cliente.direccion || '-'}</strong>
-              </div>
-
-              <div>
-                <span>Notas</span>
-                <strong>{cliente.notas || '-'}</strong>
-              </div>
-            </div>
-
-            <div className="mobile-card-actions multi-actions">
-              {requiereTelefono(cliente.medio_contacto) && cliente.telefono && (
-                <a
-                  href={`https://wa.me/52${limpiarTelefono(cliente.telefono)}`}
-                  target="_blank"
-                  rel="noreferrer"
+              <div className="client-mobile-actions">
+                <button type="button" className="btn btn-light-bordered" onClick={() => abrirDetalleCliente(cliente)}>
+                  Ver cliente
+                </button>
+                <button
+                  type="button"
                   className="btn btn-primary"
+                  onClick={() => abrirNuevoPedidoCliente(cliente)}
+                  disabled={bloqueado || estaProcesando}
                 >
-                  WhatsApp
-                </a>
-              )}
-
-              <button
-                onClick={() => abrirEditarCliente(cliente)}
-                className="btn btn-light-bordered"
-                disabled={bloqueado || estaProcesando}
-              >
-                Editar
-              </button>
-
-              <button
-                onClick={() => eliminarCliente(cliente.id)}
-                className="btn btn-danger"
-                disabled={bloqueado || estaProcesando}
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        ))}
+                  + Nuevo pedido
+                </button>
+              </div>
+            </article>
+          )
+        })}
 
         {clientes.length === 0 && (
-          <div className="empty-state">
-            Todavía no tienes clientes registrados.
-          </div>
+          <EmptyState
+            icon="clients"
+            eyebrow="Tu lista está vacía"
+            title="Todavía no tienes clientes."
+            description="Agrega el primero para comenzar a crear pedidos y llevar su historial."
+            actionLabel="Agregar primer cliente"
+            onAction={abrirAgregarCliente}
+            compact
+            className="customers-empty-state"
+          />
         )}
       </div>
 
@@ -575,6 +793,158 @@ export default function Clientes() {
           </button>
         </div>
       )}
+
+      <Modal
+        abierto={modalDetalle}
+        titulo="Ficha del cliente"
+        onClose={cerrarDetalleCliente}
+        className="client-detail-modal-card"
+      >
+        {clienteDetalle && (
+          <div className="client-detail-modal">
+            <div className="client-detail-hero">
+              <span className="client-detail-avatar">{obtenerIniciales(clienteDetalle.nombre)}</span>
+              <div>
+                <h3>{clienteDetalle.nombre}</h3>
+                <p>{clienteDetalle.medio_contacto || 'WhatsApp'} · {obtenerContactoPrincipal(clienteDetalle)}</p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => abrirNuevoPedidoCliente(clienteDetalle)}
+                disabled={bloqueado || estaProcesando}
+              >
+                + Nuevo pedido
+              </button>
+            </div>
+
+            <div className="client-detail-stats">
+              <article>
+                <span>Pedidos totales</span>
+                <strong>{resumenDetalle.total}</strong>
+              </article>
+              <article>
+                <span>Pedidos activos</span>
+                <strong>{resumenDetalle.activos}</strong>
+              </article>
+              <article className={resumenDetalle.saldoPendiente > 0 ? 'has-balance' : ''}>
+                <span>Saldo pendiente</span>
+                <strong>{formatearMoneda(resumenDetalle.saldoPendiente)}</strong>
+              </article>
+            </div>
+
+            <div className="client-detail-grid">
+              <section className="client-detail-info-card">
+                <div className="client-detail-section-title">
+                  <div>
+                    <span>Información</span>
+                    <h4>Datos del cliente</h4>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-light-bordered btn-small"
+                    onClick={() => abrirEditarCliente(clienteDetalle)}
+                    disabled={bloqueado || estaProcesando}
+                  >
+                    Editar
+                  </button>
+                </div>
+
+                <dl className="client-detail-list">
+                  <div>
+                    <dt>Medio</dt>
+                    <dd>{clienteDetalle.medio_contacto || 'WhatsApp'}</dd>
+                  </div>
+                  <div>
+                    <dt>Contacto</dt>
+                    <dd>{obtenerContactoPrincipal(clienteDetalle)}</dd>
+                  </div>
+                  <div>
+                    <dt>Dirección</dt>
+                    <dd>{clienteDetalle.direccion || 'Sin dirección registrada'}</dd>
+                  </div>
+                  <div>
+                    <dt>Notas</dt>
+                    <dd>{clienteDetalle.notas || 'Sin notas'}</dd>
+                  </div>
+                </dl>
+
+                {requiereTelefono(clienteDetalle.medio_contacto) && clienteDetalle.telefono && (
+                  <a
+                    href={`https://wa.me/52${limpiarTelefono(clienteDetalle.telefono)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-success client-whatsapp-button"
+                  >
+                    Abrir WhatsApp
+                  </a>
+                )}
+              </section>
+
+              <section className="client-detail-orders-card">
+                <div className="client-detail-section-title">
+                  <div>
+                    <span>Actividad</span>
+                    <h4>Pedidos recientes</h4>
+                  </div>
+                  {pedidosCliente.length > 0 && <small>{pedidosCliente.length} en total</small>}
+                </div>
+
+                {cargandoDetalle && <div className="client-orders-loading">Cargando pedidos...</div>}
+
+                {!cargandoDetalle && pedidosCliente.length === 0 && (
+                  <div className="client-orders-empty">
+                    <strong>Aún no tiene pedidos.</strong>
+                    <span>Crea el primero desde esta misma ficha.</span>
+                  </div>
+                )}
+
+                {!cargandoDetalle && pedidosCliente.length > 0 && (
+                  <div className="client-orders-list">
+                    {pedidosCliente.slice(0, 8).map((pedido) => {
+                      const pago = obtenerEstadoPago(pedido)
+                      return (
+                        <button
+                          type="button"
+                          className="client-order-row"
+                          key={pedido.id}
+                          onClick={() => navigate(`/pedidos/${pedido.id}`)}
+                        >
+                          <span>
+                            <strong>{pedido.codigo || 'Pedido'}</strong>
+                            <small>{pedido.plataforma || 'Sin plataforma'} · {formatearFecha(obtenerFechaPedido(pedido))}</small>
+                          </span>
+                          <span className="client-order-statuses">
+                            <em className={`client-payment-tag ${pago.tipo}`}>{pago.texto}</em>
+                            <em className="client-order-state-tag">{normalizarEstado(pedido.estado)}</em>
+                          </span>
+                          <span className="client-order-amount">
+                            <strong>{formatearMoneda(pedido.total_cliente)}</strong>
+                            <small>{Number(pedido.restante || 0) > 0 ? `${formatearMoneda(pedido.restante)} pendiente` : 'Sin saldo'}</small>
+                          </span>
+                          <span className="client-order-arrow">›</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <div className="client-detail-footer">
+              <span>Eliminar solo está disponible cuando el cliente no tiene pedidos.</span>
+              <button
+                type="button"
+                className="client-delete-link"
+                onClick={() => solicitarEliminarCliente(clienteDetalle)}
+                disabled={bloqueado || estaProcesando || pedidosCliente.length > 0}
+              >
+                Eliminar cliente
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         abierto={modalCliente}
@@ -627,22 +997,26 @@ export default function Clientes() {
                 onChange={(e) => setUsuarioContacto(e.target.value)}
                 placeholder="Ej. @cliente o nombre en Facebook"
               />
-              <small className="field-help-text">Opcional para Facebook, Instagram, TikTok u otro medio.</small>
+              <small className="field-help-text">Opcional para Messenger, Instagram, TikTok u otro medio.</small>
             </label>
 
-            <label className="form-field">
-              <span>Dirección</span>
-              <input
-                value={direccion}
-                onChange={(e) => setDireccion(e.target.value)}
-              />
-            </label>
+            {clienteEditando && (
+              <label className="form-field">
+                <span>Dirección</span>
+                <input
+                  value={direccion}
+                  onChange={(e) => setDireccion(e.target.value)}
+                />
+                <small className="field-help-text">Solo se conserva para clientes que ya tenían una dirección registrada.</small>
+              </label>
+            )}
 
             <label className="form-field">
               <span>Notas</span>
-              <input
+              <textarea
                 value={notas}
                 onChange={(e) => setNotas(e.target.value)}
+                rows="3"
               />
             </label>
           </div>
@@ -663,6 +1037,18 @@ export default function Clientes() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        abierto={Boolean(clienteAEliminar)}
+        titulo="¿Eliminar este cliente?"
+        descripcion="Solo puede eliminarse si todavía no tiene pedidos. Esta acción no se puede deshacer."
+        detalle={clienteAEliminar?.nombre || ''}
+        confirmarTexto="Sí, eliminar cliente"
+        onConfirm={eliminarClienteConfirmado}
+        onClose={() => setClienteAEliminar(null)}
+        cargando={accionEnProceso === 'Validando cliente...' || accionEnProceso === 'Eliminando cliente...'}
+        variante="danger"
+      />
     </Layout>
   )
 }

@@ -1,0 +1,164 @@
+/* Ordely V61.4: tarjetas de pedidos más claras en teléfono. */
+@media (max-width: 800px) {
+  .mobile-order-simple-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px 12px;
+  }
+
+  .mobile-order-simple-head > div:first-child {
+    min-width: 0;
+  }
+
+  .mobile-order-simple-head > .payment-status-badge,
+  .mobile-order-simple-head > .payment-status-badge-small,
+  .mobile-order-simple-head > .refund-status-badge {
+    justify-self: end;
+    align-self: start;
+    width: fit-content;
+    max-width: 126px;
+    margin: 0;
+  }
+
+  .mobile-order-simple-head > .payment-status-badge span,
+  .mobile-order-simple-head > .payment-status-badge-small span,
+  .mobile-order-simple-head > .refund-status-badge {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.05;
+  }
+
+  .mobile-order-simple-state {
+    display: flex;
+    margin: 13px 0 0;
+  }
+
+  .mobile-order-simple-state .order-status-button {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .mobile-order-purchase-date-below-state {
+    display: block;
+    margin: 8px 0 0;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 850;
+    line-height: 1.35;
+  }
+
+  .order-products-mobile-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #f8fafc;
+  }
+
+  .order-products-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .order-products-mobile-header span {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 950;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .order-products-mobile-header strong {
+    display: grid;
+    place-items: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 11px;
+  }
+
+  .order-products-mobile-body {
+    display: grid;
+    gap: 8px;
+  }
+
+  .order-product-mobile-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .order-product-mobile-name {
+    min-width: 0;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .order-product-mobile-state {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 145px;
+    padding: 6px 9px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 950;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .order-product-mobile-state-pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .order-product-mobile-state-moving {
+    background: #ede9fe;
+    color: #5b21b6;
+  }
+
+  .order-product-mobile-state-arrival {
+    background: #ffedd5;
+    color: #c2410c;
+  }
+
+  .order-product-mobile-state-received,
+  .order-product-mobile-state-ready,
+  .order-product-mobile-state-done {
+    background: #dcfce7;
+    color: #166534;
+  }
+}
+
+@media (max-width: 380px) {
+  .mobile-order-simple-head > .payment-status-badge,
+  .mobile-order-simple-head > .payment-status-badge-small,
+  .mobile-order-simple-head > .refund-status-badge {
+    max-width: 108px;
+    padding-inline: 9px;
+    font-size: 10px;
+  }
+
+  .order-product-mobile-row {
+    grid-template-columns: minmax(0, 1fr) minmax(90px, 122px);
+  }
+
+  .order-product-mobile-state {
+    width: 100%;
+    max-width: none;
+  }
+}

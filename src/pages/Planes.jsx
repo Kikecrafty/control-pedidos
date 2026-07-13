@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Layout from '../components/Layout'
 import PlanLimitNotice from '../components/PlanLimitNotice'
+import PageHelp from '../components/PageHelp'
 import { supabase } from '../supabaseClient'
 import { cargarEstadoPlan, nombrePlan } from '../lib/planes'
 
@@ -221,6 +222,8 @@ export default function Planes() {
 
   return (
     <Layout>
+      <PageHelp page="planes" />
+
       <div className="page-header plans-header ordely-plans-header-v4">
         <div className="ordely-plans-title-row">
           <span className="ordely-plans-title-icon">♕</span>

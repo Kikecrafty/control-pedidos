@@ -16,6 +16,7 @@ import Seguimiento from './pages/Seguimiento'
 import Planes from './pages/Planes'
 import Metricas from './pages/Metricas'
 import AdminControl from './pages/AdminControl'
+import AyudaSoporte from './pages/AyudaSoporte'
 
 function ProtectedRoute({ session, children }) {
   if (!session) return <Navigate to="/login" replace />
@@ -168,6 +169,15 @@ export default function App() {
         <Route
           path="/metricas"
           element={<Navigate to="/estadisticas" replace />}
+        />
+
+        <Route
+          path="/ayuda-soporte"
+          element={
+            <ProtectedRoute session={session}>
+              <AyudaSoporte />
+            </ProtectedRoute>
+          }
         />
 
         <Route

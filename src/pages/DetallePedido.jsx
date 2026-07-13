@@ -1,15 +1,52 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import Toast from '../components/Toast'
 import PlanLimitNotice from '../components/PlanLimitNotice'
+import EmptyState from '../components/EmptyState'
+import ConfirmDialog from '../components/ConfirmDialog'
+import PageHelp from '../components/PageHelp'
 import { cargarEstadoPlan, estaBloqueadoPorPlan } from '../lib/planes'
+import { PLATAFORMAS } from '../lib/plataformas'
+import {
+  METODOS_PAGO,
+  METODO_PAGO_PREDETERMINADO,
+  obtenerFechaLocalHoy,
+  normalizarFechaParaInput,
+  convertirFechaPagoAISO
+} from '../lib/metodosPago'
+import { formatearProductosParaMensaje } from '../lib/mensajesProductos'
+
+
+const obtenerEstiloMenuPedido = (elemento, ancho = 260, altoEstimado = 190) => {
+  if (!elemento || typeof window === 'undefined') return null
+
+  const rect = elemento.getBoundingClientRect()
+  const margen = 12
+  const espacioAbajo = window.innerHeight - rect.bottom - margen
+  const espacioArriba = rect.top - margen
+  const abrirArriba = espacioAbajo < altoEstimado && espacioArriba > espacioAbajo
+  const left = Math.max(margen, Math.min(rect.right - ancho, window.innerWidth - ancho - margen))
+
+  return {
+    position: 'fixed',
+    left: `${left}px`,
+    top: abrirArriba ? 'auto' : `${rect.bottom + 8}px`,
+    bottom: abrirArriba ? `${window.innerHeight - rect.top + 8}px` : 'auto',
+    width: `${ancho}px`,
+    maxHeight: `${Math.max(150, abrirArriba ? espacioArriba - 14 : espacioAbajo - 14)}px`,
+    overflowY: 'auto',
+    zIndex: 2147483000
+  }
+}
 
 export default function DetallePedido() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const [pedido, setPedido] = useState(null)
   const [estadoPlan, setEstadoPlan] = useState(null)
@@ -19,6 +56,9 @@ export default function DetallePedido() {
   const [toast, setToast] = useState(null)
   const accionEnProcesoRef = useRef(false)
   const [accionEnProceso, setAccionEnProceso] = useState('')
+  const [cargandoPedido, setCargandoPedido] = useState(true)
+  const [errorCargaPedido, setErrorCargaPedido] = useState('')
+  const [elementoAEliminar, setElementoAEliminar] = useState(null)
 
   const iniciarAccion = (mensaje = 'Procesando...') => {
     if (accionEnProcesoRef.current) return false
@@ -38,7 +78,33 @@ export default function DetallePedido() {
   const [modalProducto, setModalProducto] = useState(false)
   const [modalPago, setModalPago] = useState(false)
   const [menuPedidoAbierto, setMenuPedidoAbierto] = useState(false)
+  const [estiloMenuPedido, setEstiloMenuPedido] = useState(null)
+  const botonMenuPedidoRef = useRef(null)
   const [menuProductoAbierto, setMenuProductoAbierto] = useState(null)
+  const [seccionActiva, setSeccionActiva] = useState('resumen')
+
+  useEffect(() => {
+    const seccionSolicitada = searchParams.get('seccion')
+    const seccionesValidas = ['resumen', 'productos', 'pagos', 'seguimiento', 'historial']
+
+    if (seccionesValidas.includes(seccionSolicitada)) {
+      setSeccionActiva(seccionSolicitada)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    const productoSolicitado = searchParams.get('producto')
+    if (!productoSolicitado || seccionActiva !== 'productos' || productos.length === 0) return undefined
+
+    const temporizador = window.setTimeout(() => {
+      const elemento = document.getElementById(`producto-${productoSolicitado}`)
+      elemento?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      elemento?.classList.add('detail-product-card-highlight')
+      window.setTimeout(() => elemento?.classList.remove('detail-product-card-highlight'), 2200)
+    }, 180)
+
+    return () => window.clearTimeout(temporizador)
+  }, [searchParams, seccionActiva, productos])
 
   const [modalMensajeEstado, setModalMensajeEstado] = useState(false)
   const [pedidoMensajeEstado, setPedidoMensajeEstado] = useState(null)
@@ -52,7 +118,6 @@ export default function DetallePedido() {
 
   const [clienteIdPedido, setClienteIdPedido] = useState('')
   const [plataformaPedido, setPlataformaPedido] = useState('SHEIN')
-  const [estadoPedido, setEstadoPedido] = useState('Cotizado')
   const [trackingPedido, setTrackingPedido] = useState('')
   const [notasPedido, setNotasPedido] = useState('')
 
@@ -64,39 +129,46 @@ export default function DetallePedido() {
   const [cantidad, setCantidad] = useState(1)
   const [precioPagina, setPrecioPagina] = useState('')
   const [precioShein, setPrecioShein] = useState('')
-  const [precioVenta, setPrecioVenta] = useState('')
+  const [cobraComisionProducto, setCobraComisionProducto] = useState(false)
+  const [comisionExtraProducto, setComisionExtraProducto] = useState('')
 
   const [pagoEditando, setPagoEditando] = useState(null)
   const [montoPago, setMontoPago] = useState('')
-  const [metodoPago, setMetodoPago] = useState('')
+  const [metodoPago, setMetodoPago] = useState(METODO_PAGO_PREDETERMINADO)
+  const [fechaPago, setFechaPago] = useState(() => obtenerFechaLocalHoy())
   const [notasPago, setNotasPago] = useState('')
-
-  const plataformas = [
-    'SHEIN',
-    'Temu',
-    'AliExpress',
-    'Catálogo',
-    'Otro'
-  ]
-
-  const estadosPedido = [
-    'Cotizado',
-    'En camino',
-    'Recibido',
-    'Dejado en negocio',
-    'Entregado',
-    'Cancelado',
-    'Devuelto'
-  ]
+  const [metodoPagoEntrega, setMetodoPagoEntrega] = useState(METODO_PAGO_PREDETERMINADO)
+  const [fechaPagoEntrega, setFechaPagoEntrega] = useState(() => obtenerFechaLocalHoy())
 
   useEffect(() => {
-    cargarTodo()
-    cargarPlan()
-  }, [id])
+    if (!menuPedidoAbierto) return undefined
 
-  const mostrarToast = (mensaje, tipo = 'success') => {
+    const cerrarSiCorresponde = (evento) => {
+      if (botonMenuPedidoRef.current?.contains(evento.target)) return
+      if (evento.target?.closest?.('.ordely-v56-order-menu-portal')) return
+      setMenuPedidoAbierto(false)
+      setEstiloMenuPedido(null)
+    }
+
+    const cerrarPorMovimiento = () => {
+      setMenuPedidoAbierto(false)
+      setEstiloMenuPedido(null)
+    }
+
+    document.addEventListener('pointerdown', cerrarSiCorresponde)
+    window.addEventListener('resize', cerrarPorMovimiento)
+    window.addEventListener('scroll', cerrarPorMovimiento, true)
+
+    return () => {
+      document.removeEventListener('pointerdown', cerrarSiCorresponde)
+      window.removeEventListener('resize', cerrarPorMovimiento)
+      window.removeEventListener('scroll', cerrarPorMovimiento, true)
+    }
+  }, [menuPedidoAbierto])
+
+  const mostrarToast = useCallback((mensaje, tipo = 'success') => {
     setToast({ mensaje, tipo })
-  }
+  }, [])
 
   const volverAtras = () => {
     if (window.history.length > 1) {
@@ -107,10 +179,10 @@ export default function DetallePedido() {
     navigate('/pedidos')
   }
 
-  const cargarPlan = async () => {
+  const cargarPlan = useCallback(async () => {
     const estado = await cargarEstadoPlan()
     setEstadoPlan(estado)
-  }
+  }, [])
 
   const bloqueado = estaBloqueadoPorPlan(estadoPlan)
 
@@ -123,7 +195,7 @@ export default function DetallePedido() {
 
   const bloquearSiPedidoCerrado = () => {
     if (!pedido || !esEstadoReembolso(pedido.estado)) return false
-    mostrarToast('Este pedido está cancelado/devuelto. Reactívalo desde Editar pedido para hacer cambios.', 'error')
+    mostrarToast('Este pedido está cancelado o devuelto y ya no permite modificaciones.', 'error')
     return true
   }
 
@@ -138,6 +210,7 @@ export default function DetallePedido() {
   const estadoClase = (estado) => {
     const estadoNormal = normalizarEstado(estado)
 
+    if (estadoNormal === 'Pendiente de compra') return 'badge-amber'
     if (estadoNormal === 'Cotizado') return 'badge-gray'
     if (estadoNormal === 'En camino') return 'badge-purple'
     if (estadoNormal === 'Recibido') return 'badge-green-soft'
@@ -157,14 +230,6 @@ export default function DetallePedido() {
   const obtenerEtiquetaReembolso = (estado = pedido?.estado) => {
     const estadoNormal = normalizarEstado(estado)
     return estadoNormal === 'Devuelto' ? 'Devuelto' : 'Cancelado'
-  }
-
-  const estaPagadoPorCliente = (pedidoBase = pedido) => {
-    return (
-      Number(pedidoBase?.total_cliente || 0) > 0 &&
-      Number(pedidoBase?.restante || 0) <= 0 &&
-      !['Cancelado', 'Devuelto'].includes(normalizarEstado(pedidoBase?.estado))
-    )
   }
 
   const obtenerEstadoPago = (pedidoBase = pedido) => {
@@ -209,26 +274,6 @@ export default function DetallePedido() {
     return Number(producto?.precio_venta || 0) * Number(producto?.cantidad || 0)
   }
 
-  const totalProductoCosto = (producto) => {
-    if (producto?.costo_real_total !== null && producto?.costo_real_total !== undefined) {
-      return Number(producto.costo_real_total || 0)
-    }
-
-    return Number(producto?.precio_shein || producto?.precio_pagina || 0) * Number(producto?.cantidad || 0)
-  }
-
-  const totalProductoPagina = (producto) => {
-    return Number(producto?.precio_pagina ?? producto?.precio_shein ?? 0) * Number(producto?.cantidad || 0)
-  }
-
-  const gananciaProducto = (producto) => {
-    if (producto?.ganancia_real !== null && producto?.ganancia_real !== undefined) {
-      return Number(producto.ganancia_real || 0)
-    }
-
-    return totalProductoVenta(producto) - totalProductoCosto(producto)
-  }
-
   const calcularMontoCobroProducto = (productoObjetivo, productosBase = productos, pedidoBase = pedido) => {
     const restantePedido = Math.max(Number(pedidoBase?.restante || 0), 0)
     const totalProducto = totalProductoVenta(productoObjetivo)
@@ -257,8 +302,50 @@ export default function DetallePedido() {
   }
 
   const obtenerEstadoCompraProducto = (producto) => {
-    if (productoEntregado(producto) || producto?.estado_compra === 'Entregado') return 'Entregado'
-    return producto?.estado_compra || 'Pendiente de compra'
+    if (productoEntregado(producto) || producto?.fecha_entregado_cliente || producto?.estado_compra === 'Entregado') return 'Entregado'
+    if (producto?.fecha_dejado_negocio || producto?.estado_compra === 'Dejado en negocio') return 'Dejado en negocio'
+    if (producto?.fecha_recibido || producto?.estado_compra === 'Recibido') return 'Recibido'
+
+    const estadoGuardado = String(producto?.estado_compra || '').trim()
+    const compraRegistrada = Boolean(producto?.fecha_comprado || producto?.lote_compra_id)
+
+    // Compatibilidad con compras creadas por versiones anteriores: si ya existe lote
+    // o fecha de compra, nunca debe mostrarse como pendiente aunque el campo antiguo
+    // estado_compra no se haya sincronizado.
+    if (compraRegistrada && (!estadoGuardado || estadoGuardado === 'Pendiente de compra')) {
+      return 'Comprado'
+    }
+
+    return estadoGuardado || 'Pendiente de compra'
+  }
+
+  const obtenerEstadoAutomaticoPedido = (pedidoBase = pedido, productosBase = productos) => {
+    const guardado = normalizarEstado(pedidoBase?.estado)
+    if (guardado === 'Cancelado' || guardado === 'Devuelto') return guardado
+
+    const lista = Array.isArray(productosBase) ? productosBase : []
+    if (!lista.length) return 'Pendiente de compra'
+
+    const todosEntregados = lista.every((producto) =>
+      productoEntregado(producto) ||
+      Boolean(producto?.fecha_entregado_cliente) ||
+      obtenerEstadoCompraProducto(producto) === 'Entregado'
+    )
+    if (todosEntregados) return 'Entregado'
+
+    const algunoPendienteCompra = lista.some((producto) => obtenerEstadoCompraProducto(producto) === 'Pendiente de compra')
+    if (algunoPendienteCompra) return 'Pendiente de compra'
+
+    const algunoEnCamino = lista.some((producto) => {
+      const estado = obtenerEstadoCompraProducto(producto)
+      return !['Recibido', 'Dejado en negocio', 'Entregado'].includes(estado)
+    })
+    if (algunoEnCamino) return 'En camino'
+
+    const algunoRecibido = lista.some((producto) => obtenerEstadoCompraProducto(producto) === 'Recibido')
+    if (algunoRecibido) return 'Recibido'
+
+    return 'Dejado en negocio'
   }
 
   const obtenerProgresoProducto = (producto) => {
@@ -343,7 +430,10 @@ export default function DetallePedido() {
     return origin
   }
 
-  const cargarTodo = async () => {
+  const cargarTodo = useCallback(async () => {
+    setCargandoPedido(true)
+    setErrorCargaPedido('')
+
     const { data: pedidoData, error: errorPedido } = await supabase
       .from('pedidos')
       .select('*, clientes(nombre, telefono, direccion, medio_contacto, usuario_contacto)')
@@ -352,32 +442,34 @@ export default function DetallePedido() {
 
     if (errorPedido) {
       console.log(errorPedido)
-      mostrarToast('Error al cargar pedido', 'error')
+      setErrorCargaPedido('No pudimos cargar este pedido. Revisa tu conexión e intenta nuevamente.')
+      setCargandoPedido(false)
       return
     }
 
-    const { data: clientesData } = await supabase
-      .from('clientes')
-      .select('*')
-      .order('nombre', { ascending: true })
+    const [respuestaClientes, respuestaProductos, respuestaPagos] = await Promise.all([
+      supabase.from('clientes').select('*').order('nombre', { ascending: true }),
+      supabase.from('productos_pedido').select('*').eq('pedido_id', id).order('creado_en', { ascending: false }),
+      supabase.from('pagos').select('*').eq('pedido_id', id).order('creado_en', { ascending: false })
+    ])
 
-    const { data: productosData } = await supabase
-      .from('productos_pedido')
-      .select('*')
-      .eq('pedido_id', id)
-      .order('creado_en', { ascending: false })
-
-    const { data: pagosData } = await supabase
-      .from('pagos')
-      .select('*')
-      .eq('pedido_id', id)
-      .order('creado_en', { ascending: false })
+    if (respuestaProductos.error || respuestaPagos.error) {
+      console.log(respuestaProductos.error || respuestaPagos.error)
+      mostrarToast('El pedido cargó, pero algunos movimientos no pudieron actualizarse.', 'warning')
+    }
 
     setPedido(pedidoData)
-    setClientes(clientesData || [])
-    setProductos(productosData || [])
-    setPagos(pagosData || [])
-  }
+    setClientes(respuestaClientes.data || [])
+    setProductos(respuestaProductos.data || [])
+    setPagos(respuestaPagos.data || [])
+    setCargandoPedido(false)
+  }, [id, mostrarToast])
+
+  useEffect(() => {
+    setSeccionActiva('resumen')
+    cargarTodo()
+    cargarPlan()
+  }, [cargarPlan, cargarTodo])
 
   const recalcularPedido = async () => {
     const { data: pedidoRecalculado, error: errorRpc } = await supabase.rpc('recalcular_totales_pedido', {
@@ -447,121 +539,70 @@ export default function DetallePedido() {
 
     setClienteIdPedido(pedido.cliente_id || '')
     setPlataformaPedido(pedido.plataforma || 'SHEIN')
-    setEstadoPedido(normalizarEstado(pedido.estado))
     setTrackingPedido(pedido.tracking || '')
     setNotasPedido(pedido.notas || '')
     setModalPedido(true)
   }
 
 
-  const sincronizarProductosConEstadoPedido = async (estadoNuevo) => {
-    const estadoNormal = normalizarEstado(estadoNuevo)
-    const ahora = new Date().toISOString()
-
-    if (estadoNormal !== 'Recibido' && estadoNormal !== 'Dejado en negocio') return null
-
-    const payload = estadoNormal === 'Recibido'
-      ? {
-          estado_compra: 'Recibido',
-          fecha_recibido: ahora
-        }
-      : {
-          estado_compra: 'Dejado en negocio',
-          fecha_recibido: ahora,
-          fecha_dejado_negocio: ahora
-        }
-
-    const { error } = await supabase
-      .from('productos_pedido')
-      .update(payload)
-      .eq('pedido_id', id)
-      .or('entregado.is.null,entregado.eq.false')
-
-    if (error) {
-      console.log(error)
-      mostrarToast('El pedido se actualizó, pero no se pudieron actualizar todos los productos', 'error')
-    }
-
-    return error
-  }
-
   const guardarPedidoGeneral = async (e) => {
     e.preventDefault()
 
     if (bloquearSiNoPuede()) return
+    if (bloquearSiPedidoCerrado()) return
+    if (!iniciarAccion('Guardando cambios...')) return
 
-    const estadoAnterior = normalizarEstado(pedido.estado)
-    const estadoNuevo = normalizarEstado(estadoPedido)
+    try {
+      const payloadPedido = {
+        cliente_id: clienteIdPedido || null,
+        plataforma: plataformaPedido,
+        tracking: trackingPedido,
+        notas: notasPedido
+      }
 
-    const payloadPedido = {
-      cliente_id: clienteIdPedido || null,
-      plataforma: plataformaPedido,
-      estado: estadoNuevo,
-      tracking: trackingPedido,
-      notas: notasPedido,
-      reembolso: false,
-      reembolso_monto: 0
-    }
+      const { error } = await supabase
+        .from('pedidos')
+        .update(payloadPedido)
+        .eq('id', id)
 
-    if (estadoAnterior !== estadoNuevo && estadoNuevo === 'Entregado') {
-      setEntregaPendiente({
-        payload: payloadPedido,
-        montoRestante: Math.max(Number(pedido.restante || 0), 0)
-      })
+      if (error) {
+        console.log(error)
+        mostrarToast('Error al actualizar pedido', 'error')
+        return
+      }
+
       setModalPedido(false)
-      setModalConfirmarEntrega(true)
-      return
+      await cargarTodo()
+      mostrarToast('Datos del pedido actualizados correctamente')
+    } finally {
+      finalizarAccion()
     }
+  }
 
-    if (estadoAnterior !== estadoNuevo && esEstadoReembolso(estadoNuevo)) {
-      const montoPagado = Math.max(Number(pedido.anticipo || 0), 0)
-      setReembolsoPendiente({
-        payload: {
-          ...payloadPedido,
-          estado: estadoNuevo,
-          reembolso: true
-        },
-        estadoAnterior,
-        estadoNuevo,
-        montoPagado
-      })
-      setMontoReembolso(montoPagado.toFixed(2))
-      setModalPedido(false)
-      setModalConfirmarReembolso(true)
-      return
-    }
+  const abrirCambioEspecialPedido = (estadoNuevo) => {
+    if (bloquearSiNoPuede()) return
+    if (!pedido || accionEnProcesoRef.current) return
 
-    const { error } = await supabase
-      .from('pedidos')
-      .update(payloadPedido)
-      .eq('id', id)
+    const estadoActual = obtenerEstadoAutomaticoPedido()
+    if (estadoNuevo === 'Devuelto' && estadoActual !== 'Entregado') return
+    if (estadoNuevo === 'Cancelado' && ['Entregado', 'Cancelado', 'Devuelto'].includes(estadoActual)) return
 
-    if (error) {
-      console.log(error)
-      mostrarToast('Error al actualizar pedido', 'error')
-      return
-    }
-
-    if (estadoAnterior !== estadoNuevo) {
-      await sincronizarProductosConEstadoPedido(estadoNuevo)
-    }
-
-    const clienteSeleccionado = clientes.find((cliente) => cliente.id === clienteIdPedido)
-
-    const pedidoActualizado = {
-      ...pedido,
-      ...payloadPedido,
-      clientes: clienteSeleccionado || pedido.clientes
-    }
-
-    setModalPedido(false)
-    await cargarTodo()
-    mostrarToast(esEstadoReembolso(estadoNuevo) ? 'Pedido marcado como reembolso' : 'Pedido actualizado correctamente')
-
-    if (estadoAnterior !== estadoNuevo) {
-      setPedidoMensajeEstado(pedidoActualizado)
-      setModalMensajeEstado(true)
-    }
+    const montoPagado = Math.max(Number(pedido.anticipo || 0), 0)
+    setReembolsoPendiente({
+      payload: {
+        cliente_id: pedido.cliente_id || null,
+        plataforma: pedido.plataforma || 'SHEIN',
+        tracking: pedido.tracking || '',
+        notas: pedido.notas || '',
+        estado: estadoNuevo,
+        reembolso: true
+      },
+      estadoAnterior: estadoActual,
+      estadoNuevo,
+      montoPagado
+    })
+    setMontoReembolso(montoPagado.toFixed(2))
+    setModalConfirmarReembolso(true)
   }
 
   const aplicarMontoReembolsoRapido = (tipo) => {
@@ -626,6 +667,13 @@ export default function DetallePedido() {
   const confirmarEntregaPedido = async () => {
     if (bloquearSiNoPuede()) return
     if (bloquearSiPedidoCerrado()) return
+
+    const montoPrevisto = Math.max(Number(entregaPendiente?.montoRestante || pedido?.restante || 0), 0)
+    if (montoPrevisto > 0 && (!metodoPagoEntrega || !fechaPagoEntrega)) {
+      mostrarToast('Selecciona el método y la fecha del pago de entrega', 'error')
+      return
+    }
+
     if (!iniciarAccion('Confirmando entrega...')) return
 
     try {
@@ -668,7 +716,8 @@ export default function DetallePedido() {
               {
                 pedido_id: id,
                 monto: montoRestante,
-                metodo_pago: 'Entrega',
+                metodo_pago: metodoPagoEntrega,
+                fecha_pago: convertirFechaPagoAISO(fechaPagoEntrega),
                 notas: 'Pago restante al entregar pedido',
                 tipo: 'pago'
               }
@@ -764,6 +813,8 @@ export default function DetallePedido() {
       montoACobrar,
       esUltimoProductoPendiente
     })
+    setMetodoPagoEntrega(METODO_PAGO_PREDETERMINADO)
+    setFechaPagoEntrega(obtenerFechaLocalHoy())
     setModalConfirmarProducto(true)
   }
 
@@ -771,6 +822,12 @@ export default function DetallePedido() {
     if (bloquearSiNoPuede()) return
     if (bloquearSiPedidoCerrado()) return
     if (!productoEntregaPendiente?.producto) return
+
+    if (Number(productoEntregaPendiente.montoACobrar || 0) > 0 && (!metodoPagoEntrega || !fechaPagoEntrega)) {
+      mostrarToast('Selecciona el método y la fecha del pago', 'error')
+      return
+    }
+
     if (!iniciarAccion('Confirmando producto...')) return
 
     try {
@@ -838,7 +895,8 @@ export default function DetallePedido() {
               {
                 pedido_id: id,
                 monto: montoACobrar,
-                metodo_pago: 'Entrega producto',
+                metodo_pago: metodoPagoEntrega,
+                fecha_pago: convertirFechaPagoAISO(fechaPagoEntrega),
                 notas: `Pago al entregar: ${productoMarcado.nombre_producto || 'producto'}`,
                 tipo: 'pago'
               }
@@ -883,7 +941,8 @@ export default function DetallePedido() {
     setCantidad(1)
     setPrecioPagina('')
     setPrecioShein('')
-    setPrecioVenta('')
+    setCobraComisionProducto(false)
+    setComisionExtraProducto('')
   }
 
   const abrirAgregarProducto = () => {
@@ -904,7 +963,10 @@ export default function DetallePedido() {
     setCantidad(producto.cantidad || 1)
     setPrecioPagina(producto.precio_pagina ?? producto.precio_shein ?? '')
     setPrecioShein(producto.lote_compra_id ? (producto.precio_shein || '') : '')
-    setPrecioVenta(producto.precio_venta || '')
+    const precioBase = Number(producto.precio_pagina ?? producto.precio_shein ?? 0)
+    const comisionGuardada = Math.max(Number(producto.precio_venta || precioBase) - precioBase, 0)
+    setCobraComisionProducto(comisionGuardada > 0)
+    setComisionExtraProducto(comisionGuardada > 0 ? String(comisionGuardada) : '')
     setModalProducto(true)
   }
 
@@ -921,6 +983,14 @@ export default function DetallePedido() {
     if (!iniciarAccion(productoEditando ? 'Guardando cambios...' : 'Guardando producto...')) return
 
     try {
+      const precioBase = Number(precioPagina || precioShein || 0)
+      const comisionExtra = cobraComisionProducto ? Number(comisionExtraProducto) : 0
+
+      if (cobraComisionProducto && (!Number.isFinite(comisionExtra) || comisionExtra < 0)) {
+        mostrarToast('Escribe una comisión extra válida', 'error')
+        return
+      }
+
       const payload = {
         pedido_id: id,
         nombre_producto: nombreProducto,
@@ -928,9 +998,9 @@ export default function DetallePedido() {
         talla,
         color,
         cantidad: Number(cantidad),
-        precio_pagina: Number(precioPagina || precioShein || 0),
+        precio_pagina: precioBase,
         precio_shein: Number(precioShein || precioPagina || 0),
-        precio_venta: Number(precioPagina || precioShein || precioVenta || 0),
+        precio_venta: precioBase + comisionExtra,
         estado_compra: productoEditando?.estado_compra || 'Pendiente de compra',
         fecha_agregado: productoEditando?.fecha_agregado || new Date().toISOString()
       }
@@ -973,29 +1043,33 @@ export default function DetallePedido() {
     }
   }
 
-  const eliminarProducto = async (productoId) => {
+  const solicitarEliminarProducto = (producto) => {
     if (bloquearSiNoPuede()) return
     if (bloquearSiPedidoCerrado()) return
+    setElementoAEliminar({ tipo: 'producto', item: producto })
+  }
 
-    const confirmar = confirm('¿Eliminar este producto?')
-    if (!confirmar) return
+  const eliminarProductoConfirmado = async () => {
+    const producto = elementoAEliminar?.tipo === 'producto' ? elementoAEliminar.item : null
+    if (!producto) return
     if (!iniciarAccion('Eliminando producto...')) return
 
     try {
       const { error } = await supabase
         .from('productos_pedido')
         .delete()
-        .eq('id', productoId)
+        .eq('id', producto.id)
 
       if (error) {
         console.log(error)
-        mostrarToast('Error al eliminar producto', 'error')
+        mostrarToast('No se pudo eliminar el producto. Intenta nuevamente.', 'error')
         return
       }
 
+      setElementoAEliminar(null)
       await recalcularPedido()
       await cargarTodo()
-      mostrarToast('Producto eliminado correctamente')
+      mostrarToast('El producto se eliminó correctamente.')
     } finally {
       finalizarAccion()
     }
@@ -1004,7 +1078,8 @@ export default function DetallePedido() {
   const limpiarPago = () => {
     setPagoEditando(null)
     setMontoPago('')
-    setMetodoPago('')
+    setMetodoPago(METODO_PAGO_PREDETERMINADO)
+    setFechaPago(obtenerFechaLocalHoy())
     setNotasPago('')
   }
 
@@ -1020,7 +1095,8 @@ export default function DetallePedido() {
     if (bloquearSiPedidoCerrado()) return
     setPagoEditando(pago)
     setMontoPago(pago.monto || '')
-    setMetodoPago(pago.metodo_pago || '')
+    setMetodoPago(pago.metodo_pago || METODO_PAGO_PREDETERMINADO)
+    setFechaPago(normalizarFechaParaInput(pago.fecha_pago || pago.creado_en))
     setNotasPago(pago.notas || '')
     setModalPago(true)
   }
@@ -1038,10 +1114,21 @@ export default function DetallePedido() {
     if (!iniciarAccion(pagoEditando ? 'Guardando pago...' : 'Agregando pago...')) return
 
     try {
+      if (!metodoPago) {
+        mostrarToast('Selecciona un método de pago', 'error')
+        return
+      }
+
+      if (!fechaPago) {
+        mostrarToast('Selecciona la fecha del pago', 'error')
+        return
+      }
+
       const payload = {
         pedido_id: id,
         monto: Number(montoPago),
         metodo_pago: metodoPago,
+        fecha_pago: convertirFechaPagoAISO(fechaPago),
         notas: notasPago
       }
 
@@ -1083,29 +1170,33 @@ export default function DetallePedido() {
     }
   }
 
-  const eliminarPago = async (pagoId) => {
+  const solicitarEliminarPago = (pago) => {
     if (bloquearSiNoPuede()) return
     if (bloquearSiPedidoCerrado()) return
+    setElementoAEliminar({ tipo: 'pago', item: pago })
+  }
 
-    const confirmar = confirm('¿Eliminar este pago?')
-    if (!confirmar) return
+  const eliminarPagoConfirmado = async () => {
+    const pago = elementoAEliminar?.tipo === 'pago' ? elementoAEliminar.item : null
+    if (!pago) return
     if (!iniciarAccion('Eliminando pago...')) return
 
     try {
       const { error } = await supabase
         .from('pagos')
         .delete()
-        .eq('id', pagoId)
+        .eq('id', pago.id)
 
       if (error) {
         console.log(error)
-        mostrarToast('Error al eliminar pago', 'error')
+        mostrarToast('No se pudo eliminar el pago. Intenta nuevamente.', 'error')
         return
       }
 
+      setElementoAEliminar(null)
       await recalcularPedido()
       await cargarTodo()
-      mostrarToast('Pago eliminado correctamente')
+      mostrarToast('El pago se eliminó correctamente.')
     } finally {
       finalizarAccion()
     }
@@ -1180,19 +1271,11 @@ ${url}`
   const generarMensajeEstado = (pedidoBase = pedido) => {
     const nombre = pedidoBase?.clientes?.nombre || pedido?.clientes?.nombre || 'cliente'
     const codigo = pedidoBase?.codigo || pedido?.codigo || ''
-    const estado = normalizarEstado(pedidoBase?.estado || pedido?.estado)
+    const estado = obtenerEstadoAutomaticoPedido(pedidoBase || pedido, productos)
     const total = formatearDinero(pedidoBase?.total_cliente ?? pedido?.total_cliente)
     const anticipo = formatearDinero(pedidoBase?.anticipo ?? pedido?.anticipo)
     const restante = formatearDinero(pedidoBase?.restante ?? pedido?.restante)
-    const productosTexto = (productos || []).length
-      ? productos
-          .map((producto) => {
-            const cantidad = Number(producto?.cantidad || 0)
-            const prefijo = cantidad > 0 ? `${cantidad} x ` : ''
-            return `- ${prefijo}${producto?.nombre_producto || 'Producto sin nombre'}`
-          })
-          .join('\n')
-      : 'Sin productos registrados'
+    const productosTexto = formatearProductosParaMensaje(productos, formatearDinero)
 
     const encabezados = {
       Cotizado: `Hola ${nombre}, tu pedido ${codigo} ya quedó cotizado.`,
@@ -1302,13 +1385,185 @@ Restante: ${restante}`
 
 
 
+  const copiarLinkSeguimiento = async () => {
+    const url = obtenerUrlSeguimiento()
+
+    if (!url) {
+      mostrarToast('Este pedido todavía no tiene enlace de seguimiento', 'error')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(url)
+      mostrarToast('Enlace de seguimiento copiado')
+    } catch (error) {
+      console.log(error)
+      mostrarToast('No se pudo copiar el enlace', 'error')
+    }
+  }
+
+  const formatearFechaHora = (valor) => {
+    if (!valor) return '-'
+    const fecha = new Date(valor)
+    if (Number.isNaN(fecha.getTime())) return formatearFecha(valor)
+
+    return fecha.toLocaleString('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const obtenerHistorialPedido = () => {
+    const eventos = []
+
+    if (pedido?.fecha_pedido || pedido?.creado_en) {
+      eventos.push({
+        id: `pedido-${pedido.id}`,
+        fecha: pedido.fecha_pedido || pedido.creado_en,
+        titulo: 'Pedido creado',
+        descripcion: `${pedido.codigo || 'Pedido'} registrado para ${pedido.clientes?.nombre || 'el cliente'}.`,
+        tipo: 'pedido'
+      })
+    }
+
+    pagos.forEach((pago) => {
+      eventos.push({
+        id: `pago-${pago.id}`,
+        fecha: pago.fecha_pago || pago.creado_en,
+        titulo: `Pago de ${formatearDinero(pago.monto)} registrado`,
+        descripcion: `${pago.metodo_pago || 'Método no especificado'}${limpiarNotaPago(pago.notas) !== '-' ? ` · ${limpiarNotaPago(pago.notas)}` : ''}`,
+        tipo: 'pago'
+      })
+    })
+
+    productos.forEach((producto) => {
+      const nombre = producto.nombre_producto || 'Producto'
+
+      if (producto.fecha_comprado) {
+        eventos.push({
+          id: `comprado-${producto.id}`,
+          fecha: producto.fecha_comprado,
+          titulo: 'Producto comprado',
+          descripcion: nombre,
+          tipo: 'compra'
+        })
+      }
+
+      if (producto.fecha_recibido) {
+        eventos.push({
+          id: `recibido-${producto.id}`,
+          fecha: producto.fecha_recibido,
+          titulo: 'Producto recibido',
+          descripcion: nombre,
+          tipo: 'recibido'
+        })
+      }
+
+      if (producto.fecha_dejado_negocio) {
+        eventos.push({
+          id: `negocio-${producto.id}`,
+          fecha: producto.fecha_dejado_negocio,
+          titulo: 'Producto dejado en el negocio',
+          descripcion: nombre,
+          tipo: 'negocio'
+        })
+      }
+
+      if (producto.fecha_entregado_cliente || producto.entregado_en) {
+        eventos.push({
+          id: `entregado-${producto.id}`,
+          fecha: producto.fecha_entregado_cliente || producto.entregado_en,
+          titulo: 'Producto entregado al cliente',
+          descripcion: nombre,
+          tipo: 'entrega'
+        })
+      }
+    })
+
+    return eventos
+      .filter((evento) => evento.fecha)
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+  }
+
+  const obtenerSiguienteAccion = () => {
+    if (esEstadoReembolso(pedido?.estado)) {
+      return {
+        titulo: 'Pedido cerrado',
+        descripcion: 'Está cancelado o devuelto y ya no permite cambios operativos.',
+        boton: 'Volver a pedidos',
+        accion: () => navigate('/pedidos')
+      }
+    }
+
+    const pendientesCompra = productos.filter((producto) => obtenerEstadoCompraProducto(producto) === 'Pendiente de compra').length
+    const recibidos = productos.filter((producto) => ['Recibido', 'Dejado en negocio'].includes(obtenerEstadoCompraProducto(producto)) && !productoEntregado(producto)).length
+    const pendientesEntrega = productos.filter((producto) => !productoEntregado(producto)).length
+    const estado = obtenerEstadoAutomaticoPedido()
+
+    if (pendientesCompra > 0) {
+      return {
+        titulo: 'Registrar la compra en plataforma',
+        descripcion: `${pendientesCompra} producto${pendientesCompra === 1 ? '' : 's'} todavía ${pendientesCompra === 1 ? 'está' : 'están'} pendiente${pendientesCompra === 1 ? '' : 's'} de compra.`,
+        boton: 'Ir a Compras',
+        accion: () => navigate('/compras')
+      }
+    }
+
+    if (recibidos > 0) {
+      return {
+        titulo: 'Preparar la entrega',
+        descripcion: `${recibidos} producto${recibidos === 1 ? '' : 's'} ${recibidos === 1 ? 'ya está' : 'ya están'} listo${recibidos === 1 ? '' : 's'} para avanzar.`,
+        boton: 'Ver productos',
+        accion: () => setSeccionActiva('productos')
+      }
+    }
+
+    if (Number(pedido?.restante || 0) > 0) {
+      return {
+        titulo: 'Registrar el siguiente pago',
+        descripcion: `Faltan ${formatearDinero(pedido.restante)} por cobrar a este cliente.`,
+        boton: 'Registrar pago',
+        accion: abrirAgregarPago
+      }
+    }
+
+    if (pendientesEntrega > 0 && estado === 'En camino') {
+      return {
+        titulo: 'Revisar la llegada de los productos',
+        descripcion: 'Actualiza cada producto cuando lo recibas para mantener claro el avance.',
+        boton: 'Ver productos',
+        accion: () => setSeccionActiva('productos')
+      }
+    }
+
+    if (pendientesEntrega > 0) {
+      return {
+        titulo: 'Actualizar el avance del pedido',
+        descripcion: 'Revisa los productos y marca el siguiente paso logístico.',
+        boton: 'Ver productos',
+        accion: () => setSeccionActiva('productos')
+      }
+    }
+
+    return {
+      titulo: 'Pedido completado',
+      descripcion: 'Los productos están entregados y no existe saldo pendiente.',
+      boton: 'Enviar seguimiento',
+      accion: enviarSeguimientoWhatsApp
+    }
+  }
+
+
   const renderProductoDetalle = (producto) => {
     const progreso = obtenerProgresoProducto(producto)
     const estadoCompra = obtenerEstadoCompraProducto(producto)
     const menuAbierto = menuProductoAbierto === producto.id
 
     return (
-      <article key={producto.id} className={`detail-product-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined}>
+      <article id={`producto-${producto.id}`} key={producto.id} className={`detail-product-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined}>
         <div className="detail-product-top">
           <div className="detail-product-title-block">
             <span className="detail-product-kicker">Producto</span>
@@ -1317,7 +1572,7 @@ Restante: ${restante}`
           </div>
 
           <div className="detail-product-status-area">
-            <span className={`detail-product-logistic-pill ${estadoCompra === 'Entregado' ? 'is-delivered' : estadoCompra === 'Dejado en negocio' ? 'is-shop' : estadoCompra === 'Recibido' ? 'is-received' : estadoCompra === 'En camino' ? 'is-moving' : 'is-pending'}`}>
+            <span className={`detail-product-logistic-pill ${estadoCompra === 'Entregado' ? 'is-delivered' : estadoCompra === 'Dejado en negocio' ? 'is-shop' : estadoCompra === 'Recibido' ? 'is-received' : ['Comprado', 'En camino'].includes(estadoCompra) ? 'is-moving' : 'is-pending'}`}>
               {estadoCompra === 'Pendiente de compra' ? 'Compra pendiente' : estadoCompra}
             </span>
 
@@ -1339,6 +1594,32 @@ Restante: ${restante}`
 
               {menuAbierto && (
                 <div className="detail-product-menu">
+                  {['Comprado', 'En camino'].includes(estadoCompra) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuProductoAbierto(null)
+                        marcarEstadoLogisticoProducto(producto, 'Recibido')
+                      }}
+                      disabled={bloqueado || estaProcesando || pedidoConReembolso}
+                    >
+                      Marcar como recibido
+                    </button>
+                  )}
+
+                  {estadoCompra === 'Recibido' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuProductoAbierto(null)
+                        marcarEstadoLogisticoProducto(producto, 'Dejado en negocio')
+                      }}
+                      disabled={bloqueado || estaProcesando || pedidoConReembolso}
+                    >
+                      Marcar como dejado en negocio
+                    </button>
+                  )}
+
                   {!productoEntregado(producto) && (
                     <button
                       type="button"
@@ -1379,7 +1660,7 @@ Restante: ${restante}`
                     className="danger"
                     onClick={() => {
                       setMenuProductoAbierto(null)
-                      eliminarProducto(producto.id)
+                      solicitarEliminarProducto(producto)
                     }}
                     disabled={bloqueado || estaProcesando || pedidoConReembolso}
                   >
@@ -1393,15 +1674,19 @@ Restante: ${restante}`
 
         <div className="detail-product-data-grid">
           <div>
-            <span>Precio página</span>
+            <span>Precio en plataforma</span>
             <strong>{formatearDinero(Number(producto.precio_pagina ?? producto.precio_shein ?? 0))}</strong>
           </div>
           <div>
             <span>Costo real</span>
-            <strong>{producto.lote_compra_id ? formatearDinero(Number(producto.costo_real_unitario ?? producto.precio_shein ?? 0)) : 'Pendiente'}</strong>
+            <strong>{
+              producto.lote_compra_id || producto.fecha_comprado
+                ? formatearDinero(Number(producto.costo_real_unitario ?? producto.precio_shein ?? producto.precio_pagina ?? 0))
+                : 'Pendiente'
+            }</strong>
           </div>
           <div>
-            <span>Total producto</span>
+            <span>Precio al cliente</span>
             <strong>{formatearDinero(totalProductoVenta(producto))}</strong>
           </div>
           <div>
@@ -1409,7 +1694,7 @@ Restante: ${restante}`
             <strong>{formatearFecha(producto.fecha_comprado)}</strong>
           </div>
           <div>
-            <span>Estimado</span>
+            <span>Llegada estimada</span>
             <strong>{formatearFecha(producto.fecha_estimada_llegada)}</strong>
           </div>
           <div>
@@ -1436,66 +1721,106 @@ Restante: ${restante}`
           tipo={toast?.tipo}
           onClose={() => setToast(null)}
         />
-        <p>Cargando pedido...</p>
+        <div className="ordely-page-state-wrap">
+          <EmptyState
+            icon={errorCargaPedido ? 'error' : cargandoPedido ? 'loading' : 'orders'}
+            tone={errorCargaPedido ? 'error' : 'default'}
+            eyebrow={errorCargaPedido ? 'No pudimos abrirlo' : 'Cargando pedido'}
+            title={errorCargaPedido || 'Estamos preparando toda la información.'}
+            description={errorCargaPedido
+              ? 'Tus datos no se modificaron. Puedes volver a intentarlo o regresar a la lista.'
+              : 'Un momento, estamos consultando productos, pagos y seguimiento.'}
+            actionLabel={errorCargaPedido ? 'Intentar de nuevo' : undefined}
+            onAction={errorCargaPedido ? cargarTodo : undefined}
+            secondaryLabel={errorCargaPedido ? 'Volver a pedidos' : undefined}
+            secondaryTo={errorCargaPedido ? '/pedidos' : undefined}
+          />
+        </div>
       </Layout>
     )
   }
 
   const pedidoConReembolso = esEstadoReembolso(pedido.estado)
+  const estadoAutomaticoPedido = obtenerEstadoAutomaticoPedido(pedido, productos)
+  const estadoPagoActual = obtenerEstadoPago(pedido)
+  const siguienteAccion = obtenerSiguienteAccion()
+  const historialPedido = obtenerHistorialPedido()
+  const urlSeguimiento = obtenerUrlSeguimiento()
+  const productosEntregados = productos.filter((producto) => productoEntregado(producto)).length
+  const productosPendientes = productos.length - productosEntregados
+
+  const secciones = [
+    { id: 'resumen', texto: 'Resumen' },
+    { id: 'productos', texto: `Productos (${productos.length})` },
+    { id: 'pagos', texto: `Pagos (${pagos.length})` },
+    { id: 'seguimiento', texto: 'Seguimiento' },
+    { id: 'historial', texto: 'Historial' }
+  ]
 
   return (
     <Layout>
+      <PageHelp page="detallePedido" />
+
       <Toast
         mensaje={toast?.mensaje}
         tipo={toast?.tipo}
         onClose={() => setToast(null)}
       />
 
-      <div className="page-header row-between">
-        <div>
-          <h1>Pedido {pedido.codigo}</h1>
-          <p>{pedido.plataforma || 'SHEIN'} · Cliente: {pedido.clientes?.nombre || 'Sin cliente'} · {pedido.clientes?.medio_contacto || 'WhatsApp'}: {obtenerContactoCliente(pedido.clientes)}</p>
-        </div>
-
-        <div className="actions detail-header-actions">
-          <button type="button" className="btn btn-light-bordered detail-back-button" onClick={volverAtras}>
-            ← Regresar
+      <section className="ordely-v56-detail-hero">
+        <div className="ordely-v56-detail-hero-top">
+          <button type="button" className="ordely-v56-back" onClick={volverAtras}>
+            ← Volver a pedidos
           </button>
 
-          <span className={`badge ${estadoClase(pedido.estado)}`}>
-            {normalizarEstado(pedido.estado)}
-          </span>
-
-          {renderPagoBadge()}
-
-          <div className="detail-order-actions-menu-wrap">
+          <div className="ordely-v56-hero-menu">
             <button
+              ref={botonMenuPedidoRef}
               type="button"
               className="btn btn-light-bordered"
-              onClick={() => setMenuPedidoAbierto(!menuPedidoAbierto)}
+              onClick={(evento) => {
+                if (menuPedidoAbierto) {
+                  setMenuPedidoAbierto(false)
+                  setEstiloMenuPedido(null)
+                  return
+                }
+
+                setEstiloMenuPedido(obtenerEstiloMenuPedido(evento.currentTarget))
+                setMenuPedidoAbierto(true)
+              }}
               disabled={estaProcesando}
+              aria-haspopup="menu"
+              aria-expanded={menuPedidoAbierto}
             >
-              Acciones ▾
+              Más acciones ▾
             </button>
 
-            {menuPedidoAbierto && (
-              <div className="detail-order-actions-menu">
+            {menuPedidoAbierto && estiloMenuPedido && typeof document !== 'undefined' && createPortal(
+              <div
+                className="detail-order-actions-menu ordely-v56-order-menu ordely-v56-order-menu-portal"
+                role="menu"
+                style={estiloMenuPedido}
+              >
                 <button
                   type="button"
                   onClick={() => {
                     setMenuPedidoAbierto(false)
+                    setEstiloMenuPedido(null)
                     enviarMensajePedidoActual()
                   }}
+                  role="menuitem"
                 >
-                  Enviar mensaje
+                  Enviar mensaje de estado
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
                     setMenuPedidoAbierto(false)
+                    setEstiloMenuPedido(null)
                     enviarSeguimientoWhatsApp()
                   }}
+                  role="menuitem"
                 >
                   Enviar seguimiento
                 </button>
@@ -1504,17 +1829,80 @@ Restante: ${restante}`
                   type="button"
                   onClick={() => {
                     setMenuPedidoAbierto(false)
+                    setEstiloMenuPedido(null)
                     abrirEditarPedido()
                   }}
-                  disabled={bloqueado || estaProcesando}
+                  disabled={bloqueado || estaProcesando || pedidoConReembolso}
+                  role="menuitem"
                 >
-                  Editar pedido
+                  Editar datos del pedido
                 </button>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>
-      </div>
+
+        <div className="ordely-v56-detail-title-row">
+          <div className="ordely-v56-detail-title">
+            <span className="ordely-v56-detail-kicker">Detalle del pedido</span>
+            <h1>{pedido.codigo || 'Pedido'}</h1>
+            <p>
+              {pedido.clientes?.nombre || 'Sin cliente'} · {pedido.plataforma || 'Sin plataforma'}
+            </p>
+          </div>
+
+          <div className="ordely-v56-detail-badges">
+            <span className={`badge ${estadoClase(estadoAutomaticoPedido)}`}>
+              {estadoAutomaticoPedido}
+            </span>
+            {renderPagoBadge()}
+          </div>
+        </div>
+
+        <div className="ordely-v56-detail-money">
+          <div>
+            <span>Total</span>
+            <strong>{formatearDinero(pedido.total_cliente)}</strong>
+          </div>
+          <div>
+            <span>Pagado</span>
+            <strong>{formatearDinero(pedido.anticipo)}</strong>
+          </div>
+          <div className={Number(pedido.restante || 0) > 0 ? 'is-pending' : 'is-complete'}>
+            <span>Restante</span>
+            <strong>{formatearDinero(pedido.restante)}</strong>
+          </div>
+        </div>
+
+        <div className="ordely-v56-primary-actions">
+          {!pedidoConReembolso && (
+            <button
+              type="button"
+              className={estadoAutomaticoPedido === 'Entregado' ? 'btn btn-light-bordered detail-special-action is-return' : 'btn btn-light-bordered detail-special-action'}
+              onClick={() => abrirCambioEspecialPedido(estadoAutomaticoPedido === 'Entregado' ? 'Devuelto' : 'Cancelado')}
+              disabled={bloqueado || estaProcesando}
+            >
+              {estadoAutomaticoPedido === 'Entregado' ? 'Marcar como devuelto' : 'Cancelar pedido'}
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={abrirAgregarPago}
+            disabled={bloqueado || estaProcesando || pedidoConReembolso}
+          >
+            Registrar pago
+          </button>
+          <button
+            type="button"
+            className="btn btn-light-bordered"
+            onClick={enviarSeguimientoWhatsApp}
+          >
+            Enviar seguimiento
+          </button>
+        </div>
+      </section>
 
       <PlanLimitNotice estadoPlan={estadoPlan} compacto />
 
@@ -1522,166 +1910,430 @@ Restante: ${restante}`
         <div className="refund-locked-notice">
           <strong>{obtenerEtiquetaReembolso()}</strong>
           <span>
-            Este pedido quedó fuera de estadísticas. Reembolso registrado: {formatearDinero(pedido.reembolso_monto || 0)}. Para hacer cambios, reactívalo desde "Editar pedido".
+            Este pedido quedó fuera de estadísticas. Reembolso registrado: {formatearDinero(pedido.reembolso_monto || 0)}. Este pedido ya no permite cambios operativos.
           </span>
         </div>
       )}
 
-      <div className={`cards-grid detail-summary-grid ${pedidoConReembolso ? 'refund-censored-surface' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined}>
-        <div className="card">
-          <span>Plataforma</span>
-          <strong>{pedido.plataforma || 'SHEIN'}</strong>
-        </div>
+      <nav className="ordely-v56-detail-tabs" aria-label="Secciones del pedido">
+        {secciones.map((seccion) => (
+          <button
+            key={seccion.id}
+            type="button"
+            className={seccionActiva === seccion.id ? 'active' : ''}
+            onClick={() => setSeccionActiva(seccion.id)}
+          >
+            {seccion.texto}
+          </button>
+        ))}
+      </nav>
 
-        <div className="card">
-          <span>Total cliente</span>
-          <strong>${Number(pedido.total_cliente || 0).toFixed(2)}</strong>
-        </div>
-
-        <div className="card">
-          <span>Pagado</span>
-          <strong>${Number(pedido.anticipo || 0).toFixed(2)}</strong>
-        </div>
-
-        <div className="card">
-          <span>Restante</span>
-          <strong>${Number(pedido.restante || 0).toFixed(2)}</strong>
-        </div>
-
-        <div className="card">
-          <span>Ganancia</span>
-          <strong>${Number(pedido.ganancia || 0).toFixed(2)}</strong>
-        </div>
-
-        <div className="card">
-          <span>Tracking</span>
-          <strong>{pedido.tracking || '-'}</strong>
-        </div>
-      </div>
-
-
-      <div className="section-header row-between">
-        <div>
-          <h2>Productos</h2>
-          <p className="muted">Productos agregados al pedido</p>
-        </div>
-
-        <button className="btn btn-primary" onClick={abrirAgregarProducto} disabled={bloqueado || estaProcesando || pedidoConReembolso}>
-          Agregar producto
-        </button>
-      </div>
-
-      <div className="detail-products-list">
-        {productos.map((producto) => renderProductoDetalle(producto))}
-
-        {productos.length === 0 && (
-          <div className="empty-state">
-            Este pedido todavía no tiene productos.
+      {seccionActiva === 'resumen' && (
+        <section className="ordely-v56-section ordely-v56-summary-section">
+          <div className="ordely-v56-next-action">
+            <div>
+              <span className="ordely-v56-section-kicker">Siguiente paso recomendado</span>
+              <h2>{siguienteAccion.titulo}</h2>
+              <p>{siguienteAccion.descripcion}</p>
+            </div>
+            <button type="button" className="btn btn-primary" onClick={siguienteAccion.accion}>
+              {siguienteAccion.boton}
+            </button>
           </div>
-        )}
-      </div>
 
-      <div className="section-header row-between">
-        <div>
-          <h2>Pagos</h2>
-          <p className="muted">Pagos y abonos del pedido</p>
-        </div>
+          <div className="ordely-v56-summary-grid">
+            <article className="ordely-v56-info-card ordely-v56-client-card">
+              <div className="ordely-v56-card-heading">
+                <div>
+                  <span className="ordely-v56-section-kicker">Cliente</span>
+                  <h3>{pedido.clientes?.nombre || 'Sin cliente'}</h3>
+                </div>
+                <span className="ordely-v56-round-icon">CL</span>
+              </div>
 
-        <button className="btn btn-primary" onClick={abrirAgregarPago} disabled={bloqueado || estaProcesando || pedidoConReembolso}>
-          Agregar pago
-        </button>
-      </div>
+              <dl>
+                <div>
+                  <dt>Contacto</dt>
+                  <dd>{obtenerTextoMedioContacto(pedido.clientes)}</dd>
+                </div>
+                <div>
+                  <dt>Dirección</dt>
+                  <dd>{pedido.clientes?.direccion || 'Sin dirección registrada'}</dd>
+                </div>
+              </dl>
+            </article>
 
-      <div className={`table-card desktop-table ${pedidoConReembolso ? 'refund-censored-surface' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined}>
-        <table>
-          <thead>
-            <tr>
-              <th>Monto</th>
-              <th>Método</th>
-              <th>Fecha</th>
-              <th>Notas</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
+            <article className="ordely-v56-info-card">
+              <div className="ordely-v56-card-heading">
+                <div>
+                  <span className="ordely-v56-section-kicker">Información</span>
+                  <h3>Datos del pedido</h3>
+                </div>
+                <span className="ordely-v56-round-icon">PD</span>
+              </div>
 
-          <tbody>
+              <dl>
+                <div>
+                  <dt>Plataforma</dt>
+                  <dd>{pedido.plataforma || '-'}</dd>
+                </div>
+                <div>
+                  <dt>Fecha del pedido</dt>
+                  <dd>{formatearFecha(pedido.fecha_pedido || pedido.creado_en)}</dd>
+                </div>
+                <div>
+                  <dt>Tracking</dt>
+                  <dd>{pedido.tracking || 'Aún no registrado'}</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article className="ordely-v56-info-card">
+              <div className="ordely-v56-card-heading">
+                <div>
+                  <span className="ordely-v56-section-kicker">Avance</span>
+                  <h3>Productos y entrega</h3>
+                </div>
+                <span className="ordely-v56-round-icon">PR</span>
+              </div>
+
+              <div className="ordely-v56-progress-summary">
+                <div>
+                  <strong>{productos.length}</strong>
+                  <span>Productos</span>
+                </div>
+                <div>
+                  <strong>{productosEntregados}</strong>
+                  <span>Entregados</span>
+                </div>
+                <div>
+                  <strong>{productosPendientes}</strong>
+                  <span>Pendientes</span>
+                </div>
+              </div>
+
+              <div className="ordely-v56-progress-bar">
+                <i style={{ width: `${productos.length ? Math.round((productosEntregados / productos.length) * 100) : 0}%` }} />
+              </div>
+            </article>
+
+            <article className="ordely-v56-info-card ordely-v56-payment-card">
+              <div className="ordely-v56-card-heading">
+                <div>
+                  <span className="ordely-v56-section-kicker">Cobro</span>
+                  <h3>{estadoPagoActual.texto}</h3>
+                </div>
+                <span className="ordely-v56-round-icon">$</span>
+              </div>
+
+              <div className="ordely-v56-payment-breakdown">
+                <div>
+                  <span>Total</span>
+                  <strong>{formatearDinero(pedido.total_cliente)}</strong>
+                </div>
+                <div>
+                  <span>Pagado</span>
+                  <strong>{formatearDinero(pedido.anticipo)}</strong>
+                </div>
+                <div>
+                  <span>Restante</span>
+                  <strong>{formatearDinero(pedido.restante)}</strong>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          {(pedido.notas || pedido.tracking) && (
+            <article className="ordely-v56-notes-card">
+              <div>
+                <span className="ordely-v56-section-kicker">Notas y guía</span>
+                <h3>Información adicional</h3>
+              </div>
+              <p>{pedido.notas || 'Sin notas adicionales.'}</p>
+              {pedido.tracking && <code>{pedido.tracking}</code>}
+            </article>
+          )}
+        </section>
+      )}
+
+      {seccionActiva === 'productos' && (
+        <section className="ordely-v56-section">
+          <div className="ordely-v56-section-header">
+            <div>
+              <span className="ordely-v56-section-kicker">Productos</span>
+              <h2>Avance de cada producto</h2>
+              <p>Actualiza la compra, recepción y entrega sin perder de vista los precios.</p>
+            </div>
+
+            <button className="btn btn-primary" onClick={abrirAgregarProducto} disabled={bloqueado || estaProcesando || pedidoConReembolso}>
+              Agregar producto
+            </button>
+          </div>
+
+          <div className="detail-products-list ordely-v56-products-list">
+            {productos.map((producto) => renderProductoDetalle(producto))}
+
+            {productos.length === 0 && (
+              <EmptyState
+                icon="products"
+                eyebrow="Pedido sin productos"
+                title="Agrega el primer producto."
+                description="Después podrás registrar su compra, llegada y entrega desde esta misma sección."
+                actionLabel="Agregar primer producto"
+                onAction={abrirAgregarProducto}
+              />
+            )}
+          </div>
+        </section>
+      )}
+
+      {seccionActiva === 'pagos' && (
+        <section className="ordely-v56-section">
+          <div className="ordely-v56-section-header">
+            <div>
+              <span className="ordely-v56-section-kicker">Pagos</span>
+              <h2>Movimientos del pedido</h2>
+              <p>Consulta anticipos, abonos y el saldo que todavía falta por cobrar.</p>
+            </div>
+
+            <button className="btn btn-primary" onClick={abrirAgregarPago} disabled={bloqueado || estaProcesando || pedidoConReembolso}>
+              Registrar pago
+            </button>
+          </div>
+
+          <div className="ordely-v56-payment-summary">
+            <div>
+              <span>Total del pedido</span>
+              <strong>{formatearDinero(pedido.total_cliente)}</strong>
+            </div>
+            <div>
+              <span>Total pagado</span>
+              <strong>{formatearDinero(pedido.anticipo)}</strong>
+            </div>
+            <div className={Number(pedido.restante || 0) > 0 ? 'is-pending' : 'is-complete'}>
+              <span>Saldo pendiente</span>
+              <strong>{formatearDinero(pedido.restante)}</strong>
+            </div>
+          </div>
+
+          <div className={`table-card desktop-table ${pedidoConReembolso ? 'refund-censored-surface' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Monto</th>
+                  <th>Método</th>
+                  <th>Fecha</th>
+                  <th>Notas</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {pagos.map((pago) => (
+                  <tr key={pago.id} className={pedidoConReembolso ? 'refund-censored-row' : ''}>
+                    <td><strong>{formatearDinero(pago.monto)}</strong></td>
+                    <td>{pago.metodo_pago || '-'}</td>
+                    <td>{formatearFechaHora(pago.fecha_pago || pago.creado_en)}</td>
+                    <td>{limpiarNotaPago(pago.notas)}</td>
+                    <td className="actions">
+                      <button
+                        onClick={() => abrirEditarPago(pago)}
+                        className="btn btn-light-bordered btn-small"
+                        disabled={bloqueado || estaProcesando || pedidoConReembolso}
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        onClick={() => solicitarEliminarPago(pago)}
+                        className="btn btn-danger btn-small"
+                        disabled={bloqueado || estaProcesando || pedidoConReembolso}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {pagos.length === 0 && (
+                  <tr>
+                    <td colSpan="5">
+                      <EmptyState
+                        icon="history"
+                        eyebrow="Sin movimientos"
+                        title="Todavía no hay pagos registrados."
+                        description="Registra el anticipo o el primer abono para mantener el saldo actualizado."
+                        actionLabel="Registrar primer pago"
+                        onAction={abrirAgregarPago}
+                        compact
+                      />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mobile-list detail-mobile-list ordely-v56-payment-mobile-list">
             {pagos.map((pago) => (
-              <tr key={pago.id} className={pedidoConReembolso ? 'refund-censored-row' : ''}>
-                <td>${Number(pago.monto || 0).toFixed(2)}</td>
-                <td>{pago.metodo_pago || '-'}</td>
-                <td>{pago.fecha_pago}</td>
-                <td>{limpiarNotaPago(pago.notas)}</td>
-                <td className="actions">
+              <div className={`mobile-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined} key={pago.id}>
+                <div className="mobile-card-header">
+                  <div>
+                    <h3>{formatearDinero(pago.monto)}</h3>
+                    <p>{pago.metodo_pago || 'Sin método'} · {formatearFechaHora(pago.fecha_pago || pago.creado_en)}</p>
+                  </div>
+                </div>
+
+                <div className="mobile-card-info single">
+                  <div>
+                    <span>Notas</span>
+                    <strong>{limpiarNotaPago(pago.notas)}</strong>
+                  </div>
+                </div>
+
+                <div className="mobile-card-actions multi-actions">
                   <button
                     onClick={() => abrirEditarPago(pago)}
-                    className="btn btn-light-bordered btn-small"
+                    className="btn btn-light-bordered"
                     disabled={bloqueado || estaProcesando || pedidoConReembolso}
                   >
                     Editar
                   </button>
 
                   <button
-                    onClick={() => eliminarPago(pago.id)}
-                    className="btn btn-danger btn-small"
+                    onClick={() => solicitarEliminarPago(pago)}
+                    className="btn btn-danger"
                     disabled={bloqueado || estaProcesando || pedidoConReembolso}
                   >
                     Eliminar
                   </button>
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
 
             {pagos.length === 0 && (
-              <tr>
-                <td colSpan="5">Este pedido todavía no tiene pagos.</td>
-              </tr>
+              <EmptyState
+                icon="history"
+                eyebrow="Sin movimientos"
+                title="Todavía no hay pagos registrados."
+                description="Registra el anticipo o el primer abono para mantener el saldo actualizado."
+                actionLabel="Registrar primer pago"
+                onAction={abrirAgregarPago}
+              />
             )}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </section>
+      )}
 
-      <div className="mobile-list detail-mobile-list">
-        {pagos.map((pago) => (
-          <div className={`mobile-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined} key={pago.id}>
-            <div className="mobile-card-header">
-              <div>
-                <h3>${Number(pago.monto || 0).toFixed(2)}</h3>
-                <p>{pago.metodo_pago || 'Sin método'} · {pago.fecha_pago}</p>
-              </div>
-            </div>
-
-            <div className="mobile-card-info single">
-              <div>
-                <span>Notas</span>
-                <strong>{limpiarNotaPago(pago.notas)}</strong>
-              </div>
-            </div>
-
-            <div className="mobile-card-actions multi-actions">
-              <button
-                onClick={() => abrirEditarPago(pago)}
-                className="btn btn-light-bordered"
-                disabled={bloqueado || estaProcesando || pedidoConReembolso}
-              >
-                Editar
-              </button>
-
-              <button
-                onClick={() => eliminarPago(pago.id)}
-                className="btn btn-danger"
-                disabled={bloqueado || estaProcesando || pedidoConReembolso}
-              >
-                Eliminar
-              </button>
+      {seccionActiva === 'seguimiento' && (
+        <section className="ordely-v56-section">
+          <div className="ordely-v56-section-header">
+            <div>
+              <span className="ordely-v56-section-kicker">Seguimiento</span>
+              <h2>Comparte el avance con tu cliente</h2>
+              <p>El cliente puede consultar estado, pagos y fechas sin iniciar sesión.</p>
             </div>
           </div>
-        ))}
 
-        {pagos.length === 0 && (
-          <div className="empty-state">
-            Este pedido todavía no tiene pagos.
+          <div className="ordely-v56-tracking-grid">
+            <article className="ordely-v56-tracking-card">
+              <span className="ordely-v56-section-kicker">Enlace privado</span>
+              <h3>{urlSeguimiento ? 'Seguimiento listo para compartir' : 'Aún no hay enlace disponible'}</h3>
+              <p>
+                {urlSeguimiento
+                  ? 'Copia el enlace, ábrelo para revisarlo o envíalo al cliente por su medio de contacto.'
+                  : 'El enlace aparecerá cuando el pedido tenga un token público de seguimiento.'}
+              </p>
+
+              {urlSeguimiento && (
+                <div className="ordely-v56-tracking-url">
+                  <span>{urlSeguimiento}</span>
+                </div>
+              )}
+
+              <div className="ordely-v56-tracking-actions">
+                <button type="button" className="btn btn-primary" onClick={enviarSeguimientoWhatsApp} disabled={!urlSeguimiento}>
+                  Enviar seguimiento
+                </button>
+                <button type="button" className="btn btn-light-bordered" onClick={copiarLinkSeguimiento} disabled={!urlSeguimiento}>
+                  Copiar enlace
+                </button>
+                {urlSeguimiento && (
+                  <a className="btn btn-light-bordered" href={urlSeguimiento} target="_blank" rel="noreferrer">
+                    Abrir vista pública
+                  </a>
+                )}
+              </div>
+            </article>
+
+            <article className="ordely-v56-client-preview">
+              <div className="ordely-v56-client-preview-head">
+                <span>Vista del cliente</span>
+                <strong>{pedido.codigo}</strong>
+              </div>
+              <div className="ordely-v56-client-preview-body">
+                <span className={`badge ${estadoClase(estadoAutomaticoPedido)}`}>{estadoAutomaticoPedido}</span>
+                <h3>{pedido.clientes?.nombre || 'Cliente'}</h3>
+                <p>{productos.length} producto{productos.length === 1 ? '' : 's'} en este pedido</p>
+                <div>
+                  <span>Pagado</span>
+                  <strong>{formatearDinero(pedido.anticipo)}</strong>
+                </div>
+                <div>
+                  <span>Restante</span>
+                  <strong>{formatearDinero(pedido.restante)}</strong>
+                </div>
+              </div>
+            </article>
           </div>
-        )}
+        </section>
+      )}
+
+      {seccionActiva === 'historial' && (
+        <section className="ordely-v56-section">
+          <div className="ordely-v56-section-header">
+            <div>
+              <span className="ordely-v56-section-kicker">Historial</span>
+              <h2>Actividad del pedido</h2>
+              <p>Los movimientos disponibles se ordenan del más reciente al más antiguo.</p>
+            </div>
+          </div>
+
+          <div className="ordely-v56-timeline">
+            {historialPedido.map((evento) => (
+              <article key={evento.id} className={`ordely-v56-timeline-item is-${evento.tipo}`}>
+                <span className="ordely-v56-timeline-dot" />
+                <div>
+                  <time>{formatearFechaHora(evento.fecha)}</time>
+                  <h3>{evento.titulo}</h3>
+                  <p>{evento.descripcion}</p>
+                </div>
+              </article>
+            ))}
+
+            {historialPedido.length === 0 && (
+              <EmptyState
+                icon="history"
+                eyebrow="Historial vacío"
+                title="Todavía no hay movimientos para mostrar."
+                description="Los pagos y avances de productos aparecerán aquí automáticamente."
+                compact
+              />
+            )}
+          </div>
+        </section>
+      )}
+
+      <div className="ordely-v56-mobile-actions" aria-label="Acciones rápidas del pedido">
+        <button type="button" onClick={abrirEditarPedido} disabled={bloqueado || estaProcesando}>
+          <span>Estado</span>
+        </button>
+        <button type="button" className="primary" onClick={abrirAgregarPago} disabled={bloqueado || estaProcesando || pedidoConReembolso}>
+          <span>Pago</span>
+        </button>
+        <button type="button" onClick={enviarSeguimientoWhatsApp}>
+          <span>Compartir</span>
+        </button>
       </div>
 
       <Modal
@@ -1698,7 +2350,7 @@ Restante: ${restante}`
                 onChange={(e) => setPlataformaPedido(e.target.value)}
                 required
               >
-                {plataformas.map((item) => (
+                {PLATAFORMAS.map((item) => (
                   <option key={item}>{item}</option>
                 ))}
               </select>
@@ -1716,19 +2368,6 @@ Restante: ${restante}`
                   <option key={cliente.id} value={cliente.id}>
                     {cliente.nombre} · {cliente.medio_contacto || 'WhatsApp'}
                   </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="form-field">
-              <span>Estado del pedido*</span>
-              <select
-                value={estadoPedido}
-                onChange={(e) => setEstadoPedido(e.target.value)}
-                required
-              >
-                {estadosPedido.map((estado) => (
-                  <option key={estado}>{estado}</option>
                 ))}
               </select>
             </label>
@@ -1829,6 +2468,43 @@ Restante: ${restante}`
               />
             </label>
 
+            <div className="product-commission-field product-commission-field-modal">
+              <label className="product-commission-toggle">
+                <input
+                  type="checkbox"
+                  checked={cobraComisionProducto}
+                  onChange={(e) => setCobraComisionProducto(e.target.checked)}
+                />
+                <span>
+                  <strong>Cobrar comisión extra</strong>
+                  <small>Se suma al precio de plataforma por cada unidad.</small>
+                </span>
+              </label>
+
+              {cobraComisionProducto && (
+                <label className="form-field product-commission-amount">
+                  <span>Comisión por unidad*</span>
+                  <div className="money-input-with-prefix">
+                    <i>$</i>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={comisionExtraProducto}
+                      onChange={(e) => setComisionExtraProducto(e.target.value)}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <small className="field-help-text">
+                    Precio final para el cliente: ${(
+                      Number(precioPagina || 0) + Number(comisionExtraProducto || 0)
+                    ).toFixed(2)} por unidad.
+                  </small>
+                </label>
+              )}
+            </div>
+
             <label className="form-field">
               <span>Costo real</span>
               <input
@@ -1879,18 +2555,34 @@ Restante: ${restante}`
             </label>
 
             <label className="form-field">
-              <span>Método de pago</span>
-              <input
-                value={metodoPago}
-                onChange={(e) => setMetodoPago(e.target.value)}
-              />
+              <span>Método de pago*</span>
+              <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)} required>
+                {metodoPago && !METODOS_PAGO.includes(metodoPago) && (
+                  <option value={metodoPago}>{metodoPago}</option>
+                )}
+                {METODOS_PAGO.map((metodo) => (
+                  <option value={metodo} key={metodo}>{metodo}</option>
+                ))}
+              </select>
             </label>
 
             <label className="form-field">
+              <span>Fecha del pago*</span>
+              <input
+                type="date"
+                value={fechaPago}
+                onChange={(e) => setFechaPago(e.target.value)}
+                required
+              />
+              <small className="field-help-text">Hoy aparece seleccionado, pero puedes cambiarlo.</small>
+            </label>
+
+            <label className="form-field payment-notes-field">
               <span>Notas</span>
               <input
                 value={notasPago}
                 onChange={(e) => setNotasPago(e.target.value)}
+                placeholder="Opcional"
               />
             </label>
           </div>
@@ -1928,6 +2620,24 @@ Restante: ${restante}`
             <span>Restante a cobrar</span>
             <strong>{formatearDinero(entregaPendiente?.montoRestante || pedido?.restante || 0)}</strong>
           </div>
+
+          {Number(entregaPendiente?.montoRestante || pedido?.restante || 0) > 0 && (
+            <div className="payment-delivery-fields">
+              <label className="form-field">
+                <span>Método de pago*</span>
+                <select value={metodoPagoEntrega} onChange={(e) => setMetodoPagoEntrega(e.target.value)} required>
+                  {METODOS_PAGO.map((metodo) => (
+                    <option value={metodo} key={metodo}>{metodo}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="form-field">
+                <span>Fecha del pago*</span>
+                <input type="date" value={fechaPagoEntrega} onChange={(e) => setFechaPagoEntrega(e.target.value)} required />
+              </label>
+            </div>
+          )}
 
           <div className="modal-actions">
             <button
@@ -1982,6 +2692,24 @@ Restante: ${restante}`
                 <strong>{formatearDinero(productoEntregaPendiente.montoACobrar)}</strong>
               </div>
             </div>
+
+            {productoEntregaPendiente.montoACobrar > 0 && (
+              <div className="payment-delivery-fields">
+                <label className="form-field">
+                  <span>Método de pago*</span>
+                  <select value={metodoPagoEntrega} onChange={(e) => setMetodoPagoEntrega(e.target.value)} required>
+                    {METODOS_PAGO.map((metodo) => (
+                      <option value={metodo} key={metodo}>{metodo}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="form-field">
+                  <span>Fecha del pago*</span>
+                  <input type="date" value={fechaPagoEntrega} onChange={(e) => setFechaPagoEntrega(e.target.value)} required />
+                </label>
+              </div>
+            )}
 
             {productoEntregaPendiente.montoACobrar <= 0 && (
               <p className="muted">
@@ -2177,6 +2905,22 @@ Restante: ${restante}`
           </div>
         )}
       </Modal>
+
+      <ConfirmDialog
+        abierto={Boolean(elementoAEliminar)}
+        titulo={elementoAEliminar?.tipo === 'pago' ? '¿Eliminar este pago?' : '¿Eliminar este producto?'}
+        descripcion={elementoAEliminar?.tipo === 'pago'
+          ? 'El saldo del pedido se volverá a calcular. Esta acción no se puede deshacer.'
+          : 'El total del pedido se volverá a calcular. Esta acción no se puede deshacer.'}
+        detalle={elementoAEliminar?.tipo === 'pago'
+          ? formatearDinero(elementoAEliminar?.item?.monto || 0)
+          : (elementoAEliminar?.item?.nombre_producto || 'Producto')}
+        confirmarTexto={elementoAEliminar?.tipo === 'pago' ? 'Sí, eliminar pago' : 'Sí, eliminar producto'}
+        onConfirm={elementoAEliminar?.tipo === 'pago' ? eliminarPagoConfirmado : eliminarProductoConfirmado}
+        onClose={() => setElementoAEliminar(null)}
+        cargando={accionEnProceso === 'Eliminando producto...' || accionEnProceso === 'Eliminando pago...'}
+        variante="danger"
+      />
     </Layout>
   )
 }

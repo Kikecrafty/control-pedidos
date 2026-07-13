@@ -1,0 +1,290 @@
+/* =========================================================
+   ORDELY V61.8 - Panel operativo y ayuda contextual
+   ========================================================= */
+
+.page-help-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid #dbe3f0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 7px 18px rgba(15, 23, 42, 0.05);
+  transition: transform 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.page-help-button:hover {
+  transform: translateY(-1px);
+  border-color: #a5b4fc;
+  color: #4338ca;
+}
+
+.page-help-button > span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.page-help-modal {
+  width: min(720px, calc(100vw - 28px));
+  max-height: min(86vh, 760px);
+  overflow-y: auto;
+}
+
+.page-help-content {
+  display: grid;
+  gap: 18px;
+}
+
+.page-help-intro {
+  margin: 0;
+  padding: 15px 17px;
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #eff6ff, #f5f3ff);
+  color: #475569;
+  line-height: 1.6;
+  font-weight: 700;
+}
+
+.page-help-steps {
+  display: grid;
+  gap: 11px;
+}
+
+.page-help-steps article {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 17px;
+  background: #ffffff;
+}
+
+.page-help-steps article > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3155d7, #6d43ff);
+  color: #ffffff;
+  font-weight: 950;
+}
+
+.page-help-steps strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.page-help-steps p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.page-help-no-action {
+  padding: 15px 17px;
+  border: 1px solid #bbf7d0;
+  border-radius: 18px;
+  background: #f0fdf4;
+}
+
+.page-help-no-action strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #166534;
+}
+
+.page-help-no-action p {
+  margin: 0;
+  color: #3f6212;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* Panel: lista completa de llegadas */
+.dashboard-arrivals-card-priority {
+  min-width: 0;
+}
+
+.dashboard-arrivals-list {
+  gap: 10px;
+}
+
+.dashboard-arrival-item {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 20px;
+}
+
+.dashboard-arrival-item-warning {
+  border-color: #fed7aa;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 62%);
+}
+
+.dashboard-arrival-item-ok {
+  border-color: #bbf7d0;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 62%);
+}
+
+.dashboard-arrival-order-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dashboard-arrival-order-meta > div {
+  min-width: 0;
+}
+
+.dashboard-arrival-order-meta span {
+  display: block;
+  margin-bottom: 3px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dashboard-arrival-order-meta strong {
+  display: block;
+  overflow: hidden;
+  color: #334155;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-arrival-product-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(210px, 0.8fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.dashboard-arrival-main {
+  gap: 11px;
+}
+
+.dashboard-arrival-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+}
+
+.dashboard-arrival-info strong {
+  font-size: 15px;
+}
+
+.dashboard-arrival-info span {
+  font-size: 12px;
+}
+
+.dashboard-arrival-info small {
+  white-space: normal;
+}
+
+.dashboard-arrival-progress-area {
+  gap: 6px;
+}
+
+.dashboard-arrival-bar {
+  height: 9px;
+}
+
+.dashboard-arrival-open-order {
+  min-width: 148px;
+  white-space: nowrap;
+}
+
+.detail-product-card-highlight {
+  animation: ordelyProductHighlight 2.2s ease;
+}
+
+@keyframes ordelyProductHighlight {
+  0%, 100% { box-shadow: inherit; }
+  18%, 72% {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.16), 0 22px 48px rgba(79, 70, 229, 0.14);
+  }
+}
+
+@media (max-width: 1180px) {
+  .dashboard-arrival-product-row {
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 0.75fr);
+  }
+
+  .dashboard-arrival-open-order {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 800px) {
+  .page-help-button {
+    margin-bottom: 10px;
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+
+  .page-help-modal {
+    width: min(100%, calc(100vw - 20px));
+    max-height: 88vh;
+  }
+
+  .page-help-steps article {
+    grid-template-columns: 30px minmax(0, 1fr);
+    padding: 12px;
+  }
+
+  .page-help-steps article > span {
+    width: 30px;
+    height: 30px;
+  }
+
+  .dashboard-arrival-order-meta {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-arrival-order-meta > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-arrival-product-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .dashboard-arrival-open-order {
+    grid-column: auto;
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .dashboard-arrival-progress-top {
+    align-items: flex-start;
+  }
+}

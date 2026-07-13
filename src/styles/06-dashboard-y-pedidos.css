@@ -1,0 +1,1571 @@
+/* =========================================================
+   ORDELY - Dashboard V9: resumen limpio + paquetes en proceso
+   ========================================================= */
+.dashboard-main-stats-grid {
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  margin-bottom: 14px;
+}
+
+.dashboard-mini-grid-v2 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 0;
+  margin-bottom: 22px;
+}
+
+.dashboard-mini-grid-v2 div {
+  min-height: 88px;
+}
+
+.dashboard-arrivals-card {
+  background: #ffffff;
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  border-radius: 28px;
+  padding: 24px;
+  box-shadow: 0 22px 58px rgba(15, 23, 42, 0.07);
+}
+
+.dashboard-arrivals-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.dashboard-arrivals-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-bottom: 8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dashboard-arrivals-header h2 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.06em;
+  color: #0f172a;
+}
+
+.dashboard-arrivals-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-weight: 650;
+}
+
+.dashboard-arrivals-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.dashboard-arrivals-list {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-arrival-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 18px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.06), transparent 34%),
+    #ffffff;
+}
+
+.dashboard-arrival-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.dashboard-arrival-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
+}
+
+.dashboard-arrival-info {
+  min-width: 0;
+}
+
+.dashboard-arrival-info strong {
+  display: block;
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-arrival-info span,
+.dashboard-arrival-info small {
+  display: block;
+  color: #64748b;
+  font-weight: 750;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-arrival-info small {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.dashboard-arrival-progress-area {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dashboard-arrival-progress-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dashboard-arrival-progress-top strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.dashboard-arrival-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.dashboard-arrival-status-normal {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.dashboard-arrival-status-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dashboard-arrival-status-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.dashboard-arrival-bar {
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e5e7eb;
+}
+
+.dashboard-arrival-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #7c3aed, #10b981);
+  transition: width 0.25s ease;
+}
+
+.dashboard-arrival-progress-area p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.dashboard-arrivals-empty {
+  display: grid;
+  gap: 5px;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.dashboard-arrivals-empty strong {
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 950;
+}
+
+.dashboard-arrivals-empty span {
+  color: #64748b;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-mini-grid-v2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-arrival-item {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .dashboard-main-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-mini-grid-v2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-arrivals-card {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .dashboard-arrivals-header {
+    display: grid;
+    gap: 12px;
+  }
+
+  .dashboard-arrivals-header h2 {
+    font-size: 24px;
+  }
+
+  .dashboard-arrivals-button {
+    width: 100%;
+  }
+
+  .dashboard-arrival-item {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .dashboard-arrival-main {
+    align-items: flex-start;
+  }
+
+  .dashboard-arrival-info strong,
+  .dashboard-arrival-info span,
+  .dashboard-arrival-info small {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 430px) {
+  .dashboard-mini-grid-v2,
+  .dashboard-main-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .dashboard-mini-grid-v2 div,
+  .dashboard-only-card {
+    padding: 14px;
+    min-height: 86px;
+  }
+
+  .dashboard-mini-grid-v2 span,
+  .dashboard-only-card span {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .dashboard-mini-grid-v2 strong,
+  .dashboard-only-card strong {
+    font-size: 22px;
+  }
+
+  .dashboard-arrival-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .dashboard-arrival-status {
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+}
+
+/* =========================================================
+   PEDIDOS V10 - TABLA COMPACTA, ACCIONES Y PROGRESO FINO
+   ========================================================= */
+.desktop-table table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.desktop-table th:nth-child(1),
+.desktop-table td:nth-child(1) { width: 9%; }
+.desktop-table th:nth-child(2),
+.desktop-table td:nth-child(2) { width: 8%; }
+.desktop-table th:nth-child(3),
+.desktop-table td:nth-child(3) { width: 11%; }
+.desktop-table th:nth-child(4),
+.desktop-table td:nth-child(4) { width: 9%; }
+.desktop-table th:nth-child(5),
+.desktop-table td:nth-child(5) { width: 14%; }
+.desktop-table th:nth-child(6),
+.desktop-table td:nth-child(6) { width: 13%; }
+.desktop-table th:nth-child(7),
+.desktop-table td:nth-child(7),
+.desktop-table th:nth-child(8),
+.desktop-table td:nth-child(8),
+.desktop-table th:nth-child(9),
+.desktop-table td:nth-child(9) { width: 8%; }
+.desktop-table th:nth-child(10),
+.desktop-table td:nth-child(10) { width: 7%; }
+.desktop-table th:nth-child(11),
+.desktop-table td:nth-child(11) { width: 13%; }
+
+.order-code-cell {
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.status-cell {
+  min-width: 170px;
+}
+
+.order-status-select {
+  width: 100%;
+  min-width: 154px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 999px;
+  min-height: 38px;
+  padding: 0 34px 0 14px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+  background-color: #ffffff;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.order-status-select.badge-gray { background-color: #f8fafc; color: #334155; }
+.order-status-select.badge-dark { background-color: #111827; color: #ffffff; }
+.order-status-select.badge-purple { background-color: #f3e8ff; color: #6d28d9; }
+.order-status-select.badge-green,
+.order-status-select.badge-green-soft { background-color: #dcfce7; color: #166534; }
+.order-status-select.badge-green-strong { background-color: #15803d; color: #ffffff; }
+.order-status-select.badge-blue { background-color: #dbeafe; color: #1e40af; }
+.order-status-select.badge-red,
+.order-status-select.badge-red-soft { background-color: #fee2e2; color: #991b1b; }
+.order-status-select.badge-red-strong { background-color: #991b1b; color: #ffffff; }
+
+.actions-th {
+  text-align: right;
+}
+
+.actions-compact {
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.actions-compact .btn {
+  min-height: 34px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.btn-action-view {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.btn-action-message {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(226, 232, 240, 0.95);
+}
+
+.btn-action-delete {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.order-progress-table-row td {
+  padding-top: 0 !important;
+  padding-bottom: 12px !important;
+  border-top: 0 !important;
+}
+
+.order-progress-table-row + tr td {
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.order-mini-progress {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.order-mini-progress-line {
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(226, 232, 240, 0.95);
+}
+
+.order-mini-progress-line span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #64748b;
+}
+
+.order-mini-progress-moving span { background: linear-gradient(90deg, #2563eb, #7c3aed); }
+.order-mini-progress-arrival span { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.order-mini-progress-received span,
+.order-mini-progress-ready span { background: linear-gradient(90deg, #22c55e, #0ea5e9); }
+.order-mini-progress-pending span { background: #94a3b8; }
+
+.order-mini-progress small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.order-progress-empty {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  display: block;
+  text-align: right;
+}
+
+.mobile-order-card-compact {
+  padding: 14px;
+  border-radius: 22px;
+  margin-bottom: 10px;
+}
+
+.mobile-order-compact-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.mobile-order-compact-head span,
+.mobile-order-compact-money span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mobile-order-compact-head h3 {
+  margin: 3px 0 0;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.mobile-order-status-select {
+  width: auto;
+  min-width: 132px;
+  max-width: 172px;
+  min-height: 34px;
+  font-size: 12px;
+  padding-left: 12px;
+  padding-right: 28px;
+}
+
+.mobile-order-compact-money {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mobile-order-compact-money div {
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  border-radius: 16px;
+  padding: 10px 12px;
+}
+
+.mobile-order-compact-money strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+  line-height: 1.1;
+  color: #0f172a;
+}
+
+.order-mini-progress-mobile {
+  margin-top: 11px;
+  gap: 3px;
+}
+
+.order-mini-progress-mobile .order-mini-progress-line {
+  height: 3px;
+}
+
+.mobile-order-actions-compact {
+  grid-template-columns: 0.8fr 1fr 0.9fr;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.mobile-order-actions-compact .btn {
+  width: 100%;
+  min-height: 38px;
+  border-radius: 14px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .mobile-list-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .mobile-list-title h2 {
+    font-size: 17px;
+  }
+}
+
+@media (max-width: 430px) {
+  .mobile-order-compact-head {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-order-status-select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .mobile-order-actions-compact {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .mobile-order-actions-compact .btn {
+    font-size: 11px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
+
+/* PEDIDOS V11 · HUD compacto, acciones desplegables y estados limpios */
+.desktop-table {
+  overflow: visible !important;
+}
+
+.desktop-table table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.status-cell .order-status-select {
+  min-width: 168px;
+  max-width: 210px;
+  text-overflow: ellipsis;
+}
+
+.actions-menu-cell {
+  position: relative;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-width: 170px;
+  white-space: nowrap;
+}
+
+.actions-menu-cell .btn-action-view,
+.actions-menu-cell .btn-action-more {
+  min-height: 32px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.actions-menu-cell .btn-action-view {
+  min-width: 48px;
+  text-align: center;
+}
+
+.order-actions-dropdown-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.order-actions-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 80;
+  width: 190px;
+  padding: 8px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 24px 55px rgba(15, 23, 42, 0.18);
+  display: grid;
+  gap: 6px;
+}
+
+.order-actions-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 22px;
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  background: #ffffff;
+  border-left: 1px solid rgba(226, 232, 240, 0.95);
+  border-top: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.order-actions-dropdown button {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-actions-dropdown button:hover {
+  background: #eef2ff;
+}
+
+.order-actions-dropdown button.danger {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.order-actions-dropdown button.danger:hover {
+  background: #fee2e2;
+}
+
+.order-actions-dropdown button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.order-progress-table-row td {
+  padding: 0 14px 12px 14px !important;
+  border-top: 0 !important;
+}
+
+.order-mini-progress {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 6px 4px 2px;
+}
+
+.order-mini-progress-item {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 10px;
+}
+
+.order-mini-progress-label {
+  display: block;
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.order-mini-progress-line {
+  height: 2px !important;
+  border-radius: 999px;
+  background: #e7edf5;
+  overflow: hidden;
+}
+
+.order-mini-progress-line span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+}
+
+.order-mini-progress-moving span { background: linear-gradient(90deg, #2563eb, #7c3aed); }
+.order-mini-progress-arrival span { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.order-mini-progress-received span,
+.order-mini-progress-ready span { background: linear-gradient(90deg, #22c55e, #0ea5e9); }
+.order-mini-progress-pending span { background: #94a3b8; }
+
+.order-mini-progress-more {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 900;
+  margin-left: 127px;
+}
+
+.payment-status-pending {
+  color: #991b1b;
+}
+
+@media (min-width: 901px) {
+  .actions-compact .btn-action-message,
+  .actions-compact .btn-action-delete {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .desktop-table {
+    overflow-x: auto !important;
+  }
+
+  .order-mini-progress-mobile {
+    gap: 4px;
+    margin-top: 10px;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 98px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-label {
+    font-size: 8px;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-line {
+    height: 2px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .mobile-order-card-compact {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .mobile-order-compact-head h3 {
+    font-size: 17px;
+  }
+
+  .mobile-order-status-select {
+    min-height: 32px;
+    font-size: 11px;
+  }
+
+  .mobile-order-compact-money {
+    margin-top: 9px;
+  }
+
+  .mobile-order-compact-money div {
+    padding: 8px 10px;
+    border-radius: 14px;
+  }
+
+  .mobile-order-actions-compact {
+    margin-top: 9px;
+  }
+}
+
+/* Ajuste fino para que los badges no choquen con importes en escritorio */
+.desktop-table table {
+  min-width: 1280px;
+}
+
+.desktop-table th,
+.desktop-table td {
+  vertical-align: middle;
+}
+
+.desktop-table th:nth-child(6),
+.desktop-table td:nth-child(6) {
+  min-width: 172px;
+}
+
+.payment-status-badge-small {
+  min-height: 28px !important;
+  padding: 5px 9px !important;
+  font-size: 11px !important;
+  gap: 6px !important;
+}
+
+.payment-status-badge-small i {
+  width: 7px !important;
+  height: 7px !important;
+}
+
+/* PEDIDOS V12 · estado limpio, progreso claro y cliente en móvil */
+.status-cell {
+  position: relative;
+  min-width: 190px;
+}
+
+.order-status-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+  max-width: 215px;
+  vertical-align: middle;
+}
+
+.order-status-button {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 999px;
+  padding: 0 12px 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  white-space: nowrap;
+}
+
+.order-status-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.order-status-button.badge-gray { background: #f8fafc; color: #334155; }
+.order-status-button.badge-purple { background: #f3e8ff; color: #6d28d9; }
+.order-status-button.badge-green,
+.order-status-button.badge-green-soft { background: #dcfce7; color: #166534; }
+.order-status-button.badge-green-strong { background: #15803d; color: #ffffff; }
+.order-status-button.badge-blue { background: #dbeafe; color: #1e40af; }
+.order-status-button.badge-red,
+.order-status-button.badge-red-soft { background: #fee2e2; color: #991b1b; }
+.order-status-button.badge-red-strong { background: #991b1b; color: #ffffff; }
+
+.order-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.order-status-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.order-status-chevron {
+  flex: 0 0 auto;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.8;
+  transform: translateY(-1px);
+}
+
+.order-status-options {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 120;
+  width: 225px;
+  padding: 8px;
+  display: grid;
+  gap: 5px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
+  box-shadow: 0 24px 55px rgba(15, 23, 42, 0.18);
+}
+
+.order-status-options button {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 11px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+}
+
+.order-status-options button:hover,
+.order-status-options button.active {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.desktop-table table {
+  min-width: 1430px;
+}
+
+.desktop-table th:nth-child(5),
+.desktop-table td:nth-child(5) {
+  min-width: 195px;
+}
+
+.desktop-table th:nth-child(6),
+.desktop-table td:nth-child(6) {
+  min-width: 205px;
+}
+
+.desktop-table th:nth-child(7),
+.desktop-table td:nth-child(7),
+.desktop-table th:nth-child(8),
+.desktop-table td:nth-child(8),
+.desktop-table th:nth-child(9),
+.desktop-table td:nth-child(9) {
+  min-width: 105px;
+}
+
+.payment-status-badge {
+  white-space: nowrap;
+}
+
+.order-mini-progress-label {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: #475569;
+}
+
+.order-mini-progress-pending span {
+  background: #cbd5e1;
+}
+
+.mobile-order-client-name {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.15;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+@media (max-width: 900px) {
+  .mobile-order-compact-head {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .mobile-order-status-wrap {
+    width: 100%;
+    max-width: none;
+  }
+
+  .mobile-order-status-button {
+    width: 100%;
+    min-height: 38px;
+    font-size: 12px;
+    padding-left: 14px;
+    padding-right: 12px;
+  }
+
+  .mobile-order-status-wrap .order-status-options {
+    width: 100%;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 105px minmax(0, 1fr);
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-label {
+    font-size: 8.5px;
+  }
+}
+
+@media (max-width: 430px) {
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 102px minmax(0, 1fr);
+  }
+}
+
+/* PEDIDOS V13 · tabla más compacta, sin tracking y móvil con pago arriba */
+.desktop-table table {
+  min-width: 1120px !important;
+  font-size: 13px;
+}
+
+.desktop-table th,
+.desktop-table td {
+  padding: 12px 12px !important;
+  font-size: 13px;
+  line-height: 1.12;
+}
+
+.desktop-table th {
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.desktop-table th:nth-child(1),
+.desktop-table td:nth-child(1) { min-width: 94px; }
+.desktop-table th:nth-child(2),
+.desktop-table td:nth-child(2) { min-width: 82px; }
+.desktop-table th:nth-child(3),
+.desktop-table td:nth-child(3) { min-width: 135px; }
+.desktop-table th:nth-child(4),
+.desktop-table td:nth-child(4) { min-width: 105px; }
+.desktop-table th:nth-child(5),
+.desktop-table td:nth-child(5) { min-width: 160px !important; }
+.desktop-table th:nth-child(6),
+.desktop-table td:nth-child(6) { min-width: 150px !important; }
+.desktop-table th:nth-child(7),
+.desktop-table td:nth-child(7),
+.desktop-table th:nth-child(8),
+.desktop-table td:nth-child(8),
+.desktop-table th:nth-child(9),
+.desktop-table td:nth-child(9) { min-width: 92px !important; }
+.desktop-table th:nth-child(10),
+.desktop-table td:nth-child(10) { min-width: 145px; }
+
+.order-status-menu-wrap {
+  max-width: 158px !important;
+}
+
+.order-status-button {
+  min-height: 34px !important;
+  padding: 5px 10px !important;
+  font-size: 12px !important;
+  line-height: 1.02 !important;
+}
+
+.order-status-text {
+  white-space: normal !important;
+  overflow: hidden;
+  text-overflow: clip;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.payment-status-badge,
+.payment-status-badge-small,
+.refund-status-badge,
+.refund-status-badge-small {
+  white-space: normal !important;
+  max-width: 145px;
+  min-height: 30px !important;
+  padding: 5px 9px !important;
+  font-size: 11px !important;
+  line-height: 1.05 !important;
+  text-align: left;
+}
+
+.payment-status-badge i,
+.payment-status-badge-small i {
+  flex: 0 0 auto;
+}
+
+.actions-menu-cell {
+  white-space: nowrap;
+}
+
+.actions-menu-cell .btn-small {
+  min-height: 30px !important;
+  padding: 7px 11px !important;
+  font-size: 12px !important;
+  border-radius: 999px !important;
+}
+
+.order-progress-table-row td {
+  padding: 0 12px 9px 12px !important;
+}
+
+.order-mini-progress {
+  gap: 3px !important;
+  padding: 3px 4px 0 !important;
+}
+
+.order-mini-progress-item {
+  grid-template-columns: 104px minmax(0, 1fr) !important;
+  gap: 5px !important;
+  min-height: 8px !important;
+}
+
+.order-mini-progress-label {
+  font-size: 8.5px !important;
+  line-height: 1 !important;
+}
+
+.order-mini-progress-line {
+  height: 1.5px !important;
+}
+
+.mobile-order-compact-head-v13 {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: start !important;
+  gap: 8px !important;
+}
+
+.mobile-order-payment-top {
+  justify-self: end;
+  max-width: 145px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mobile-order-payment-top .payment-status-badge,
+.mobile-order-payment-top .payment-status-badge-small,
+.mobile-order-payment-top .refund-status-badge,
+.mobile-order-payment-top .refund-status-badge-small {
+  max-width: 128px;
+  justify-content: flex-start;
+  font-size: 10px !important;
+  padding: 5px 8px !important;
+}
+
+.mobile-order-state-row {
+  margin-top: 9px;
+}
+
+.mobile-order-state-row .order-status-menu-wrap {
+  max-width: none !important;
+  width: 100% !important;
+}
+
+.mobile-order-state-row .order-status-button {
+  width: 100% !important;
+  min-height: 34px !important;
+  font-size: 11px !important;
+  padding: 6px 12px !important;
+}
+
+@media (max-width: 900px) {
+  .mobile-order-card-compact {
+    padding: 12px !important;
+  }
+
+  .mobile-order-main-info span {
+    font-size: 10px;
+  }
+
+  .mobile-order-main-info h3 {
+    font-size: 18px !important;
+    line-height: 1;
+  }
+
+  .mobile-order-client-name {
+    font-size: 12px !important;
+    margin-top: 4px !important;
+  }
+
+  .mobile-order-compact-money {
+    margin-top: 9px !important;
+    gap: 8px !important;
+  }
+
+  .mobile-order-compact-money div {
+    padding: 9px 10px !important;
+  }
+
+  .mobile-order-compact-money span {
+    font-size: 10px !important;
+  }
+
+  .mobile-order-compact-money strong {
+    font-size: 17px !important;
+  }
+
+  .order-mini-progress-mobile {
+    margin-top: 8px !important;
+    gap: 2px !important;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 88px minmax(0, 1fr) !important;
+    gap: 4px !important;
+    min-height: 8px !important;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-label {
+    font-size: 8px !important;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-line {
+    height: 1.5px !important;
+  }
+
+  .mobile-order-actions-compact {
+    margin-top: 9px !important;
+    gap: 8px !important;
+  }
+
+  .mobile-order-actions-compact .btn {
+    min-height: 34px !important;
+    font-size: 12px !important;
+    padding: 8px 10px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .mobile-order-payment-top .payment-status-badge,
+  .mobile-order-payment-top .payment-status-badge-small,
+  .mobile-order-payment-top .refund-status-badge,
+  .mobile-order-payment-top .refund-status-badge-small {
+    max-width: 118px;
+    font-size: 9.5px !important;
+  }
+
+  .order-mini-progress-mobile .order-mini-progress-item {
+    grid-template-columns: 82px minmax(0, 1fr) !important;
+  }
+}
+
+/* PEDIDOS V14 · ajuste final de tabla, badges y progreso */
+.pedidos-table-card {
+  overflow: visible !important;
+  padding-bottom: 18px !important;
+}
+
+.pedidos-table-card .pedidos-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed !important;
+  border-collapse: separate !important;
+  border-spacing: 0 0 !important;
+}
+
+.pedidos-table th,
+.pedidos-table td {
+  padding: 10px 9px !important;
+  font-size: 12px !important;
+  line-height: 1.1 !important;
+  border-bottom: 0 !important;
+}
+
+.pedidos-table th {
+  font-size: 11.5px !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.005em !important;
+}
+
+.pedidos-table th:nth-child(1),
+.pedidos-table td:nth-child(1) { width: 9% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(2),
+.pedidos-table td:nth-child(2) { width: 8% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(3),
+.pedidos-table td:nth-child(3) { width: 12% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(4),
+.pedidos-table td:nth-child(4) { width: 9% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(5),
+.pedidos-table td:nth-child(5) { width: 14% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(6),
+.pedidos-table td:nth-child(6) { width: 12% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(7),
+.pedidos-table td:nth-child(7) { width: 9% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(8),
+.pedidos-table td:nth-child(8) { width: 8% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(9),
+.pedidos-table td:nth-child(9) { width: 9% !important; min-width: 0 !important; }
+.pedidos-table th:nth-child(10),
+.pedidos-table td:nth-child(10) { width: 10% !important; min-width: 0 !important; }
+
+.pedidos-table td:not(.status-cell):not(.actions-menu-cell) {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pedidos-table .order-code-cell {
+  font-size: 12px !important;
+  font-weight: 950 !important;
+}
+
+.pedidos-table .status-cell {
+  overflow: visible !important;
+  position: relative !important;
+}
+
+.pedidos-table .order-status-menu-wrap {
+  width: 100% !important;
+  max-width: 150px !important;
+}
+
+.pedidos-table .order-status-button {
+  min-height: 32px !important;
+  height: auto !important;
+  padding: 5px 8px !important;
+  gap: 5px !important;
+  font-size: 11.2px !important;
+  border-radius: 999px !important;
+}
+
+.pedidos-table .order-status-dot {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.pedidos-table .order-status-text {
+  line-height: 1.05 !important;
+  text-align: left !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.pedidos-table .order-status-chevron {
+  width: 13px !important;
+  height: 13px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  margin-left: auto !important;
+  transform: none !important;
+  opacity: 0.75 !important;
+}
+
+.pedidos-table .order-status-options {
+  width: 190px !important;
+  left: 0 !important;
+}
+
+.pedidos-table .payment-status-badge,
+.pedidos-table .payment-status-badge-small,
+.pedidos-table .refund-status-badge,
+.pedidos-table .refund-status-badge-small {
+  max-width: 130px !important;
+  min-height: 30px !important;
+  padding: 5px 8px !important;
+  gap: 5px !important;
+  font-size: 10.5px !important;
+  line-height: 1.02 !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+}
+
+.pedidos-table .payment-status-badge span {
+  display: inline-block !important;
+  max-width: 96px !important;
+  line-height: 1.02 !important;
+}
+
+.pedidos-table .payment-status-badge i,
+.pedidos-table .payment-status-badge-small i {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.pedidos-table .actions-menu-cell {
+  overflow: visible !important;
+  white-space: nowrap !important;
+  display: table-cell !important;
+}
+
+.pedidos-table .actions-compact {
+  min-width: 0 !important;
+}
+
+.pedidos-table .actions-menu-cell > .btn,
+.pedidos-table .actions-menu-cell .btn-action-more {
+  min-height: 28px !important;
+  padding: 6px 9px !important;
+  font-size: 10.5px !important;
+  border-radius: 999px !important;
+}
+
+.pedidos-table .actions-menu-cell .btn-action-view {
+  min-width: 43px !important;
+  padding-left: 9px !important;
+  padding-right: 9px !important;
+}
+
+.pedidos-table .actions-menu-cell .btn-action-more {
+  min-width: 58px !important;
+}
+
+.order-actions-dropdown-wrap {
+  display: inline-flex !important;
+  position: relative !important;
+}
+
+.pedidos-table .order-actions-dropdown {
+  right: 0 !important;
+  left: auto !important;
+  min-width: 150px !important;
+}
+
+.pedidos-table .order-progress-table-row td {
+  padding: 0 12px 6px 12px !important;
+  border-bottom: 0 !important;
+}
+
+.pedidos-table .order-progress-table-row + tr td {
+  padding-top: 13px !important;
+}
+
+.pedidos-table .order-mini-progress {
+  padding: 0 2px 2px !important;
+  margin-top: -2px !important;
+  gap: 1px !important;
+}
+
+.pedidos-table .order-mini-progress-item,
+.order-mini-progress-item {
+  grid-template-columns: max-content minmax(0, 1fr) !important;
+  gap: 7px !important;
+  align-items: center !important;
+  min-height: 7px !important;
+}
+
+.order-mini-progress-label {
+  max-width: 108px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+  color: #64748b !important;
+}
+
+.order-mini-progress-line {
+  height: 1.35px !important;
+  background: #e2e8f0 !important;
+}
+
+.mobile-order-payment-top .payment-status-mobile-top,
+.mobile-order-payment-top .payment-status-badge,
+.mobile-order-payment-top .payment-status-badge-small,
+.mobile-order-payment-top .refund-status-badge,
+.mobile-order-payment-top .refund-status-badge-small {
+  width: auto !important;
+  max-width: 116px !important;
+  min-height: 26px !important;
+  padding: 4px 7px !important;
+  gap: 4px !important;
+  font-size: 8.8px !important;
+  line-height: 1.02 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+.mobile-order-payment-top .payment-status-badge span {
+  max-width: 82px !important;
+  display: inline-block !important;
+  line-height: 1.02 !important;
+}
+
+.mobile-order-payment-top .payment-status-badge i,
+.mobile-order-payment-top .payment-status-badge-small i {
+  width: 5.5px !important;
+  height: 5.5px !important;
+}
+
+.mobile-order-state-row .order-status-button {
+  gap: 7px !important;
+}
+
+.mobile-order-state-row .order-status-text {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+}
+
+.mobile-order-state-row .order-status-chevron {
+  width: 14px !important;
+  height: 14px !important;
+  font-size: 10px !important;
+  transform: none !important;
+}
+
+.order-mini-progress-mobile {
+  margin-top: 7px !important;
+  gap: 1px !important;
+}
+
+.order-mini-progress-mobile .order-mini-progress-item {
+  grid-template-columns: max-content minmax(0, 1fr) !important;
+  gap: 5px !important;
+  min-height: 7px !important;
+}
+
+.order-mini-progress-mobile .order-mini-progress-label {
+  max-width: 95px !important;
+  font-size: 7.8px !important;
+}
+
+.order-mini-progress-mobile .order-mini-progress-line {
+  height: 1.25px !important;
+}
+
+@media (max-width: 900px) {
+  .mobile-order-compact-head-v13 {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 6px !important;
+  }
+
+  .mobile-order-payment-top {
+    max-width: 118px !important;
+  }
+
+  .mobile-order-card-compact {
+    border-bottom: 0 !important;
+  }
+}
+

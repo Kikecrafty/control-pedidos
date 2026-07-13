@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { supabase } from '../supabaseClient'
@@ -6,7 +6,12 @@ import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import Toast from '../components/Toast'
 import PlanLimitNotice from '../components/PlanLimitNotice'
+import EmptyState from '../components/EmptyState'
+import ConfirmDialog from '../components/ConfirmDialog'
+import PageHelp from '../components/PageHelp'
 import { cargarEstadoPlan, estaBloqueadoPorPlan, puedeCrearPedido } from '../lib/planes'
+import { PLATAFORMAS } from '../lib/plataformas'
+import { formatearProductosParaMensaje } from '../lib/mensajesProductos'
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100]
 const PEDIDOS_CACHE_LIMIT = 50
@@ -125,14 +130,14 @@ const guardarPedidosCache = (pedidos) => {
 
 
 export default function Pedidos() {
-  const [pedidos, setPedidos] = useState(() => leerPedidosCache())
-  const [totalPedidos, setTotalPedidos] = useState(() => leerPedidosCache().length)
+  const [todosPedidos, setTodosPedidos] = useState(() => leerPedidosCache())
   const [pagina, setPagina] = useState(1)
   const [tamanoPagina, setTamanoPagina] = useState(25)
   const [cargandoPedidos, setCargandoPedidos] = useState(false)
   const [estadoPlan, setEstadoPlan] = useState(null)
   const [busqueda, setBusqueda] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState('Todos')
+  const [vistaCompra, setVistaCompra] = useState('pendientes')
+  const [agruparComprados, setAgruparComprados] = useState(true)
   const [filtroPlataforma, setFiltroPlataforma] = useState('Todas')
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
@@ -140,6 +145,7 @@ export default function Pedidos() {
   const [toast, setToast] = useState(null)
   const accionEnProcesoRef = useRef(false)
   const [accionEnProceso, setAccionEnProceso] = useState('')
+  const [pedidoAEliminar, setPedidoAEliminar] = useState(null)
 
   const iniciarAccion = (mensaje = 'Procesando...') => {
     if (accionEnProcesoRef.current) return false
@@ -168,11 +174,12 @@ export default function Pedidos() {
   const [menuAccionesAbierto, setMenuAccionesAbierto] = useState(null)
   const [menuEstadoAbierto, setMenuEstadoAbierto] = useState(null)
   const [estiloMenuAcciones, setEstiloMenuAcciones] = useState(null)
-  const [estiloMenuEstado, setEstiloMenuEstado] = useState(null)
+  const [, setEstiloMenuEstado] = useState(null)
 
   useEffect(() => {
     cargarPlan()
     cargarConfigPedidos()
+    cargarPedidos()
 
     const actualizarConfigFechas = () => {
       setConfigFechaPedidos(obtenerConfigFechaLocal())
@@ -187,12 +194,8 @@ export default function Pedidos() {
   }, [])
 
   useEffect(() => {
-    cargarPedidos()
-  }, [pagina, tamanoPagina, busqueda, filtroEstado, filtroPlataforma, fechaDesde, fechaHasta, configFechaPedidos.tipoFechaBusqueda, configFechaPedidos.tipoFechaAgrupacion])
-
-  useEffect(() => {
     setPagina(1)
-  }, [busqueda, filtroEstado, filtroPlataforma, fechaDesde, fechaHasta, tamanoPagina, configFechaPedidos.tipoFechaBusqueda, configFechaPedidos.tipoFechaAgrupacion])
+  }, [busqueda, filtroPlataforma, fechaDesde, fechaHasta, tamanoPagina, vistaCompra])
 
   useEffect(() => {
     if (!menuAccionesAbierto && !menuEstadoAbierto) return undefined
@@ -225,28 +228,6 @@ export default function Pedidos() {
       document.removeEventListener('pointerdown', cerrarAlPulsarFuera)
     }
   }, [menuAccionesAbierto, menuEstadoAbierto])
-
-  const totalPaginas = useMemo(() => {
-    return Math.max(1, Math.ceil(totalPedidos / tamanoPagina))
-  }, [totalPedidos, tamanoPagina])
-
-  const plataformas = [
-    'SHEIN',
-    'Temu',
-    'AliExpress',
-    'Catálogo',
-    'Otro'
-  ]
-
-  const estadosPedido = [
-    'Cotizado',
-    'En camino',
-    'Recibido',
-    'Dejado en negocio',
-    'Entregado',
-    'Cancelado',
-    'Devuelto'
-  ]
 
   const mostrarToast = (mensaje, tipo = 'success') => {
     setToast({ mensaje, tipo })
@@ -289,41 +270,6 @@ export default function Pedidos() {
     }
   }
 
-  const cambiarSeparacionPorFecha = async (valor) => {
-    const nuevaConfig = { ...configFechaPedidos, separarPorFecha: valor }
-    setConfigFechaPedidos(nuevaConfig)
-    guardarConfigFechaLocal(nuevaConfig)
-
-    try {
-      const { data: authData } = await supabase.auth.getUser()
-      const userId = authData?.user?.id
-      if (!userId) return
-
-      await supabase
-        .from('perfiles')
-        .update({ pedidos_separar_por_fecha: valor, actualizado_en: new Date().toISOString() })
-        .eq('user_id', userId)
-    } catch (error) {
-      console.log(error)
-    }
-  }
-
-  const cambiarTipoFechaBusqueda = (valor) => {
-    const nuevaConfig = { ...configFechaPedidos, tipoFechaBusqueda: valor }
-    setConfigFechaPedidos(nuevaConfig)
-    guardarConfigFechaLocal(nuevaConfig)
-  }
-
-  const cambiarTipoFechaAgrupacion = (valor) => {
-    const nuevaConfig = { ...configFechaPedidos, tipoFechaAgrupacion: valor }
-    setConfigFechaPedidos(nuevaConfig)
-    guardarConfigFechaLocal(nuevaConfig)
-  }
-
-  const obtenerEtiquetaTipoFecha = (tipo) => {
-    return tipo === 'fecha_pedido' ? 'Fecha del pedido' : 'Registro en Ordely'
-  }
-
   const bloqueado = estaBloqueadoPorPlan(estadoPlan)
 
   const bloquearSiNoPuede = () => {
@@ -343,6 +289,7 @@ export default function Pedidos() {
   const estadoClase = (estado) => {
     const estadoNormal = normalizarEstado(estado)
 
+    if (estadoNormal === 'Pendiente de compra') return 'badge-amber'
     if (estadoNormal === 'Cotizado') return 'badge-gray'
     if (estadoNormal === 'En camino') return 'badge-purple'
     if (estadoNormal === 'Recibido') return 'badge-green-soft'
@@ -367,6 +314,108 @@ export default function Pedidos() {
       .replace(/[\u0300-\u036f]/g, '')
   }
 
+  const productoEstaComprado = (producto) => {
+    const estado = normalizarEstadoProducto(producto?.estado_compra)
+
+    return Boolean(
+      producto?.fecha_comprado ||
+      producto?.lote_compra_id ||
+      producto?.fecha_estimada_llegada ||
+      producto?.fecha_recibido ||
+      producto?.fecha_dejado_negocio ||
+      producto?.fecha_entregado_cliente ||
+      producto?.entregado === true ||
+      estado.includes('comprado') ||
+      estado.includes('camino') ||
+      estado.includes('recibido') ||
+      estado.includes('negocio') ||
+      estado.includes('entregado')
+    )
+  }
+
+  const pedidoEstaCerradoParaCompra = (pedido) => {
+    const estado = normalizarEstado(pedido?.estado)
+    return ['Entregado', 'Cancelado', 'Devuelto'].includes(estado)
+  }
+
+  const pedidoEstaComprado = (pedido) => {
+    if (pedidoEstaCerradoParaCompra(pedido)) return true
+
+    const productos = obtenerProductosPedido(pedido)
+    return productos.length > 0 && productos.every(productoEstaComprado)
+  }
+
+  const obtenerFechaCompraPedido = (pedido) => {
+    const fechas = obtenerProductosPedido(pedido)
+      .map((producto) => producto?.fecha_comprado)
+      .filter(Boolean)
+      .map((fecha) => new Date(fecha))
+      .filter((fecha) => !Number.isNaN(fecha.getTime()))
+      .sort((a, b) => b.getTime() - a.getTime())
+
+    return fechas[0]?.toISOString() || null
+  }
+
+  const obtenerConteoCompraPedido = (pedido) => {
+    const productos = obtenerProductosPedido(pedido)
+
+    if (pedidoEstaCerradoParaCompra(pedido)) {
+      return { total: productos.length, comprados: productos.length, pendientes: 0 }
+    }
+
+    const comprados = productos.filter(productoEstaComprado).length
+    return { total: productos.length, comprados, pendientes: Math.max(productos.length - comprados, 0) }
+  }
+
+  const obtenerResumenCompraPedido = (pedido) => {
+    const estado = normalizarEstado(pedido?.estado)
+    const fechaCompra = obtenerFechaCompraPedido(pedido)
+
+    if (estado === 'Cancelado') return 'Pedido cancelado'
+    if (estado === 'Devuelto') return 'Pedido devuelto'
+    if (estado === 'Entregado' && !fechaCompra) return 'Pedido entregado'
+    if (pedidoEstaComprado(pedido) && fechaCompra) return `Comprado: ${formatearFechaCorta(fechaCompra)}`
+    if (pedidoEstaComprado(pedido)) return 'Compra completada'
+
+    const pendientes = obtenerConteoCompraPedido(pedido).pendientes
+    return `${pendientes} producto${pendientes === 1 ? '' : 's'} por comprar`
+  }
+
+  const obtenerEstadoAutomatico = (pedido) => {
+    const guardado = normalizarEstado(pedido?.estado)
+    if (guardado === 'Cancelado' || guardado === 'Devuelto') return guardado
+
+    const productos = obtenerProductosPedido(pedido)
+    if (!productos.length) return 'Pendiente de compra'
+
+    const todosEntregados = productos.every((producto) =>
+      producto?.entregado === true ||
+      Boolean(producto?.fecha_entregado_cliente) ||
+      normalizarEstadoProducto(producto?.estado_compra).includes('entregado')
+    )
+    if (todosEntregados) return 'Entregado'
+
+    if (productos.some((producto) => !productoEstaComprado(producto))) return 'Pendiente de compra'
+
+    const algunoEnCamino = productos.some((producto) => {
+      const estado = normalizarEstadoProducto(producto?.estado_compra)
+      return !producto?.fecha_recibido && !estado.includes('recibido') && !estado.includes('negocio') && !estado.includes('entregado')
+    })
+    if (algunoEnCamino) return 'En camino'
+
+    const algunoRecibido = productos.some((producto) => {
+      const estado = normalizarEstadoProducto(producto?.estado_compra)
+      return Boolean(producto?.fecha_recibido) || estado.includes('recibido')
+    })
+    const algunoPendienteDejar = productos.some((producto) => {
+      const estado = normalizarEstadoProducto(producto?.estado_compra)
+      return !producto?.fecha_dejado_negocio && !estado.includes('negocio') && !estado.includes('entregado')
+    })
+    if (algunoRecibido && algunoPendienteDejar) return 'Recibido'
+
+    return 'Dejado en negocio'
+  }
+
   const calcularProgresoProducto = (producto) => {
     const estado = normalizarEstadoProducto(producto?.estado_compra)
 
@@ -386,8 +435,12 @@ export default function Pedidos() {
       return { porcentaje: 88, texto: 'Recibido', tipo: 'received' }
     }
 
-    if (!producto?.fecha_comprado) {
+    if (!productoEstaComprado(producto)) {
       return { porcentaje: 12, texto: 'Compra pendiente', tipo: 'pending' }
+    }
+
+    if (!producto?.fecha_comprado) {
+      return { porcentaje: 45, texto: 'Comprado', tipo: 'moving' }
     }
 
     const inicio = new Date(producto.fecha_comprado)
@@ -425,17 +478,68 @@ export default function Pedidos() {
     return progreso?.texto || 'En proceso'
   }
 
+  const obtenerEstadoProductoMovil = (progreso) => {
+    if (progreso?.tipo === 'pending') return 'Pendiente de compra'
+    if (progreso?.tipo === 'moving') return 'En camino'
+    if (progreso?.tipo === 'arrival') return 'Posiblemente ya llegó'
+    if (progreso?.tipo === 'received') return 'Llegó'
+    if (progreso?.tipo === 'ready') return 'Listo para recoger'
+    if (progreso?.tipo === 'done') return 'Entregado'
+    return progreso?.texto || 'En proceso'
+  }
+
   const renderProgresoProductos = (pedido, compacto = false) => {
-    const productos = obtenerProductosPedido(pedido).filter((producto) => {
+    const productosTodos = obtenerProductosPedido(pedido)
+    const productosPendientes = productosTodos.filter((producto) => {
       const progreso = calcularProgresoProducto(producto)
       return progreso.tipo !== 'done'
     })
 
-    if (!productos.length) return null
+    if (compacto) {
+      if (!productosTodos.length) return null
+
+      return (
+        <div className="order-products-mobile-list">
+          <div className="order-products-mobile-header">
+            <span>Productos</span>
+            <strong>{productosTodos.length}</strong>
+          </div>
+
+          <div className="order-products-mobile-body">
+            {productosTodos.slice(0, 5).map((producto, index) => {
+              const progreso = calcularProgresoProducto(producto)
+              const nombre = producto?.nombre_producto || `Producto ${index + 1}`
+
+              return (
+                <div
+                  className="order-product-mobile-row"
+                  key={producto?.id || `${pedido.id}-${index}`}
+                  title={`${nombre}: ${obtenerEstadoProductoMovil(progreso)}`}
+                  aria-label={`${nombre}: ${obtenerEstadoProductoMovil(progreso)}`}
+                >
+                  <span className="order-product-mobile-name">{nombre}</span>
+                  <span className={`order-product-mobile-state order-product-mobile-state-${progreso.tipo}`}>
+                    {obtenerEstadoProductoMovil(progreso)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          {productosTodos.length > 5 && (
+            <small className="order-mini-progress-more">
+              +{productosTodos.length - 5} producto{productosTodos.length - 5 === 1 ? '' : 's'} más
+            </small>
+          )}
+        </div>
+      )
+    }
+
+    if (!productosPendientes.length) return null
 
     return (
-      <div className={compacto ? 'order-mini-progress order-mini-progress-mobile' : 'order-mini-progress'}>
-        {productos.slice(0, 8).map((producto, index) => {
+      <div className="order-mini-progress">
+        {productosPendientes.slice(0, 8).map((producto, index) => {
           const progreso = calcularProgresoProducto(producto)
           const nombre = producto?.nombre_producto || `Artículo ${index + 1}`
 
@@ -454,8 +558,8 @@ export default function Pedidos() {
           )
         })}
 
-        {productos.length > 8 && (
-          <small className="order-mini-progress-more">+{productos.length - 8} artículos más</small>
+        {productosPendientes.length > 8 && (
+          <small className="order-mini-progress-more">+{productosPendientes.length - 8} artículos más</small>
         )}
       </div>
     )
@@ -469,14 +573,6 @@ export default function Pedidos() {
   const obtenerEtiquetaReembolso = (estado) => {
     const estadoNormal = normalizarEstado(estado)
     return estadoNormal === 'Devuelto' ? 'Devuelto' : 'Cancelado'
-  }
-
-  const estaPagadoPorCliente = (pedido) => {
-    return (
-      Number(pedido?.total_cliente || 0) > 0 &&
-      Number(pedido?.restante || 0) <= 0 &&
-      !['Cancelado', 'Devuelto'].includes(normalizarEstado(pedido?.estado))
-    )
   }
 
   const obtenerEstadoPago = (pedido) => {
@@ -548,95 +644,23 @@ export default function Pedidos() {
   const cargarPedidos = async () => {
     setCargandoPedidos(true)
 
-    const desde = (pagina - 1) * tamanoPagina
-    const hasta = desde + tamanoPagina - 1
-    const texto = busqueda.trim().toLowerCase()
-
-    const campoFechaFiltro = configFechaPedidos.tipoFechaBusqueda === 'fecha_pedido' ? 'fecha_pedido' : 'creado_en'
-    const campoFechaOrden = configFechaPedidos.tipoFechaAgrupacion === 'fecha_pedido' ? 'fecha_pedido' : 'creado_en'
-
-    let consulta = supabase
+    const { data, error } = await supabase
       .from('pedidos')
-      .select('*, clientes(nombre, telefono, medio_contacto, usuario_contacto), productos_pedido(id, nombre_producto, cantidad, entregado, estado_compra, fecha_comprado, fecha_estimada_llegada, fecha_recibido, fecha_dejado_negocio, fecha_entregado_cliente)', { count: 'exact' })
-      .order(campoFechaOrden, { ascending: false, nullsFirst: false })
+      .select('*, clientes(nombre, telefono, medio_contacto, usuario_contacto), productos_pedido(id, lote_compra_id, nombre_producto, cantidad, entregado, estado_compra, fecha_comprado, fecha_estimada_llegada, fecha_recibido, fecha_dejado_negocio, fecha_entregado_cliente)')
       .order('creado_en', { ascending: false })
+      .limit(500)
 
-    if (filtroEstado !== 'Todos') {
-      consulta = consulta.eq('estado', filtroEstado)
-    }
-
-    if (filtroPlataforma !== 'Todas') {
-      consulta = consulta.eq('plataforma', filtroPlataforma)
-    }
-
-    if (fechaDesde) {
-      consulta = campoFechaFiltro === 'fecha_pedido'
-        ? consulta.gte('fecha_pedido', fechaDesde)
-        : consulta.gte('creado_en', `${fechaDesde}T00:00:00`)
-    }
-
-    if (fechaHasta) {
-      consulta = campoFechaFiltro === 'fecha_pedido'
-        ? consulta.lte('fecha_pedido', fechaHasta)
-        : consulta.lte('creado_en', `${fechaHasta}T23:59:59`)
-    }
-
-    if (!texto) {
-      const { data, error, count } = await consulta.range(desde, hasta)
-      setCargandoPedidos(false)
-
-      if (error) {
-        console.log(error)
-        mostrarToast('Error al cargar pedidos', 'error')
-        return
-      }
-
-      const pedidosFinal = data || []
-      setPedidos(pedidosFinal)
-      setTotalPedidos(count || 0)
-      guardarPedidosCache(pedidosFinal)
-      return
-    }
-
-    // Para búsqueda por cliente/teléfono seguimos permitiendo encontrar datos del join.
-    // Se trae un bloque razonable y se pagina en memoria solo mientras hay texto de búsqueda.
-    const { data, error } = await consulta.limit(500)
     setCargandoPedidos(false)
 
     if (error) {
       console.log(error)
-      mostrarToast('Error al buscar pedidos', 'error')
+      mostrarToast('Error al cargar pedidos', 'error')
       return
     }
 
-    const pedidosCoincidentes = (data || []).filter((pedido) => {
-      const estadoNormal = normalizarEstado(pedido.estado)
-      const plataformaPedido = pedido.plataforma || 'SHEIN'
-      const pagoTexto = obtenerEstadoPago(pedido).texto.toLowerCase()
-      const productosTexto = obtenerProductosPedido(pedido)
-        .map((producto) => `${producto?.nombre_producto || ''} ${producto?.cantidad || ''}`)
-        .join(' ')
-        .toLowerCase()
-      const fechaTexto = `${formatearFechaCorta(pedido.creado_en)} ${formatearFechaCorta(pedido.fecha_pedido || pedido.fecha_cotizado || pedido.creado_en)}`.toLowerCase()
-
-      return (
-        pedido.codigo?.toLowerCase().includes(texto) ||
-        plataformaPedido.toLowerCase().includes(texto) ||
-        pedido.clientes?.nombre?.toLowerCase().includes(texto) ||
-        pedido.clientes?.telefono?.toLowerCase().includes(texto) ||
-        pedido.clientes?.medio_contacto?.toLowerCase().includes(texto) ||
-        pedido.clientes?.usuario_contacto?.toLowerCase().includes(texto) ||
-        estadoNormal?.toLowerCase().includes(texto) ||
-        pagoTexto.includes(texto) ||
-        productosTexto.includes(texto) ||
-        fechaTexto.includes(texto)
-      )
-    })
-
-    const pedidosPagina = pedidosCoincidentes.slice(desde, hasta + 1)
-    setPedidos(pedidosPagina)
-    setTotalPedidos(pedidosCoincidentes.length)
-    guardarPedidosCache(pedidosPagina)
+    const pedidosCargados = data || []
+    setTodosPedidos(pedidosCargados)
+    guardarPedidosCache(pedidosCargados)
   }
 
   const limpiarTelefono = (telefono) => {
@@ -762,28 +786,8 @@ export default function Pedidos() {
     return `${partes.anio}-${partes.mes}-${partes.dia}`
   }
 
-  const obtenerFechaPedidoCliente = (pedido) => {
-    return pedido?.fecha_pedido || pedido?.fecha_cotizado || pedido?.creado_en
-  }
-
-  const obtenerFechaAgrupacionPedido = (pedido) => {
-    return configFechaPedidos.tipoFechaAgrupacion === 'fecha_pedido'
-      ? obtenerFechaPedidoCliente(pedido)
-      : pedido?.creado_en
-  }
-
   const obtenerResumenProductos = (pedido) => {
-    const productos = obtenerProductosPedido(pedido)
-
-    if (!productos.length) return 'Sin productos registrados'
-
-    return productos
-      .map((producto) => {
-        const cantidad = Number(producto?.cantidad || 0)
-        const prefijo = cantidad > 0 ? `${cantidad} x ` : ''
-        return `- ${prefijo}${producto?.nombre_producto || 'Producto sin nombre'}`
-      })
-      .join('\n')
+    return formatearProductosParaMensaje(obtenerProductosPedido(pedido), formatearDinero)
   }
 
   const obtenerUrlSeguimiento = (pedido) => {
@@ -794,7 +798,7 @@ export default function Pedidos() {
   const generarMensajeEstado = (pedido) => {
     const nombre = pedido?.clientes?.nombre || 'cliente'
     const codigo = pedido?.codigo || ''
-    const estado = normalizarEstado(pedido?.estado)
+    const estado = obtenerEstadoAutomatico(pedido)
     const total = formatearDinero(pedido?.total_cliente)
     const anticipo = formatearDinero(pedido?.anticipo)
     const restante = formatearDinero(pedido?.restante)
@@ -929,7 +933,7 @@ ${url}`
         ...payload
       }
 
-      setPedidos((actuales) =>
+      setTodosPedidos((actuales) =>
         actuales.map((item) =>
           item.id === pedido.id ? pedidoActualizado : item
         )
@@ -1127,16 +1131,28 @@ ${url}`
     }
   }
 
-  const eliminarPedido = async (id) => {
+  const solicitarEstadoEspecialLista = (pedido, estadoNuevo) => {
+    setMenuAccionesAbierto(null)
+    setMenuEstadoAbierto(null)
+    setEstiloMenuAcciones(null)
+    setEstiloMenuEstado(null)
+    cambiarEstado(pedido, estadoNuevo)
+  }
+
+  const solicitarEliminarPedido = (pedido) => {
     setMenuAccionesAbierto(null)
     setMenuEstadoAbierto(null)
     setEstiloMenuAcciones(null)
     setEstiloMenuEstado(null)
     if (bloquearSiNoPuede()) return
+    setPedidoAEliminar(pedido)
+  }
 
-    const confirmar = confirm('¿Seguro que quieres eliminar este pedido?')
-    if (!confirmar) return
+  const eliminarPedidoConfirmado = async () => {
+    if (!pedidoAEliminar) return
     if (!iniciarAccion('Eliminando pedido...')) return
+
+    const id = pedidoAEliminar.id
 
     try {
       const { error } = await supabase
@@ -1146,15 +1162,16 @@ ${url}`
 
       if (error) {
         console.log(error)
-        mostrarToast('Error al eliminar pedido', 'error')
+        mostrarToast('No se pudo eliminar el pedido. Intenta nuevamente.', 'error')
         return
       }
 
-      const pedidosActualizados = pedidos.filter((pedido) => pedido.id !== id)
-      setPedidos(pedidosActualizados)
+      const pedidosActualizados = todosPedidos.filter((pedido) => pedido.id !== id)
+      setTodosPedidos(pedidosActualizados)
       guardarPedidosCache(pedidosActualizados)
+      setPedidoAEliminar(null)
 
-      mostrarToast('Pedido eliminado correctamente')
+      mostrarToast('El pedido se eliminó correctamente.')
       cargarPedidos()
     } finally {
       finalizarAccion()
@@ -1162,107 +1179,165 @@ ${url}`
   }
 
 
-  const seleccionarEstadoPedido = async (pedido, estado) => {
-    setMenuEstadoAbierto(null)
-    setEstiloMenuEstado(null)
-    await cambiarEstado(pedido, estado)
-  }
-
   const renderEstadoControl = (pedido, compacto = false) => {
-    const estadoActual = normalizarEstado(pedido?.estado)
-    const menuAbierto = menuEstadoAbierto === pedido.id
+    const estadoActual = obtenerEstadoAutomatico(pedido)
 
     return (
-      <div className={`order-status-menu-wrap ${compacto ? 'mobile-order-status-wrap' : ''} ${menuAbierto ? 'order-status-menu-open' : ''}`.trim()}>
-        <button
-          type="button"
-          className={`order-status-button ${estadoClase(estadoActual)} ${compacto ? 'mobile-order-status-button' : ''}`}
-          onClick={(evento) => {
-            if (bloqueado || estaProcesando) return
-
-            if (menuAbierto) {
-              setMenuEstadoAbierto(null)
-              setEstiloMenuEstado(null)
-              return
-            }
-
-            const estilo = obtenerEstiloMenuPortal(
-              evento.currentTarget,
-              compacto ? 210 : 225,
-              340,
-              'izquierda'
-            )
-
-            setMenuAccionesAbierto(null)
-            setEstiloMenuAcciones(null)
-            setEstiloMenuEstado(estilo)
-            setMenuEstadoAbierto(pedido.id)
-          }}
-          disabled={bloqueado || estaProcesando}
-          aria-haspopup="menu"
-          aria-expanded={menuAbierto}
-          title={estadoActual}
-        >
-          <span className="order-status-dot" />
-          <span className="order-status-text">{estadoActual}</span>
-          <span className="order-status-chevron">▾</span>
-        </button>
-
-        {menuAbierto && typeof document !== 'undefined' && createPortal(
-          <div
-            className="order-status-options order-status-options-portal"
-            role="menu"
-            style={estiloMenuEstado}
-          >
-            {estadosPedido.map((estado) => (
-              <button
-                type="button"
-                key={estado}
-                className={estadoActual === estado ? 'active' : ''}
-                onClick={() => seleccionarEstadoPedido(pedido, estado)}
-                role="menuitem"
-              >
-                {estado}
-              </button>
-            ))}
-          </div>,
-          document.body
-        )}
-      </div>
+      <span className={`order-status-static badge ${estadoClase(estadoActual)} ${compacto ? 'order-status-static-mobile' : ''}`.trim()}>
+        <span className="order-status-dot" />
+        <span>{estadoActual}</span>
+      </span>
     )
   }
 
-  const pedidosFiltrados = pedidos
+  const datosVistaPedidos = (() => {
+    const texto = busqueda.trim().toLowerCase()
 
-  const pedidosAgrupados = useMemo(() => {
-    if (!configFechaPedidos.separarPorFecha) {
-      return [{ clave: 'todos', fecha: '', pedidos: pedidosFiltrados }]
+    let coincidencias = todosPedidos.filter((pedido) => {
+      if (filtroPlataforma !== 'Todas' && (pedido.plataforma || 'SHEIN') !== filtroPlataforma) {
+        return false
+      }
+
+      if (!texto) return true
+
+      const estadoAutomatico = obtenerEstadoAutomatico(pedido)
+      const plataformaPedido = pedido.plataforma || 'SHEIN'
+      const pagoTexto = obtenerEstadoPago(pedido).texto.toLowerCase()
+      const productosTexto = obtenerProductosPedido(pedido)
+        .map((producto) => `${producto?.nombre_producto || ''} ${producto?.cantidad || ''}`)
+        .join(' ')
+        .toLowerCase()
+      const fechaCompra = formatearFechaCorta(obtenerFechaCompraPedido(pedido)).toLowerCase()
+
+      return (
+        pedido.codigo?.toLowerCase().includes(texto) ||
+        plataformaPedido.toLowerCase().includes(texto) ||
+        pedido.clientes?.nombre?.toLowerCase().includes(texto) ||
+        pedido.clientes?.telefono?.toLowerCase().includes(texto) ||
+        pedido.clientes?.medio_contacto?.toLowerCase().includes(texto) ||
+        pedido.clientes?.usuario_contacto?.toLowerCase().includes(texto) ||
+        estadoAutomatico.toLowerCase().includes(texto) ||
+        pagoTexto.includes(texto) ||
+        productosTexto.includes(texto) ||
+        fechaCompra.includes(texto)
+      )
+    })
+
+    const pendientes = coincidencias
+      .filter((pedido) => !pedidoEstaComprado(pedido))
+      .sort((a, b) => new Date(b.fecha_pedido || b.creado_en || 0) - new Date(a.fecha_pedido || a.creado_en || 0))
+
+    let comprados = coincidencias.filter(pedidoEstaComprado)
+
+    if (fechaDesde || fechaHasta) {
+      comprados = comprados.filter((pedido) => {
+        const fechaCompra = obtenerFechaCompraPedido(pedido)
+        if (!fechaCompra) return false
+        const fecha = fechaCompra.slice(0, 10)
+        if (fechaDesde && fecha < fechaDesde) return false
+        if (fechaHasta && fecha > fechaHasta) return false
+        return true
+      })
+    }
+
+    comprados.sort((a, b) => new Date(obtenerFechaCompraPedido(b) || 0) - new Date(obtenerFechaCompraPedido(a) || 0))
+
+    return {
+      pendientes,
+      comprados,
+      resumen: {
+        pendientes: pendientes.length,
+        comprados: comprados.length
+      }
+    }
+  })()
+
+  const resumenCompra = datosVistaPedidos.resumen
+  const listaActiva = vistaCompra === 'comprados' ? datosVistaPedidos.comprados : datosVistaPedidos.pendientes
+  const totalPedidos = listaActiva.length
+  const totalPaginas = Math.max(1, Math.ceil(totalPedidos / tamanoPagina))
+  const desde = (pagina - 1) * tamanoPagina
+  const pedidosFiltrados = listaActiva.slice(desde, desde + tamanoPagina)
+
+  const pedidosAgrupados = (() => {
+    if (vistaCompra !== 'comprados' || !agruparComprados) {
+      return [{ clave: vistaCompra, fecha: '', pedidos: pedidosFiltrados }]
     }
 
     const mapa = new Map()
 
     pedidosFiltrados.forEach((pedido) => {
-      const fechaBase = obtenerFechaAgrupacionPedido(pedido)
+      const fechaBase = obtenerFechaCompraPedido(pedido)
       const clave = obtenerClaveFechaGrupo(fechaBase)
-      const fecha = clave === 'sin-fecha' ? 'Sin fecha registrada' : formatearFechaGrupo(fechaBase)
+      const fecha = clave === 'sin-fecha' ? 'Compra sin fecha' : formatearFechaGrupo(fechaBase)
 
       if (!mapa.has(clave)) mapa.set(clave, { clave, fecha, pedidos: [] })
       mapa.get(clave).pedidos.push(pedido)
     })
 
     return Array.from(mapa.values())
-  }, [pedidosFiltrados, configFechaPedidos.formato, configFechaPedidos.mostrarAnio, configFechaPedidos.separarPorFecha, configFechaPedidos.tipoFechaAgrupacion])
+  })()
+
+  const renderCompraYAvance = (pedido) => {
+    const conteo = obtenerConteoCompraPedido(pedido)
+    const productos = obtenerProductosPedido(pedido)
+
+    return (
+      <div className="order-purchase-progress-cell order-purchase-products-cell">
+        <div className="order-purchase-status-row">
+          {renderEstadoControl(pedido)}
+          <small>
+            {pedidoEstaComprado(pedido)
+              ? obtenerResumenCompraPedido(pedido)
+              : `${conteo.comprados}/${conteo.total} comprados`}
+          </small>
+        </div>
+
+        {productos.length > 0 ? (
+          <div className="order-products-desktop-list">
+            {productos.slice(0, 3).map((producto, index) => {
+              const progreso = calcularProgresoProducto(producto)
+              const nombre = producto?.nombre_producto || `Producto ${index + 1}`
+
+              return (
+                <div
+                  className="order-product-desktop-row"
+                  key={producto?.id || `${pedido.id}-desktop-${index}`}
+                  title={`${nombre}: ${obtenerEstadoProductoMovil(progreso)}`}
+                >
+                  <span className="order-product-desktop-name">{nombre}</span>
+                  <span className={`order-product-desktop-state order-product-desktop-state-${progreso.tipo}`}>
+                    {obtenerEstadoProductoMovil(progreso)}
+                  </span>
+                </div>
+              )
+            })}
+
+            {productos.length > 3 && (
+              <small className="order-products-desktop-more">
+                +{productos.length - 3} producto{productos.length - 3 === 1 ? '' : 's'} más
+              </small>
+            )}
+          </div>
+        ) : (
+          <small className="order-products-desktop-empty">Sin productos registrados</small>
+        )}
+      </div>
+    )
+  }
+
+  useEffect(() => {
+    if (pagina > totalPaginas) setPagina(totalPaginas)
+  }, [pagina, totalPaginas])
 
   const filtrosActivos =
     busqueda.trim() !== '' ||
-    filtroEstado !== 'Todos' ||
     filtroPlataforma !== 'Todas' ||
     fechaDesde !== '' ||
     fechaHasta !== ''
 
   const limpiarFiltros = () => {
     setBusqueda('')
-    setFiltroEstado('Todos')
     setFiltroPlataforma('Todas')
     setFechaDesde('')
     setFechaHasta('')
@@ -1282,81 +1357,101 @@ ${url}`
 
   return (
     <Layout>
+      <PageHelp page="pedidos" />
+
       <Toast
         mensaje={toast?.mensaje}
         tipo={toast?.tipo}
         onClose={() => setToast(null)}
       />
 
-      <div className="page-header pedidos-page-header">
-        <div className="pedidos-top-row">
+      <div className="page-header pedidos-page-header pedidos-page-header-simple">
+        <div className="pedidos-simple-title-row">
           <div>
-            <div className="pedidos-title-line">
-              <h1>Pedidos</h1>
-
-              <div className="pedidos-title-actions">
-                {puedeCrearPedido(estadoPlan) ? (
-                  <Link to="/nuevo-pedido" className="btn btn-primary btn-new-order-small">
-                    Nuevo pedido
-                  </Link>
-                ) : (
-                  <Link to="/planes" className="btn btn-light-bordered btn-new-order-small">
-                    Actualizar plan
-                  </Link>
-                )}
-
-                <Link to="/compras" className="btn btn-light-bordered btn-buy-lote-small">
-                  Registrar compras en plataforma
-                </Link>
-              </div>
-            </div>
-
-            <p>Lista de pedidos registrados</p>
-
-            <div className="pedidos-date-toggle pedidos-date-toggle-wrap">
-              <span className="date-toggle-label">Separar&nbsp;por<br />fecha</span>
-              <button
-                type="button"
-                className={configFechaPedidos.separarPorFecha ? 'date-toggle-button date-toggle-button-on' : 'date-toggle-button'}
-                onClick={() => cambiarSeparacionPorFecha(!configFechaPedidos.separarPorFecha)}
-                title="Agrupar pedidos por fecha"
-              >
-                {configFechaPedidos.separarPorFecha ? 'Activado' : 'Desactivado'}
-              </button>
-
-              <select
-                className="date-group-select"
-                value={configFechaPedidos.tipoFechaAgrupacion || 'creado_en'}
-                onChange={(e) => cambiarTipoFechaAgrupacion(e.target.value)}
-                title="Elegir fecha para organizar pedidos"
-              >
-                <option value="creado_en">Registro en Ordely</option>
-                <option value="fecha_pedido">Fecha del pedido</option>
-              </select>
-            </div>
+            <span className="page-kicker">Pedidos</span>
+            <h1>Pedidos</h1>
+            <p>Separa lo que falta comprar de lo que ya pediste en plataforma.</p>
           </div>
+
+          {puedeCrearPedido(estadoPlan) ? (
+            <Link to="/nuevo-pedido" className="btn btn-primary btn-new-order-small">
+              ＋ Nuevo pedido
+            </Link>
+          ) : (
+            <Link to="/planes" className="btn btn-light-bordered btn-new-order-small">
+              Actualizar plan
+            </Link>
+          )}
+        </div>
+
+        <div className="pedidos-search-toolbar">
+          <label className="pedidos-search-field">
+            <span>Buscar</span>
+            <input
+              placeholder="Código, cliente, teléfono, producto o estado"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
+          </label>
 
           <button
             type="button"
-            className={`search-circle-btn ${filtrosActivos ? 'search-circle-btn-active' : ''}`}
+            className={`btn btn-light-bordered pedidos-filter-button ${filtrosActivos ? 'pedidos-filter-button-active' : ''}`}
             onClick={() => setModalFiltros(true)}
-            aria-label="Buscar pedidos"
-            title="Buscar pedidos"
           >
-            🔍
+            Filtros {filtrosActivos ? '•' : ''}
           </button>
+
+          {filtrosActivos && (
+            <button type="button" className="pedidos-clear-button" onClick={limpiarFiltros}>
+              Limpiar
+            </button>
+          )}
         </div>
       </div>
 
       <PlanLimitNotice estadoPlan={estadoPlan} compacto />
+
+      <section className="order-purchase-view-tabs" aria-label="Estado de compra de los pedidos">
+        <button
+          type="button"
+          className={vistaCompra === 'pendientes' ? 'active' : ''}
+          onClick={() => {
+            setVistaCompra('pendientes')
+            setFechaDesde('')
+            setFechaHasta('')
+          }}
+        >
+          <span>Por comprar</span>
+          <strong>{resumenCompra.pendientes}</strong>
+        </button>
+        <button
+          type="button"
+          className={vistaCompra === 'comprados' ? 'active' : ''}
+          onClick={() => setVistaCompra('comprados')}
+        >
+          <span>Ya comprados</span>
+          <strong>{resumenCompra.comprados}</strong>
+        </button>
+      </section>
+
+      {vistaCompra === 'pendientes' && (
+        <div className="order-purchase-guidance">
+          <div>
+            <span>Estos pedidos todavía tienen productos sin comprar.</span>
+            <strong>Selecciona los productos y registra la compra desde el apartado Compras.</strong>
+          </div>
+          <Link to="/compras" className="btn btn-primary">Ir a Compras</Link>
+        </div>
+      )}
 
       {filtrosActivos && (
         <div className="active-filters-card">
           <div>
             <span>Filtros activos</span>
             <strong>
-              {busqueda || 'Sin texto'} · {filtroPlataforma} · {filtroEstado}
-              {(fechaDesde || fechaHasta) ? ` · ${obtenerEtiquetaTipoFecha(configFechaPedidos.tipoFechaBusqueda)}: ${fechaDesde || 'Inicio'} a ${fechaHasta || 'Hoy'}` : ''}
+              {busqueda || 'Sin texto'} · {filtroPlataforma}
+              {(fechaDesde || fechaHasta) ? ` · Fecha de compra: ${fechaDesde || 'Inicio'} a ${fechaHasta || 'Hoy'}` : ''}
             </strong>
           </div>
 
@@ -1389,67 +1484,51 @@ ${url}`
               onChange={(e) => setFiltroPlataforma(e.target.value)}
             >
               <option>Todas</option>
-              {plataformas.map((item) => (
+              {PLATAFORMAS.map((item) => (
                 <option key={item}>{item}</option>
               ))}
             </select>
           </div>
 
-          <div className="form-field">
-            <label>Estado del pedido</label>
-            <select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-            >
-              <option>Todos</option>
-              {estadosPedido.map((estado) => (
-                <option key={estado}>{estado}</option>
-              ))}
-            </select>
-          </div>
+          {vistaCompra === 'comprados' ? (
+            <>
+              <div className="filters-date-grid">
+                <div className="form-field">
+                  <label>Compra desde</label>
+                  <input
+                    type="date"
+                    value={fechaDesde}
+                    onChange={(e) => setFechaDesde(e.target.value)}
+                  />
+                </div>
 
-          <div className="form-field">
-            <label>Buscar fechas por</label>
-            <select
-              value={configFechaPedidos.tipoFechaBusqueda || 'creado_en'}
-              onChange={(e) => cambiarTipoFechaBusqueda(e.target.value)}
-            >
-              <option value="creado_en">Fecha de registro en Ordely</option>
-              <option value="fecha_pedido">Fecha en que se hizo el pedido</option>
-            </select>
-          </div>
+                <div className="form-field">
+                  <label>Compra hasta</label>
+                  <input
+                    type="date"
+                    value={fechaHasta}
+                    onChange={(e) => setFechaHasta(e.target.value)}
+                  />
+                </div>
+              </div>
 
-          <div className="filters-date-grid">
-            <div className="form-field">
-              <label>Desde</label>
-              <input
-                type="date"
-                value={fechaDesde}
-                onChange={(e) => setFechaDesde(e.target.value)}
-              />
+              <label className="config-switch-row filters-date-group-switch">
+                <div>
+                  <strong>Agrupar por fecha de compra</strong>
+                  <span>Separa los pedidos usando el día en que terminaste de comprarlos.</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={agruparComprados}
+                  onChange={(e) => setAgruparComprados(e.target.checked)}
+                />
+              </label>
+            </>
+          ) : (
+            <div className="order-pending-filter-note">
+              Los pedidos pendientes todavía no tienen fecha de compra. Regístralos desde la sección Compras.
             </div>
-
-            <div className="form-field">
-              <label>Hasta</label>
-              <input
-                type="date"
-                value={fechaHasta}
-                onChange={(e) => setFechaHasta(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <label className="config-switch-row filters-date-group-switch">
-            <div>
-              <strong>Separar pedidos por fecha</strong>
-              <span>Divide la lista por la fecha elegida para organizar.</span>
-            </div>
-            <input
-              type="checkbox"
-              checked={configFechaPedidos.separarPorFecha}
-              onChange={(e) => cambiarSeparacionPorFecha(e.target.checked)}
-            />
-          </label>
+          )}
 
           <div className="form-field">
             <label>Mostrar por página</label>
@@ -1483,26 +1562,20 @@ ${url}`
         </div>
       </Modal>
 
-      <div className="table-card desktop-table pedidos-table-card">
+      <div className="table-card desktop-table pedidos-table-card pedidos-table-simple pedidos-table-instant">
         <div className="row-between table-title">
-          <h2>Pedidos encontrados: {totalPedidos}</h2>
+          <h2>{vistaCompra === 'comprados' ? 'Ya comprados' : 'Por comprar'} · {totalPedidos}</h2>
           <span className="pagination-range">
             {cargandoPedidos ? 'Actualizando...' : `${desdeVisible}-${hastaVisible} de ${totalPedidos}`}
           </span>
         </div>
 
-        <table className="pedidos-table">
+        <table className="pedidos-table pedidos-table-compact">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Registro</th>
-              <th>Pedido</th>
-              <th>Cliente</th>
-              <th>Contacto</th>
-              <th className="status-payment-th">Estado / pago</th>
-              <th>Total</th>
-              <th>Anticipo</th>
-              <th>Restante</th>
+              <th>Pedido / cliente</th>
+              <th>Compra y avance</th>
+              <th>Cobro</th>
               <th className="actions-th">Acciones</th>
             </tr>
           </thead>
@@ -1510,9 +1583,9 @@ ${url}`
           <tbody>
             {pedidosAgrupados.map((grupo) => (
               <Fragment key={grupo.clave}>
-                {configFechaPedidos.separarPorFecha && (
+                {vistaCompra === 'comprados' && agruparComprados && (
                   <tr className="orders-date-divider-row">
-                    <td colSpan="10">
+                    <td colSpan="4">
                       <div className="orders-date-divider">
                         <span>{grupo.fecha}</span>
                       </div>
@@ -1521,7 +1594,6 @@ ${url}`
                 )}
 
                 {grupo.pedidos.map((pedido) => {
-                  const progresoPedido = renderProgresoProductos(pedido)
                   const menuAbierto = menuAccionesAbierto === pedido.id
 
                   return (
@@ -1530,114 +1602,87 @@ ${url}`
                         className={`${esEstadoReembolso(pedido.estado) ? 'refund-censored-row' : ''} ${(menuAbierto || menuEstadoAbierto === pedido.id) ? 'order-row-menu-open' : ''}`.trim()}
                         data-refund-label={esEstadoReembolso(pedido.estado) ? obtenerEtiquetaReembolso(pedido.estado) : undefined}
                       >
-                        <td className="order-id-cell">
-                          <strong>{pedido.codigo}</strong>
-                          <span>{pedido.plataforma || 'SHEIN'}</span>
-                        </td>
-                        <td className="order-created-cell">{formatearFechaCorta(pedido.creado_en)}</td>
-                        <td className="order-created-cell">{formatearFechaCorta(obtenerFechaPedidoCliente(pedido))}</td>
-                        <td className="order-client-cell">{pedido.clientes?.nombre || 'Sin cliente'}</td>
-                        <td className="contact-cell order-contact-cell" title={obtenerContactoTabla(pedido.clientes)}>
-                          <span>{obtenerMedioContactoVisible(pedido.clientes)}</span>
-                          <strong>{obtenerContactoTabla(pedido.clientes)}</strong>
-                        </td>
-                        <td className="status-payment-cell">
-                          <div className="status-payment-stack">
-                            <div className="status-cell">
-                              {renderEstadoControl(pedido)}
-                            </div>
-                            <div className="payment-cell">
-                              {renderPagoBadge(pedido, true)}
-                            </div>
+                        <td className="order-summary-cell">
+                          <div className="order-summary-main">
+                            <strong>{pedido.codigo}</strong>
+                            <span>{pedido.plataforma || 'SHEIN'}</span>
                           </div>
+                          <p>{pedido.clientes?.nombre || 'Sin cliente'}</p>
+                          <small>{obtenerResumenCompraPedido(pedido)}</small>
                         </td>
-                        <td className="money-cell">{formatearDinero(pedido.total_cliente)}</td>
-                        <td className="money-cell">{formatearDinero(pedido.anticipo)}</td>
-                        <td className="money-cell">{formatearDinero(pedido.restante)}</td>
+
+                        <td className="status-cell order-status-simple">
+                          {renderCompraYAvance(pedido)}
+                        </td>
+
+                        <td className="payment-cell order-payment-simple">
+                          {renderPagoBadge(pedido, true)}
+                          <small>Total: {formatearDinero(pedido.total_cliente)}</small>
+                          <strong className="order-payment-remaining">
+                            {Number(pedido.restante || 0) > 0
+                              ? `Pendiente: ${formatearDinero(pedido.restante)}`
+                              : 'Sin saldo pendiente'}
+                          </strong>
+                        </td>
+
+
                         <td className="actions-menu-cell">
                           <div className="actions-compact order-actions-inline">
-                            <Link
-                            to={`/pedidos/${pedido.id}`}
-                            className="btn btn-small btn-action-view"
-                          >
-                            Ver
-                          </Link>
+                            <Link to={`/pedidos/${pedido.id}`} className="btn btn-small btn-action-view">
+                              Ver pedido
+                            </Link>
 
-                          <div className={`order-actions-dropdown-wrap ${menuAbierto ? 'order-actions-dropdown-open' : ''}`}>
-                            <button
-                              type="button"
-                              className="btn btn-light-bordered btn-small btn-action-more"
-                              onClick={(evento) => {
-                                if (menuAbierto) {
-                                  setMenuAccionesAbierto(null)
-                                  setEstiloMenuAcciones(null)
-                                  return
-                                }
+                            <div className={`order-actions-dropdown-wrap ${menuAbierto ? 'order-actions-dropdown-open' : ''}`}>
+                              <button
+                                type="button"
+                                className="btn btn-light-bordered btn-small btn-action-more"
+                                onClick={(evento) => {
+                                  if (menuAbierto) {
+                                    setMenuAccionesAbierto(null)
+                                    setEstiloMenuAcciones(null)
+                                    return
+                                  }
 
-                                const estilo = obtenerEstiloMenuPortal(
-                                  evento.currentTarget,
-                                  190,
-                                  190,
-                                  'derecha'
-                                )
-
-                                setMenuEstadoAbierto(null)
-                                setEstiloMenuEstado(null)
-                                setEstiloMenuAcciones(estilo)
-                                setMenuAccionesAbierto(pedido.id)
-                              }}
-                              aria-haspopup="menu"
-                              aria-expanded={menuAbierto}
-                            >
-                              Más ▾
-                            </button>
-
-                            {menuAbierto && typeof document !== 'undefined' && createPortal(
-                              <div
-                                className="order-actions-dropdown order-actions-dropdown-portal"
-                                role="menu"
-                                style={estiloMenuAcciones}
+                                  const estilo = obtenerEstiloMenuPortal(evento.currentTarget, 200, 210, 'derecha')
+                                  setMenuEstadoAbierto(null)
+                                  setEstiloMenuEstado(null)
+                                  setEstiloMenuAcciones(estilo)
+                                  setMenuAccionesAbierto(pedido.id)
+                                }}
+                                aria-haspopup="menu"
+                                aria-expanded={menuAbierto}
                               >
-                                <button
-                                  type="button"
-                                  onClick={() => enviarMensajePedidoDirecto(pedido)}
-                                  role="menuitem"
-                                >
-                                  Enviar mensaje
-                                </button>
+                                •••
+                              </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => abrirModalSeguimiento(pedido)}
-                                  role="menuitem"
-                                >
-                                  Enviar seguimiento
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => eliminarPedido(pedido.id)}
-                                  className="danger"
-                                  disabled={bloqueado || estaProcesando}
-                                  role="menuitem"
-                                >
-                                  Eliminar
-                                </button>
-                              </div>,
-                              document.body
-                            )}
-                          </div>
+                              {menuAbierto && typeof document !== 'undefined' && !window.matchMedia('(max-width: 800px)').matches && createPortal(
+                                <div className="order-actions-dropdown order-actions-dropdown-portal" role="menu" style={estiloMenuAcciones}>
+                                  <button type="button" onClick={() => { setMenuAccionesAbierto(null); setEstiloMenuAcciones(null); enviarMensajePedidoDirecto(pedido) }} role="menuitem">
+                                    Enviar mensaje
+                                  </button>
+                                  <button type="button" onClick={() => { setMenuAccionesAbierto(null); setEstiloMenuAcciones(null); abrirModalSeguimiento(pedido) }} role="menuitem">
+                                    Enviar seguimiento
+                                  </button>
+                                  {obtenerEstadoAutomatico(pedido) === 'Entregado' ? (
+                                    <button type="button" onClick={() => { setMenuAccionesAbierto(null); setEstiloMenuAcciones(null); solicitarEstadoEspecialLista(pedido, 'Devuelto') }} className="danger" disabled={bloqueado || estaProcesando} role="menuitem">
+                                      Marcar como devuelto
+                                    </button>
+                                  ) : !esEstadoReembolso(pedido.estado) ? (
+                                    <button type="button" onClick={() => { setMenuAccionesAbierto(null); setEstiloMenuAcciones(null); solicitarEstadoEspecialLista(pedido, 'Cancelado') }} className="danger" disabled={bloqueado || estaProcesando} role="menuitem">
+                                      Cancelar pedido
+                                    </button>
+                                  ) : null}
+                                  <button type="button" onClick={() => { setMenuAccionesAbierto(null); setEstiloMenuAcciones(null); solicitarEliminarPedido(pedido) }} className="danger" disabled={bloqueado || estaProcesando} role="menuitem">
+                                    Eliminar pedido
+                                  </button>
+                                </div>,
+                                document.body
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
 
-                      {progresoPedido && (
-                        <tr className="order-progress-table-row">
-                          <td colSpan="10">
-                            {progresoPedido}
-                          </td>
-                        </tr>
-                      )}
                     </Fragment>
                   )
                 })}
@@ -1646,16 +1691,31 @@ ${url}`
 
             {pedidosFiltrados.length === 0 && (
               <tr>
-                <td colSpan="10">No se encontraron pedidos.</td>
+                <td colSpan="4">
+                  <EmptyState
+                    icon={filtrosActivos ? 'search' : 'orders'}
+                    eyebrow={filtrosActivos ? 'Sin resultados' : 'Empieza aquí'}
+                    title={filtrosActivos ? 'No encontramos pedidos con esos filtros.' : (vistaCompra === 'comprados' ? 'Todavía no tienes pedidos comprados.' : 'No tienes pedidos pendientes de compra.')}
+                    description={filtrosActivos
+                      ? 'Prueba con otro texto, cambia la plataforma o limpia los filtros.'
+                      : (vistaCompra === 'comprados'
+                        ? 'Cuando registres una compra desde Compras, el pedido aparecerá aquí con su fecha.'
+                        : 'Los pedidos nuevos aparecerán aquí hasta que termines de comprarlos.')}
+                    actionLabel={filtrosActivos ? 'Limpiar filtros' : (vistaCompra === 'comprados' ? 'Ir a Compras' : 'Crear pedido')}
+                    actionTo={filtrosActivos ? undefined : (vistaCompra === 'comprados' ? '/compras' : '/nuevo-pedido')}
+                    onAction={filtrosActivos ? limpiarFiltros : undefined}
+                    compact
+                  />
+                </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      <div className="mobile-list">
+      <div className="mobile-list pedidos-mobile-simple">
         <div className="mobile-list-title">
-          <h2>Pedidos encontrados: {totalPedidos}</h2>
+          <h2>{vistaCompra === 'comprados' ? 'Ya comprados' : 'Por comprar'} · {totalPedidos}</h2>
           <span className="pagination-range">
             {cargandoPedidos ? 'Actualizando...' : `${desdeVisible}-${hastaVisible} de ${totalPedidos}`}
           </span>
@@ -1663,89 +1723,127 @@ ${url}`
 
         {pedidosAgrupados.map((grupo) => (
           <Fragment key={grupo.clave}>
-            {configFechaPedidos.separarPorFecha && (
+            {vistaCompra === 'comprados' && agruparComprados && (
               <div className="mobile-date-divider">
                 <span>{grupo.fecha}</span>
               </div>
             )}
 
-            {grupo.pedidos.map((pedido) => (
-              <div className={`mobile-card mobile-order-card-compact ${esEstadoReembolso(pedido.estado) ? 'refund-censored-card' : ''}`} data-refund-label={esEstadoReembolso(pedido.estado) ? obtenerEtiquetaReembolso(pedido.estado) : undefined} key={pedido.id}>
-                <div className="mobile-order-compact-head mobile-order-compact-head-v13">
-                  <div className="mobile-order-main-info">
-                    <span>ID</span>
-                    <h3>{pedido.codigo}</h3>
-                    <p className="mobile-order-platform">{pedido.plataforma || 'SHEIN'}</p>
-                    <p className="mobile-order-client-name">{pedido.clientes?.nombre || 'Sin cliente'}</p>
-                    <p className="mobile-order-contact">{obtenerMedioContactoVisible(pedido.clientes)} · {obtenerContactoTabla(pedido.clientes)}</p>
-                    <p className="mobile-order-created-date">Registro: {formatearFechaCorta(pedido.creado_en)}</p>
-                    <p className="mobile-order-created-date">Pedido: {formatearFechaCorta(obtenerFechaPedidoCliente(pedido))}</p>
-                  </div>
+            {grupo.pedidos.map((pedido) => {
+              const menuAbierto = menuAccionesAbierto === pedido.id
 
-                  <div className="mobile-order-payment-top">
+              return (
+                <article
+                  className={`mobile-card mobile-order-card-simple ${esEstadoReembolso(pedido.estado) ? 'refund-censored-card' : ''}`}
+                  data-refund-label={esEstadoReembolso(pedido.estado) ? obtenerEtiquetaReembolso(pedido.estado) : undefined}
+                  key={pedido.id}
+                >
+                  <div className="mobile-order-simple-head">
+                    <div>
+                      <div className="mobile-order-code-line">
+                        <strong>{pedido.codigo}</strong>
+                        <span>{pedido.plataforma || 'SHEIN'}</span>
+                      </div>
+                      <h3>{pedido.clientes?.nombre || 'Sin cliente'}</h3>
+                      <p>{obtenerMedioContactoVisible(pedido.clientes)} · {obtenerContactoTabla(pedido.clientes)}</p>
+                    </div>
                     {renderPagoBadge(pedido, true, 'mobile')}
                   </div>
-                </div>
 
-                <div className="mobile-order-state-row">
-                  {renderEstadoControl(pedido, true)}
-                </div>
-
-                <div className="mobile-order-compact-money">
-                  <div>
-                    <span>Total</span>
-                    <strong>{formatearDinero(pedido.total_cliente)}</strong>
+                  <div className="mobile-order-simple-state">
+                    {renderEstadoControl(pedido, true)}
                   </div>
 
-                  <div>
-                    <span>Restante</span>
-                    <strong>{formatearDinero(pedido.restante)}</strong>
+                  <small className="mobile-order-purchase-date mobile-order-purchase-date-below-state">
+                    {obtenerResumenCompraPedido(pedido)}
+                  </small>
+
+                  <div className="mobile-order-simple-money">
+                    <div>
+                      <span>Total</span>
+                      <strong>{formatearDinero(pedido.total_cliente)}</strong>
+                    </div>
+                    <div>
+                      <span>Restante</span>
+                      <strong>{formatearDinero(pedido.restante)}</strong>
+                    </div>
                   </div>
-                </div>
 
-                {renderProgresoProductos(pedido, true)}
 
-                <div className="mobile-card-actions mobile-order-actions-compact">
-                  <Link
-                    to={`/pedidos/${pedido.id}`}
-                    className="btn btn-primary"
-                  >
-                    Ver
-                  </Link>
+                  {renderProgresoProductos(pedido, true)}
 
-                  <button
-                    type="button"
-                    onClick={() => enviarMensajePedidoDirecto(pedido)}
-                    className="btn btn-light-bordered"
-                  >
-                    Enviar mensaje
-                  </button>
+                  <div className="mobile-card-actions mobile-order-actions-simple">
+                    <Link to={`/pedidos/${pedido.id}`} className="btn btn-primary">
+                      Ver pedido
+                    </Link>
 
-                  <button
-                    type="button"
-                    onClick={() => abrirModalSeguimiento(pedido)}
-                    className="btn btn-light-bordered"
-                  >
-                    Enviar seguimiento
-                  </button>
+                    <button type="button" onClick={() => abrirModalSeguimiento(pedido)} className="btn btn-light-bordered">
+                      Seguimiento
+                    </button>
 
-                  <button
-                    onClick={() => eliminarPedido(pedido.id)}
-                    className="btn btn-danger"
-                    disabled={bloqueado || estaProcesando}
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            ))}
+                    <div className={`order-actions-dropdown-wrap ${menuAbierto ? 'order-actions-dropdown-open' : ''}`}>
+                      <button
+                        type="button"
+                        className="btn btn-light-bordered"
+                        onClick={(evento) => {
+                          if (menuAbierto) {
+                            setMenuAccionesAbierto(null)
+                            setEstiloMenuAcciones(null)
+                            return
+                          }
+
+                          const estilo = obtenerEstiloMenuPortal(evento.currentTarget, 210, 210, 'derecha')
+                          setMenuEstadoAbierto(null)
+                          setEstiloMenuEstado(null)
+                          setEstiloMenuAcciones(estilo)
+                          setMenuAccionesAbierto(pedido.id)
+                        }}
+                      >
+                        Más
+                      </button>
+
+                      {menuAbierto && typeof document !== 'undefined' && window.matchMedia('(max-width: 800px)').matches && createPortal(
+                        <div className="order-actions-dropdown order-actions-dropdown-portal" role="menu" style={estiloMenuAcciones}>
+                          <button type="button" onClick={() => { setMenuAccionesAbierto(null); setEstiloMenuAcciones(null); enviarMensajePedidoDirecto(pedido) }} role="menuitem">
+                            Enviar mensaje
+                          </button>
+                          {obtenerEstadoAutomatico(pedido) === 'Entregado' ? (
+                            <button type="button" onClick={() => { setMenuAccionesAbierto(null); setEstiloMenuAcciones(null); solicitarEstadoEspecialLista(pedido, 'Devuelto') }} className="danger" disabled={bloqueado || estaProcesando} role="menuitem">
+                              Marcar como devuelto
+                            </button>
+                          ) : !esEstadoReembolso(pedido.estado) ? (
+                            <button type="button" onClick={() => { setMenuAccionesAbierto(null); setEstiloMenuAcciones(null); solicitarEstadoEspecialLista(pedido, 'Cancelado') }} className="danger" disabled={bloqueado || estaProcesando} role="menuitem">
+                              Cancelar pedido
+                            </button>
+                          ) : null}
+                          <button type="button" onClick={() => { setMenuAccionesAbierto(null); setEstiloMenuAcciones(null); solicitarEliminarPedido(pedido) }} className="danger" disabled={bloqueado || estaProcesando} role="menuitem">
+                            Eliminar pedido
+                          </button>
+                        </div>,
+                        document.body
+                      )}
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
           </Fragment>
         ))}
 
         {pedidosFiltrados.length === 0 && (
-          <div className="empty-state">
-            No se encontraron pedidos.
-          </div>
+          <EmptyState
+            icon={filtrosActivos ? 'search' : 'orders'}
+            eyebrow={filtrosActivos ? 'Sin resultados' : 'Empieza aquí'}
+            title={filtrosActivos ? 'No encontramos pedidos.' : 'Todavía no tienes pedidos.'}
+            description={filtrosActivos
+              ? 'Cambia los filtros o limpia la búsqueda para volver a ver tus pedidos.'
+              : 'Crea el primero para empezar a controlar pagos y entregas.'}
+            actionLabel={filtrosActivos ? 'Limpiar filtros' : (vistaCompra === 'comprados' ? 'Ir a Compras' : 'Crear pedido')}
+            actionTo={filtrosActivos ? undefined : (vistaCompra === 'comprados' ? '/compras' : '/nuevo-pedido')}
+            onAction={filtrosActivos ? limpiarFiltros : undefined}
+            compact
+            className="orders-empty-mobile"
+          />
         )}
       </div>
 
@@ -1942,8 +2040,8 @@ ${url}`
             <div className="state-message-summary">
               <span>Pedido</span>
               <strong>{pedidoMensaje.codigo}</strong>
-              <span className={`badge ${estadoClase(pedidoMensaje.estado)}`}>
-                {normalizarEstado(pedidoMensaje.estado)}
+              <span className={`badge ${estadoClase(obtenerEstadoAutomatico(pedidoMensaje))}`}>
+                {obtenerEstadoAutomatico(pedidoMensaje)}
               </span>
             </div>
 
@@ -2019,6 +2117,17 @@ ${url}`
           </div>
         )}
       </Modal>
+      <ConfirmDialog
+        abierto={Boolean(pedidoAEliminar)}
+        titulo="¿Eliminar este pedido?"
+        descripcion="Se borrarán el pedido y su información asociada. Esta acción no se puede deshacer."
+        detalle={pedidoAEliminar ? `${pedidoAEliminar.codigo || 'Pedido'} · ${pedidoAEliminar.clientes?.nombre || 'Sin cliente'}` : ''}
+        confirmarTexto="Sí, eliminar pedido"
+        onConfirm={eliminarPedidoConfirmado}
+        onClose={() => setPedidoAEliminar(null)}
+        cargando={accionEnProceso === 'Eliminando pedido...'}
+        variante="danger"
+      />
     </Layout>
   )
 }

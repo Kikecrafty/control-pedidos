@@ -1,0 +1,224 @@
+/* Ordely V61.6: pedidos más compactos y menús estables. */
+
+/* Encabezado de la lista de pedidos más compacto. */
+.pedidos-page-header-simple {
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 16px 18px !important;
+  border-radius: 22px !important;
+}
+
+.pedidos-simple-title-row h1 {
+  font-size: clamp(30px, 3vw, 38px);
+  margin-bottom: 3px;
+}
+
+.pedidos-simple-title-row p {
+  font-size: 14px;
+}
+
+.pedidos-search-field input,
+.pedidos-filter-button,
+.pedidos-clear-button {
+  min-height: 44px;
+}
+
+.order-purchase-view-tabs {
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.order-purchase-view-tabs button {
+  min-height: 52px;
+  padding: 10px 14px;
+  border-radius: 16px;
+}
+
+.order-purchase-view-tabs button strong {
+  min-width: 30px;
+  height: 30px;
+}
+
+.order-purchase-guidance {
+  margin-bottom: 12px;
+  padding: 12px 15px;
+  border-radius: 17px;
+}
+
+.order-purchase-guidance span {
+  font-size: 11px;
+}
+
+.order-purchase-guidance strong {
+  font-size: 12px;
+}
+
+.order-purchase-guidance .btn {
+  min-height: 40px;
+  padding: 9px 14px;
+}
+
+.pedidos-table-instant {
+  padding: 14px 18px 16px !important;
+  border-radius: 24px !important;
+}
+
+.pedidos-table-instant .table-title {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+}
+
+.pedidos-table-instant .table-title h2 {
+  font-size: 21px;
+}
+
+/* La tabla queda en cuatro columnas después de quitar “Siguiente acción”. */
+@media (min-width: 801px) {
+  .pedidos-table-compact th:nth-child(1) { width: 22%; }
+  .pedidos-table-compact th:nth-child(2) { width: 39%; }
+  .pedidos-table-compact th:nth-child(3) { width: 19%; }
+  .pedidos-table-compact th:nth-child(4) { width: 20%; }
+
+  .pedidos-table-compact th,
+  .pedidos-table-compact td {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .order-actions-inline {
+    display: grid !important;
+    grid-template-columns: minmax(104px, 1fr) 42px;
+    gap: 7px;
+    width: 100%;
+  }
+
+  .order-actions-inline .btn-action-view,
+  .order-actions-inline .btn-action-more {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* Menú de acciones de la lista: una sola caja y sin recortes visuales. */
+.order-actions-dropdown-portal {
+  box-sizing: border-box !important;
+  display: grid !important;
+  gap: 6px !important;
+  padding: 8px !important;
+  overflow-x: hidden !important;
+  border-radius: 16px !important;
+  background: #fff !important;
+  border: 1px solid rgba(226, 232, 240, .98) !important;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .22) !important;
+  isolation: isolate;
+}
+
+.order-actions-dropdown-portal::before {
+  display: none !important;
+}
+
+.order-actions-dropdown-portal button {
+  position: static !important;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  margin: 0 !important;
+}
+
+/* Hero del detalle del pedido más bajo, manteniendo toda la información. */
+@media (min-width: 801px) {
+  .ordely-v56-detail-hero {
+    padding: 19px 22px;
+    margin-bottom: 14px;
+    border-radius: 26px;
+  }
+
+  .ordely-v56-detail-hero-top {
+    margin-bottom: 13px;
+  }
+
+  .ordely-v56-detail-title h1 {
+    font-size: clamp(38px, 4vw, 52px);
+  }
+
+  .ordely-v56-detail-title p {
+    margin-top: 7px;
+    font-size: 14px;
+  }
+
+  .ordely-v56-detail-badges .badge,
+  .ordely-v56-detail-badges .payment-status-badge,
+  .ordely-v56-detail-badges .refund-status-badge {
+    min-height: 30px;
+    padding: 7px 11px;
+  }
+
+  .ordely-v56-detail-money {
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .ordely-v56-detail-money > div {
+    padding: 11px 14px;
+    border-radius: 17px;
+  }
+
+  .ordely-v56-detail-money span {
+    margin-bottom: 3px;
+    font-size: 11px;
+  }
+
+  .ordely-v56-detail-money strong {
+    font-size: 21px;
+  }
+
+  .ordely-v56-primary-actions {
+    gap: 8px;
+    margin-top: 13px;
+  }
+
+  .ordely-v56-primary-actions .btn {
+    min-height: 41px;
+    padding: 9px 14px;
+  }
+}
+
+/* “Más acciones” vive fuera del hero para que nada lo tape. */
+.ordely-v56-order-menu-portal {
+  position: fixed !important;
+  right: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  gap: 5px;
+  padding: 8px !important;
+  overflow-x: hidden !important;
+  border-radius: 17px !important;
+  background: #fff !important;
+  border: 1px solid rgba(226, 232, 240, .98) !important;
+  box-shadow: 0 26px 65px rgba(15, 23, 42, .24) !important;
+  isolation: isolate;
+  z-index: 2147483000 !important;
+}
+
+.ordely-v56-order-menu-portal button {
+  position: static !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+
+@media (max-width: 800px) {
+  .pedidos-page-header-simple {
+    padding: 14px !important;
+    gap: 10px;
+  }
+
+  .order-purchase-view-tabs button {
+    min-height: 48px;
+    padding: 9px 11px;
+  }
+
+  .order-purchase-guidance {
+    padding: 12px;
+  }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
+import AdminSoporte from '../components/AdminSoporte'
 import { supabase } from '../supabaseClient'
 
 const planTexto = {
@@ -515,6 +516,7 @@ export default function AdminControl() {
         <button type="button" className={tab === 'suscripciones' ? 'active' : ''} onClick={() => setTab('suscripciones')}>Suscripciones</button>
         <button type="button" className={tab === 'codigos' ? 'active' : ''} onClick={() => setTab('codigos')}>Códigos</button>
         <button type="button" className={tab === 'alertas' ? 'active' : ''} onClick={() => setTab('alertas')}>Alertas</button>
+        <button type="button" className={tab === 'soporte' ? 'active' : ''} onClick={() => setTab('soporte')}>Soporte</button>
       </div>
 
       {tab === 'resumen' && (
@@ -782,6 +784,8 @@ export default function AdminControl() {
           </div>
         </div>
       )}
+
+      {tab === 'soporte' && <AdminSoporte />}
 
       <Modal abierto={Boolean(usuarioPago)} titulo="Registrar pago manual" onClose={cerrarPagoManual}>
         {usuarioPago && (

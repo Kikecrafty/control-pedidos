@@ -1,14 +1,32 @@
-Ordely Landing V46
+Ordely V61.8 — Panel operativo y ayuda contextual
 
-Cambios:
-- Se eliminó el carrusel animado de plataformas que recortaba nombres.
-- Se sustituyó por una franja estática, compacta y adaptable.
-- Se redujo el espacio vacío del hero.
-- La sección de funciones se rehizo como una cuadrícula compacta 2x2.
-- Los textos ahora explican beneficios directos para el cliente.
-- No modifica Supabase, autenticación, pedidos, pagos, clientes ni seguimiento.
+Reemplaza estos archivos:
+- src/pages/Dashboard.jsx
+- src/pages/Pedidos.jsx
+- src/pages/NuevoPedido.jsx
+- src/pages/Compras.jsx
+- src/pages/Clientes.jsx
+- src/pages/DetallePedido.jsx
+- src/pages/Metricas.jsx
+- src/pages/Planes.jsx
+- src/index.css
 
-Para probar:
-1. Reemplaza únicamente src/pages/Landing.jsx y src/pages/Landing.css.
-2. Ejecuta npm run dev.
-3. Recarga con Ctrl + Shift + R.
+Agrega estos archivos nuevos:
+- src/components/PageHelp.jsx
+- src/styles/21-panel-y-ayuda-v61-8.css
+
+Cambios principales:
+- “Pagos por cobrar” cambia a “Pedidos por comprar”.
+- El panel muestra todos los productos comprados que siguen pendientes de llegada/entrega.
+- Los ya recibidos y los posiblemente llegados aparecen primero.
+- Cada producto muestra cliente, pedido, paquete, plataforma, cantidad y avance.
+- Cada producto tiene botón para abrir su pedido directamente en Productos y marcar llegada.
+- Todas las páginas principales incluyen un botón pequeño “Cómo funciona...”.
+- Cada ayuda explica el flujo, las acciones y qué hacer cuando no hay nada pendiente.
+
+Prueba local:
+npm run dev
+
+Validación:
+npm run build — correcto
+npm run lint — 0 errores; 17 advertencias anteriores del proyecto

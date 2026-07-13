@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
 import PlanLimitNotice from '../components/PlanLimitNotice'
+import EmptyState from '../components/EmptyState'
+import PageHelp from '../components/PageHelp'
 import { cargarEstadoPlan, puedeCrearPedido } from '../lib/planes'
 
 const obtenerIdUsuarioCache = () => {
@@ -24,6 +26,17 @@ const obtenerIdUsuarioCache = () => {
   return localStorage.getItem('control_pedidos_usuario_cache') || 'sin_usuario'
 }
 
+const obtenerNombreUsuario = () => {
+  if (typeof window === 'undefined') return ''
+
+  try {
+    const perfil = JSON.parse(localStorage.getItem('control_pedidos_perfil_cache') || '{}')
+    return String(perfil?.nombre || '').trim().split(' ')[0]
+  } catch {
+    return ''
+  }
+}
+
 const cacheKeyDashboard = () => `control_pedidos_dashboard_resumen_cache_${obtenerIdUsuarioCache()}`
 
 const resumenVacio = {
@@ -32,7 +45,13 @@ const resumenVacio = {
   lotesTotal: 0,
   enCamino: 0,
   pagoPendiente: 0,
-  pagoParcial: 0
+  pagoParcial: 0,
+  montoPendiente: 0,
+  listosEntrega: 0,
+  entregados: 0,
+  posiblesLlegadas: 0,
+  pedidosPorComprar: 0,
+  productosPorComprar: 0
 }
 
 const leerDashboardCache = () => {
@@ -89,31 +108,74 @@ const diasEntre = (a, b) => {
   return Math.ceil((dos.getTime() - uno.getTime()) / 86400000)
 }
 
+const normalizarEstado = (estado) => {
+  if (estado === 'Comprado en SHEIN') return 'Comprado en plataforma'
+  if (estado === 'Pendiente de pago') return 'Cotizado'
+  if (estado === 'Pagado por cliente') return 'Cotizado'
+  return estado || 'Cotizado'
+}
+
+const productoPendienteCompra = (producto) => {
+  const estado = String(producto?.estado_compra || '').toLowerCase()
+  const comprado = Boolean(
+    producto?.fecha_comprado ||
+    producto?.lote_compra_id ||
+    estado.includes('comprado') ||
+    estado.includes('camino') ||
+    estado.includes('recibido') ||
+    estado.includes('negocio') ||
+    estado.includes('entregado')
+  )
+
+  const terminado = Boolean(
+    producto?.entregado ||
+    producto?.fecha_entregado_cliente ||
+    estado.includes('entregado') ||
+    estado.includes('cancelado') ||
+    estado.includes('devuelto')
+  )
+
+  return !comprado && !terminado
+}
+
+const formatearDinero = (valor) => {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0
+  }).format(Number(valor || 0))
+}
+
 export default function Dashboard() {
   const cacheInicial = leerDashboardCache()
   const [resumen, setResumen] = useState(() => cacheInicial?.resumen || resumenVacio)
   const [paquetes, setPaquetes] = useState(() => cacheInicial?.paquetes || [])
+  const [pedidosRecientes, setPedidosRecientes] = useState(() => cacheInicial?.pedidosRecientes || [])
   const [estadoPlan, setEstadoPlan] = useState(() => cacheInicial?.estadoPlan || null)
   const [cargandoPaquetes, setCargandoPaquetes] = useState(false)
+  const [errorCarga, setErrorCarga] = useState('')
+  const nombreUsuario = useMemo(() => obtenerNombreUsuario(), [])
 
   useEffect(() => {
     cargarDatos()
   }, [])
 
-  const normalizarEstado = (estado) => {
-    if (estado === 'Comprado en SHEIN') return 'Comprado en plataforma'
-    if (estado === 'Pendiente de pago') return 'Cotizado'
-    if (estado === 'Pagado por cliente') return 'Cotizado'
-    return estado || 'Cotizado'
-  }
-
   const esPedidoActivo = (pedido) => {
     const estado = normalizarEstado(pedido.estado)
-    return estado !== 'Cancelado' && estado !== 'Devuelto'
+    return !['Cancelado', 'Devuelto'].includes(estado)
   }
 
-  const calcularResumen = (pedidos, lotesTotal) => {
+  const calcularResumen = (pedidos, lotesTotal, posiblesLlegadas = 0) => {
     const pedidosActivos = pedidos.filter(esPedidoActivo)
+    const pendientesCobro = pedidosActivos.filter((pedido) => Number(pedido.restante || 0) > 0)
+    const pedidosPendientesCompra = pedidosActivos.filter((pedido) =>
+      normalizarEstado(pedido.estado) !== 'Entregado' &&
+      (pedido.productos_pedido || []).some(productoPendienteCompra)
+    )
+    const productosPendientesCompra = pedidosPendientesCompra.reduce(
+      (total, pedido) => total + (pedido.productos_pedido || []).filter(productoPendienteCompra).length,
+      0
+    )
 
     return {
       pedidosTotal: pedidos.length,
@@ -121,22 +183,30 @@ export default function Dashboard() {
       lotesTotal,
       enCamino: pedidosActivos.filter((pedido) => normalizarEstado(pedido.estado) === 'En camino').length,
       pagoPendiente: pedidosActivos.filter((pedido) => Number(pedido.anticipo || 0) <= 0 && Number(pedido.restante || 0) > 0).length,
-      pagoParcial: pedidosActivos.filter((pedido) => Number(pedido.anticipo || 0) > 0 && Number(pedido.restante || 0) > 0).length
+      pagoParcial: pedidosActivos.filter((pedido) => Number(pedido.anticipo || 0) > 0 && Number(pedido.restante || 0) > 0).length,
+      montoPendiente: pendientesCobro.reduce((total, pedido) => total + Number(pedido.restante || 0), 0),
+      listosEntrega: pedidosActivos.filter((pedido) => ['Recibido', 'Dejado en negocio'].includes(normalizarEstado(pedido.estado))).length,
+      entregados: pedidos.filter((pedido) => normalizarEstado(pedido.estado) === 'Entregado').length,
+      posiblesLlegadas,
+      pedidosPorComprar: pedidosPendientesCompra.length,
+      productosPorComprar: productosPendientesCompra
     }
   }
 
   const cargarDatos = async () => {
+    setErrorCarga('')
     const estado = await cargarEstadoPlan()
     setEstadoPlan(estado)
     setCargandoPaquetes(true)
 
     const { data: pedidosData, error: errorPedidos } = await supabase
       .from('pedidos')
-      .select('id, estado, total_cliente, anticipo, restante')
+      .select('id, codigo, creado_en, fecha_pedido, estado, plataforma, total_cliente, anticipo, restante, clientes(nombre), productos_pedido(id, estado_compra, fecha_comprado, lote_compra_id, entregado, fecha_entregado_cliente)')
       .order('creado_en', { ascending: false })
 
     if (errorPedidos) {
       console.log(errorPedidos)
+      setErrorCarga('No pudimos actualizar el panel. Tus datos siguen seguros; revisa tu conexión e intenta nuevamente.')
       setCargandoPaquetes(false)
       return
     }
@@ -145,20 +215,26 @@ export default function Dashboard() {
       .from('lotes_compra')
       .select('id', { count: 'exact', head: true })
 
-    if (errorLotes) {
-      console.log(errorLotes)
-    }
+    if (errorLotes) console.log(errorLotes)
 
     const paquetesEnProceso = await cargarPaquetesEnProceso()
-    const resumenFinal = calcularResumen(pedidosData || [], lotesCount || 0)
+    const posiblesLlegadas = paquetesEnProceso.filter((producto) => {
+      const avance = calcularAvance(producto)
+      return avance.estadoVisual === 'warning' || ['Recibido', 'Dejado en negocio'].includes(producto.estado_compra)
+    }).length
+
+    const resumenFinal = calcularResumen(pedidosData || [], lotesCount || 0, posiblesLlegadas)
+    const recientes = (pedidosData || []).slice(0, 5)
 
     setResumen(resumenFinal)
     setPaquetes(paquetesEnProceso)
+    setPedidosRecientes(recientes)
     setCargandoPaquetes(false)
 
     guardarDashboardCache({
       resumen: resumenFinal,
       paquetes: paquetesEnProceso,
+      pedidosRecientes: recientes,
       estadoPlan: estado
     })
   }
@@ -194,8 +270,7 @@ export default function Dashboard() {
       .from('productos_pedido')
       .select(selectCompleto)
       .neq('estado_compra', 'Entregado')
-      .order('fecha_estimada_llegada', { ascending: true })
-      .limit(30)
+      .order('fecha_estimada_llegada', { ascending: true, nullsFirst: false })
 
     if (error) {
       console.log(error)
@@ -212,7 +287,20 @@ export default function Dashboard() {
           !['Entregado', 'Cancelado', 'Devuelto'].includes(estadoProducto) &&
           !['Entregado', 'Cancelado', 'Devuelto'].includes(estadoPedido)
       })
-      .slice(0, 10)
+      .sort((a, b) => {
+        const avanceA = calcularAvance(a)
+        const avanceB = calcularAvance(b)
+        const estadoA = String(a.estado_compra || '')
+        const estadoB = String(b.estado_compra || '')
+        const prioridadA = ['Recibido', 'Dejado en negocio'].includes(estadoA) ? 0 : avanceA.estadoVisual === 'warning' ? 1 : 2
+        const prioridadB = ['Recibido', 'Dejado en negocio'].includes(estadoB) ? 0 : avanceB.estadoVisual === 'warning' ? 1 : 2
+
+        if (prioridadA !== prioridadB) return prioridadA - prioridadB
+
+        const fechaA = parseFechaLocal(a.fecha_estimada_llegada)?.getTime() || Number.MAX_SAFE_INTEGER
+        const fechaB = parseFechaLocal(b.fecha_estimada_llegada)?.getTime() || Number.MAX_SAFE_INTEGER
+        return fechaA - fechaB
+      })
   }
 
   const calcularAvance = (producto) => {
@@ -224,7 +312,7 @@ export default function Dashboard() {
     if (estado === 'Dejado en negocio') {
       return {
         porcentaje: 100,
-        etiqueta: 'Listo en negocio',
+        etiqueta: 'Listo para recoger',
         detalle: 'El cliente ya puede pasar por el producto.',
         estadoVisual: 'ok'
       }
@@ -233,8 +321,8 @@ export default function Dashboard() {
     if (estado === 'Recibido') {
       return {
         porcentaje: 100,
-        etiqueta: 'Recibido',
-        detalle: 'Ya llegó. Falta dejarlo en negocio o entregarlo.',
+        etiqueta: 'Ya llegó',
+        detalle: 'Falta dejarlo en negocio o entregarlo.',
         estadoVisual: 'ok'
       }
     }
@@ -303,15 +391,18 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="page-header row-between dashboard-clean-header">
+      <PageHelp page="dashboard" />
+
+      <div className="dashboard-priority-header">
         <div>
-          <h1>Panel principal</h1>
-          <p>Resumen general de tus pedidos</p>
+          <span className="dashboard-priority-kicker">Inicio</span>
+          <h1>{nombreUsuario ? `Hola, ${nombreUsuario}` : 'Hola'}</h1>
+          <p>Esto necesita tu atención hoy.</p>
         </div>
 
         {puedeCrearPedido(estadoPlan) ? (
-          <Link to="/nuevo-pedido" className="btn btn-primary">
-            Nuevo pedido
+          <Link to="/nuevo-pedido" className="btn btn-primary dashboard-new-order">
+            ＋ Nuevo pedido
           </Link>
         ) : (
           <Link to="/planes" className="btn btn-light-bordered">
@@ -322,99 +413,193 @@ export default function Dashboard() {
 
       <PlanLimitNotice estadoPlan={estadoPlan} compacto />
 
-      <div className="cards-grid dashboard-only-grid dashboard-main-stats-grid">
-        <div className="card dashboard-only-card">
-          <span>Pedidos activos</span>
-          <strong>{resumen.pedidosActivos}</strong>
-        </div>
+      {errorCarga && (
+        <EmptyState
+          icon="error"
+          tone="error"
+          eyebrow="No se pudo actualizar"
+          title="El resumen no está disponible por ahora."
+          description={errorCarga}
+          actionLabel="Intentar de nuevo"
+          onAction={cargarDatos}
+          compact
+          className="dashboard-load-error"
+        />
+      )}
 
-        <div className="card dashboard-only-card">
-          <span>En camino</span>
-          <strong>{resumen.enCamino}</strong>
-        </div>
-      </div>
-
-      <div className="dashboard-payment-mini-grid dashboard-mini-grid-v2">
-        <div>
-          <span>Pago pendiente</span>
-          <strong>{resumen.pagoPendiente}</strong>
-        </div>
-        <div>
-          <span>Pagado parcialmente</span>
-          <strong>{resumen.pagoParcial}</strong>
-        </div>
-        <div>
-          <span>Órdenes registradas</span>
-          <strong>{resumen.pedidosTotal}</strong>
-        </div>
-        <div>
-          <span>Compras de lote registradas</span>
-          <strong>{resumen.lotesTotal}</strong>
-        </div>
-      </div>
-
-      <section className="dashboard-arrivals-card">
-        <div className="dashboard-arrivals-header">
+      <section className="dashboard-priority-grid" aria-label="Pendientes principales">
+        <Link to="/pedidos" className="dashboard-priority-card dashboard-priority-card-payment">
+          <span className="dashboard-priority-icon">＋</span>
           <div>
-            <span className="dashboard-arrivals-kicker">Seguimiento de llegadas</span>
-            <h2>Paquetes en proceso</h2>
-            <p>Productos comprados que todavía no están marcados como entregados.</p>
+            <span>Pedidos por comprar</span>
+            <strong>{resumen.pedidosPorComprar} pedidos</strong>
+            <p>{resumen.productosPorComprar} producto{resumen.productosPorComprar === 1 ? '' : 's'} pendiente{resumen.productosPorComprar === 1 ? '' : 's'} en plataforma</p>
+          </div>
+          <em>Ver por comprar →</em>
+        </Link>
+
+        <a href="#llegadas" className="dashboard-priority-card dashboard-priority-card-arrival">
+          <span className="dashboard-priority-icon">⌄</span>
+          <div>
+            <span>Posiblemente ya llegaron</span>
+            <strong>{resumen.posiblesLlegadas} productos</strong>
+            <p>Revisa las fechas estimadas.</p>
+          </div>
+          <em>Revisar llegadas →</em>
+        </a>
+
+        <Link to="/pedidos" className="dashboard-priority-card dashboard-priority-card-delivery">
+          <span className="dashboard-priority-icon">✓</span>
+          <div>
+            <span>Listos para entregar</span>
+            <strong>{resumen.listosEntrega} pedidos</strong>
+            <p>Confirma entrega y saldo.</p>
+          </div>
+          <em>Confirmar entregas →</em>
+        </Link>
+      </section>
+
+      <section className="dashboard-summary-strip" aria-label="Resumen del negocio">
+        <div><span>Pedidos activos</span><strong>{resumen.pedidosActivos}</strong></div>
+        <div><span>En camino</span><strong>{resumen.enCamino}</strong></div>
+        <div><span>Entregados</span><strong>{resumen.entregados}</strong></div>
+        <div><span>Compras agrupadas</span><strong>{resumen.lotesTotal}</strong></div>
+      </section>
+
+      <div className="dashboard-content-grid">
+        <section id="llegadas" className="dashboard-arrivals-card dashboard-arrivals-card-priority">
+          <div className="dashboard-arrivals-header">
+            <div>
+              <span className="dashboard-arrivals-kicker">Llegadas y paquetes</span>
+              <h2>Todos los productos en proceso</h2>
+              <p>Primero aparecen los que ya llegaron o posiblemente ya llegaron; después, todo lo que sigue en camino.</p>
+            </div>
+
+            <Link to="/pedidos" className="btn btn-small btn-light-bordered dashboard-arrivals-button">
+              Ver todos los pedidos
+            </Link>
           </div>
 
-          <Link to="/compras" className="btn btn-small btn-light-bordered dashboard-arrivals-button">
-            Ver compras
-          </Link>
-        </div>
+          <div className="dashboard-arrivals-list">
+            {paquetes.map((producto) => {
+              const avance = calcularAvance(producto)
+              const plataforma = producto.lotes_compra?.plataforma || producto.pedidos?.plataforma || 'Plataforma'
+              const cliente = producto.pedidos?.clientes?.nombre || 'Sin cliente'
 
-        <div className="dashboard-arrivals-list">
-          {paquetes.map((producto) => {
-            const avance = calcularAvance(producto)
-            const plataforma = producto.lotes_compra?.plataforma || producto.pedidos?.plataforma || 'Plataforma'
-            const codigo = producto.lotes_compra?.codigo_lote || producto.pedidos?.codigo || 'Sin código'
-            const cliente = producto.pedidos?.clientes?.nombre || 'Sin cliente'
-
-            return (
-              <article className="dashboard-arrival-item" key={producto.id}>
-                <div className="dashboard-arrival-main">
-                  <div className="dashboard-arrival-icon">📦</div>
-                  <div className="dashboard-arrival-info">
-                    <strong>{producto.nombre_producto || 'Producto sin nombre'}</strong>
-                    <span>{cliente} · {plataforma} · {codigo}</span>
-                    <small>Cantidad: {Number(producto.cantidad || 1)}</small>
+              return (
+                <article className={`dashboard-arrival-item dashboard-arrival-item-${avance.estadoVisual}`} key={producto.id}>
+                  <div className="dashboard-arrival-order-meta">
+                    <div>
+                      <span>Cliente</span>
+                      <strong>{cliente}</strong>
+                    </div>
+                    <div>
+                      <span>Pedido</span>
+                      <strong>{producto.pedidos?.codigo || 'Sin código'}</strong>
+                    </div>
+                    <div>
+                      <span>Paquete</span>
+                      <strong>{producto.lotes_compra?.codigo_lote || 'Sin paquete'}</strong>
+                    </div>
                   </div>
-                </div>
 
-                <div className="dashboard-arrival-progress-area">
-                  <div className="dashboard-arrival-progress-top">
-                    <span className={`dashboard-arrival-status dashboard-arrival-status-${avance.estadoVisual}`}>
-                      {avance.etiqueta}
-                    </span>
-                    <strong>{avance.porcentaje}%</strong>
-                  </div>
-                  <div className="dashboard-arrival-bar">
-                    <span style={{ width: `${avance.porcentaje}%` }} />
-                  </div>
-                  <p>{avance.detalle}</p>
-                </div>
-              </article>
-            )
-          })}
+                  <div className="dashboard-arrival-product-row">
+                    <div className="dashboard-arrival-main">
+                      <div className="dashboard-arrival-icon">□</div>
+                      <div className="dashboard-arrival-info">
+                        <strong>{producto.nombre_producto || 'Producto sin nombre'}</strong>
+                        <span>{plataforma} · Cantidad {Number(producto.cantidad || 1)}</span>
+                        <small>{avance.detalle}</small>
+                      </div>
+                    </div>
 
-          {!cargandoPaquetes && paquetes.length === 0 && (
-            <div className="dashboard-arrivals-empty">
-              <strong>No tienes paquetes pendientes de llegada.</strong>
-              <span>Cuando crees lotes de compra, aquí aparecerá el avance de cada producto.</span>
+                    <div className="dashboard-arrival-progress-area">
+                      <div className="dashboard-arrival-progress-top">
+                        <span className={`dashboard-arrival-status dashboard-arrival-status-${avance.estadoVisual}`}>
+                          {avance.etiqueta}
+                        </span>
+                        <strong>{avance.porcentaje}%</strong>
+                      </div>
+                      <div className="dashboard-arrival-bar">
+                        <span style={{ width: `${avance.porcentaje}%` }} />
+                      </div>
+                    </div>
+
+                    <Link
+                      to={`/pedidos/${producto.pedido_id}?seccion=productos&producto=${producto.id}`}
+                      className="btn btn-small btn-primary dashboard-arrival-open-order"
+                    >
+                      Abrir y marcar llegada
+                    </Link>
+                  </div>
+                </article>
+              )
+            })}
+
+            {!cargandoPaquetes && paquetes.length === 0 && (
+              <EmptyState
+                icon="purchases"
+                eyebrow="Todo al día"
+                title="No tienes productos pendientes de llegada."
+                description="Cuando confirmes una compra agrupada, aquí aparecerá su avance."
+                actionLabel="Ir a compras"
+                actionTo="/compras"
+                compact
+                className="dashboard-arrivals-empty"
+              />
+            )}
+
+            {cargandoPaquetes && paquetes.length === 0 && (
+              <EmptyState
+                icon="loading"
+                eyebrow="Actualizando"
+                title="Estamos revisando tus compras."
+                description="En un momento verás los productos que siguen en proceso."
+                compact
+                className="dashboard-arrivals-empty"
+              />
+            )}
+          </div>
+        </section>
+
+        <section className="dashboard-recent-card">
+          <div className="dashboard-recent-header">
+            <div>
+              <span>Actividad reciente</span>
+              <h2>Últimos pedidos</h2>
             </div>
-          )}
+            <Link to="/pedidos">Ver todos</Link>
+          </div>
 
-          {cargandoPaquetes && paquetes.length === 0 && (
-            <div className="dashboard-arrivals-empty">
-              <strong>Cargando paquetes...</strong>
-              <span>Estamos revisando tus productos comprados.</span>
-            </div>
-          )}
-        </div>
-      </section>
+          <div className="dashboard-recent-list">
+            {pedidosRecientes.map((pedido) => (
+              <Link to={`/pedidos/${pedido.id}`} key={pedido.id} className="dashboard-recent-item">
+                <div>
+                  <strong>{pedido.codigo || 'Sin código'}</strong>
+                  <span>{pedido.clientes?.nombre || 'Sin cliente'} · {pedido.plataforma || 'SHEIN'}</span>
+                </div>
+                <div>
+                  <strong>{formatearDinero(pedido.restante)}</strong>
+                  <span>{normalizarEstado(pedido.estado)}</span>
+                </div>
+              </Link>
+            ))}
+
+            {!cargandoPaquetes && pedidosRecientes.length === 0 && (
+              <EmptyState
+                icon="orders"
+                eyebrow="Empieza aquí"
+                title="Todavía no tienes pedidos."
+                description="Crea el primero para empezar a organizar pagos, compras y entregas."
+                actionLabel="Crear primer pedido"
+                actionTo="/nuevo-pedido"
+                compact
+                className="dashboard-recent-empty"
+              />
+            )}
+          </div>
+        </section>
+      </div>
     </Layout>
   )
 }

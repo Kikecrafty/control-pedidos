@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 
@@ -8,24 +8,12 @@ export default function Seguimiento() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    cargarSeguimiento()
-  }, [token])
-
   const normalizarEstado = (estado) => {
     if (estado === 'Comprado en SHEIN') return 'En camino'
     if (estado === 'Comprado en plataforma') return 'En camino'
     if (estado === 'Pendiente de pago') return 'Cotizado'
     if (estado === 'Pagado por cliente') return 'Cotizado'
     return estado || 'Cotizado'
-  }
-
-  const estaPagadoPorCliente = () => {
-    return (
-      Number(pedido?.total_cliente || 0) > 0 &&
-      Number(pedido?.restante || 0) <= 0 &&
-      !['Cancelado', 'Devuelto'].includes(normalizarEstado(pedido?.estado))
-    )
   }
 
   const obtenerEstadoPago = () => {
@@ -70,6 +58,7 @@ export default function Seguimiento() {
   const estadoClase = (estado) => {
     const estadoNormal = normalizarEstado(estado)
 
+    if (estadoNormal === 'Pendiente de compra') return 'badge-amber'
     if (estadoNormal === 'Cotizado') return 'badge-gray'
     if (estadoNormal === 'En camino') return 'badge-purple'
     if (estadoNormal === 'Recibido') return 'badge-green-soft'
@@ -82,17 +71,33 @@ export default function Seguimiento() {
   }
 
   const estadoProductoCliente = (producto) => {
-    if (producto.entregado || producto.estado_compra === 'Entregado') return 'Entregado'
-    if (producto.estado_compra === 'Dejado en negocio') return 'Listo para recoger'
-    if (producto.estado_compra === 'Recibido') return 'Recibido por vendedor'
-    if (producto.estado_compra === 'Comprado' || producto.estado_compra === 'En camino') {
+    if (producto.entregado || producto.fecha_entregado_cliente || producto.estado_compra === 'Entregado') return 'Entregado'
+    if (producto.fecha_dejado_negocio || producto.estado_compra === 'Dejado en negocio') return 'Listo para recoger'
+    if (producto.fecha_recibido || producto.estado_compra === 'Recibido') return 'Recibido por vendedor'
+
+    const compraRegistrada = Boolean(producto.fecha_comprado || producto.lote_compra_id)
+    if (compraRegistrada || producto.estado_compra === 'Comprado' || producto.estado_compra === 'En camino') {
       if (producto.fecha_estimada_llegada) return `En camino · estimado ${producto.fecha_estimada_llegada}`
       return 'En camino'
     }
+
     return 'Pendiente de compra'
   }
 
-  const cargarSeguimiento = async () => {
+  const obtenerEstadoAutomatico = (productos = []) => {
+    const guardado = normalizarEstado(pedido?.estado)
+    if (guardado === 'Cancelado' || guardado === 'Devuelto') return guardado
+    if (!productos.length) return 'Pendiente de compra'
+
+    const estados = productos.map((producto) => estadoProductoCliente(producto))
+    if (estados.every((estado) => estado === 'Entregado')) return 'Entregado'
+    if (estados.some((estado) => estado === 'Pendiente de compra')) return 'Pendiente de compra'
+    if (estados.some((estado) => estado.startsWith('En camino'))) return 'En camino'
+    if (estados.some((estado) => estado === 'Recibido por vendedor')) return 'Recibido'
+    return 'Dejado en negocio'
+  }
+
+  const cargarSeguimiento = useCallback(async () => {
     setCargando(true)
     setError('')
 
@@ -117,7 +122,11 @@ export default function Seguimiento() {
 
     setPedido(resultado)
     setCargando(false)
-  }
+  }, [token])
+
+  useEffect(() => {
+    cargarSeguimiento()
+  }, [cargarSeguimiento])
 
   if (cargando) {
     return (
@@ -141,6 +150,7 @@ export default function Seguimiento() {
   }
 
   const productos = Array.isArray(pedido.productos) ? pedido.productos : []
+  const estadoAutomatico = obtenerEstadoAutomatico(productos)
 
   return (
     <div className="tracking-page">
@@ -153,8 +163,8 @@ export default function Seguimiento() {
           </div>
 
           <div className="mobile-card-badges">
-            <span className={`badge ${estadoClase(pedido.estado)}`}>
-              {normalizarEstado(pedido.estado)}
+            <span className={`badge ${estadoClase(estadoAutomatico)}`}>
+              {estadoAutomatico}
             </span>
 
             {renderPagoBadge()}

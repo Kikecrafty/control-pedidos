@@ -1,0 +1,1438 @@
+/* =========================================================
+   ORDELY PARTE 4 - COMPRAS, LOTES Y PROGRESO POR PRODUCTO
+   ========================================================= */
+
+.compras-header {
+  align-items: flex-start;
+}
+
+.compras-tabs {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.06);
+}
+
+.compras-tabs button {
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  padding: 10px 14px;
+  font-weight: 950;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.compras-tabs button.active {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.compras-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.compras-list-title p,
+.compras-lote-card p {
+  margin: 5px 0 0;
+}
+
+.compras-products-list,
+.compras-lotes-list {
+  display: grid;
+  gap: 12px;
+}
+
+.compra-product-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 14px;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.compra-product-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.compra-product-card-selected {
+  border-color: #0f172a;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 2px rgba(15, 23, 42, 0.06);
+}
+
+.compra-check {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #cbd5e1;
+  color: #ffffff;
+  background: #ffffff;
+  font-weight: 950;
+}
+
+.compra-product-card-selected .compra-check {
+  border-color: #0f172a;
+  background: #0f172a;
+}
+
+.compra-product-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.compra-product-main strong {
+  font-size: 15px;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compra-product-main span,
+.compra-product-money span,
+.compra-lote-item span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.compra-product-money {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.compra-product-money strong {
+  font-size: 16px;
+  color: #111827;
+}
+
+.compras-lote-card {
+  position: sticky;
+  top: 18px;
+}
+
+.compras-lote-form {
+  display: grid;
+  gap: 14px;
+}
+
+.compras-lote-money-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.compras-summary-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 20px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+}
+
+.compras-summary-box div {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.compras-summary-box span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+
+.compras-summary-box strong {
+  display: block;
+  font-size: 17px;
+  color: #111827;
+}
+
+.compra-lote-item {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) repeat(4, minmax(120px, 0.8fr));
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.compra-lote-item strong {
+  display: block;
+  font-size: 16px;
+  color: #111827;
+}
+
+.compra-lote-item p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cost-pending-text {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.field-help-text {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.product-progress-mini {
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.product-progress-mini span {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.product-progress-bar {
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e5e7eb;
+}
+
+.product-progress-bar i {
+  display: block;
+  height: 100%;
+  min-width: 6px;
+  border-radius: inherit;
+  transition: width 0.25s ease;
+  background: linear-gradient(90deg, #64748b, #0f172a);
+}
+
+.product-progress-pending i { background: linear-gradient(90deg, #cbd5e1, #94a3b8); }
+.product-progress-moving i { background: linear-gradient(90deg, #2563eb, #7c3aed); }
+.product-progress-arrived i { background: linear-gradient(90deg, #f59e0b, #facc15); }
+.product-progress-received i { background: linear-gradient(90deg, #22c55e, #16a34a); }
+.product-progress-shop i { background: linear-gradient(90deg, #0ea5e9, #2563eb); }
+.product-progress-delivered i { background: linear-gradient(90deg, #16a34a, #166534); }
+
+.product-progress-mobile-box {
+  margin-top: 14px;
+  padding: 13px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 8px;
+}
+
+.product-progress-mobile-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.product-progress-mobile-head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.product-progress-mobile-head strong {
+  font-size: 13px;
+  text-align: right;
+}
+
+.product-progress-mobile-box small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.tracking-product-status {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.account-config-section {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: #f8fafc;
+}
+
+.account-config-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.account-config-heading strong {
+  font-size: 15px;
+  color: #111827;
+}
+
+.account-config-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.account-config-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.account-business-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.bottom-nav-six {
+  grid-template-columns: repeat(6, 1fr) !important;
+}
+
+.bottom-nav-six .bottom-nav-link {
+  font-size: 10px;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+@media (max-width: 1100px) {
+  .compras-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .compras-lote-card {
+    position: static;
+  }
+
+  .compra-lote-item {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .account-config-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .compras-header {
+    gap: 14px;
+  }
+
+  .compras-tabs {
+    width: 100%;
+  }
+
+  .compras-tabs button,
+  .compras-list-title .btn {
+    width: 100%;
+  }
+
+  .compras-list-title {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .compra-product-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .compra-product-money {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .compras-lote-money-grid,
+  .compras-summary-box,
+  .compra-lote-item {
+    grid-template-columns: 1fr;
+  }
+
+  .account-config-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 430px) {
+  .account-config-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   ORDELY COMPRAS - AYUDAS CORTAS Y DESCUENTO PORCENTAJE
+   ========================================================= */
+.compras-form-section-title {
+  display: grid;
+  gap: 4px;
+  padding: 13px 14px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f8fafc, #eef2ff);
+  border: 1px solid #e5e7eb;
+}
+
+.compras-form-section-title strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+
+.compras-form-section-title span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.compras-form-section-title-money {
+  margin-top: 4px;
+  background: linear-gradient(135deg, #fffbeb, #fff7ed);
+  border-color: #fde68a;
+}
+
+.compras-help-field {
+  gap: 9px;
+  padding: 13px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
+}
+
+.compras-help-field label {
+  color: #475569;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.compras-help-field small {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.compras-help-field input,
+.compras-help-field select {
+  min-height: 44px;
+}
+
+.compras-discount-field {
+  grid-column: 1 / -1;
+}
+
+.discount-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.discount-type-toggle button {
+  border: 0;
+  min-height: 36px;
+  border-radius: 11px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.discount-type-toggle button.active {
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+}
+
+.discount-type-toggle button:not(.active):hover {
+  background: rgba(255, 255, 255, 0.82);
+  color: #0f172a;
+}
+
+@media (max-width: 800px) {
+  .compras-help-field {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .discount-type-toggle {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   ORDELY COMPRAS V6 - PREVIEW DE DESCUENTO E HISTORIAL EXPANDIBLE
+   ========================================================= */
+.compras-discount-preview {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(250, 204, 21, 0.3), transparent 42%),
+    linear-gradient(135deg, #0f172a, #1e293b);
+  color: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.16);
+}
+
+.compras-discount-preview span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.compras-discount-preview strong {
+  display: block;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.compras-discount-preview p {
+  margin: 2px 0 0 !important;
+  color: rgba(255, 255, 255, 0.76) !important;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.compras-products-preview {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.compras-products-preview-head {
+  display: grid;
+  gap: 2px;
+  padding: 2px 2px 4px;
+}
+
+.compras-products-preview-head strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.compras-products-preview-head span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.compras-preview-product {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 17px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.compras-preview-product > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.compras-preview-product strong {
+  color: #111827;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-preview-product span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-preview-price {
+  text-align: right;
+  display: grid;
+  gap: 2px;
+}
+
+.compras-preview-price del {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.compras-preview-price strong {
+  color: #16a34a;
+  font-size: 16px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.compras-preview-price small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.compra-lote-item {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.compra-lote-summary-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.15fr) repeat(4, minmax(105px, 0.7fr)) minmax(150px, auto);
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+}
+
+.compra-lote-summary-row > div {
+  min-width: 0;
+}
+
+.compra-lote-summary-row span,
+.compra-lote-product-price span,
+.compra-lote-product-discount span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.compra-lote-summary-row strong {
+  display: block;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compra-lote-summary-row p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compra-lote-toggle {
+  min-height: 42px;
+  padding-inline: 13px;
+  white-space: nowrap;
+}
+
+.compra-lote-item-open {
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.07);
+}
+
+.compra-lote-products {
+  display: grid;
+  gap: 10px;
+  padding: 0 16px 16px;
+  border-top: 1px solid #eef2f7;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+}
+
+.compra-lote-product-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(95px, 0.45fr) minmax(120px, 0.55fr) minmax(115px, 0.55fr);
+  gap: 12px;
+  align-items: center;
+  padding: 13px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.compra-lote-product-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.compra-lote-product-info strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compra-lote-product-info span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compra-lote-product-price,
+.compra-lote-product-discount {
+  display: grid;
+  gap: 2px;
+}
+
+.compra-lote-product-price del {
+  color: #94a3b8;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.compra-lote-product-final strong {
+  color: #16a34a;
+  font-size: 17px;
+  font-weight: 950;
+}
+
+.compra-lote-product-final small,
+.compra-lote-product-discount small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.compra-lote-product-discount strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.compra-lote-empty {
+  margin-top: 12px;
+  min-height: auto;
+  padding: 16px;
+}
+
+@media (max-width: 1180px) {
+  .compra-lote-summary-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .compra-lote-toggle {
+    width: 100%;
+  }
+
+  .compra-lote-product-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .compras-discount-preview strong {
+    font-size: 26px;
+  }
+
+  .compras-preview-product,
+  .compra-lote-summary-row,
+  .compra-lote-product-row {
+    grid-template-columns: 1fr;
+  }
+
+  .compras-preview-price {
+    text-align: left;
+  }
+
+  .compra-lote-summary-row {
+    padding: 14px;
+  }
+
+  .compra-lote-products {
+    padding: 0 14px 14px;
+  }
+
+  .compra-lote-toggle {
+    min-height: 46px;
+  }
+}
+
+/* =========================================================
+   ORDELY COMPRAS V7 - PLATAFORMA PRIMERO Y RESUMEN FINAL
+   ========================================================= */
+.compras-platform-card {
+  margin-bottom: 18px;
+  padding: 18px;
+}
+
+.compras-platform-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.compras-platform-head span,
+.compras-confirm-head span,
+.compras-wait-card span {
+  display: inline-flex;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.compras-platform-head h2,
+.compras-confirm-head h2,
+.compras-wait-card h2 {
+  margin: 8px 0 4px;
+  color: #0f172a;
+  letter-spacing: -0.04em;
+}
+
+.compras-platform-head p,
+.compras-confirm-head p,
+.compras-wait-card p {
+  margin: 0;
+  color: #64748b;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.compras-default-pill {
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #92400e;
+  border: 1px solid #fed7aa;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.platform-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.platform-choice {
+  min-height: 76px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: 0.18s ease;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+
+.platform-choice:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.platform-choice strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.platform-choice span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.platform-choice.active {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  border-color: #0f172a;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
+}
+
+.platform-choice.active strong,
+.platform-choice.active span {
+  color: #ffffff;
+}
+
+.compras-flow-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.compras-flow-summary div {
+  padding: 14px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.045);
+}
+
+.compras-flow-summary span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.compras-flow-summary strong {
+  display: block;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-layout-v7 {
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+}
+
+.compras-lote-card-v7 {
+  overflow: hidden;
+}
+
+.compras-wait-card {
+  display: grid;
+  min-height: 260px;
+  align-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 42%),
+    linear-gradient(135deg, #ffffff, #f8fafc);
+}
+
+.compras-confirm-card {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 20px 55px rgba(15, 23, 42, 0.08);
+}
+
+.compras-confirm-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.compras-confirm-total {
+  min-width: 220px;
+  padding: 16px;
+  border-radius: 22px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at top right, rgba(250, 204, 21, 0.28), transparent 42%),
+    linear-gradient(135deg, #0f172a, #111827);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+}
+
+.compras-confirm-total span {
+  display: block;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  background: transparent;
+  padding: 0;
+}
+
+.compras-confirm-total strong {
+  display: block;
+  font-size: 30px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.compras-confirm-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.compras-confirm-metrics div {
+  padding: 13px;
+  border-radius: 17px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.compras-confirm-metrics span {
+  display: block;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.compras-confirm-metrics strong {
+  display: block;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-confirm-products {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 22px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.compras-confirm-products-head {
+  display: grid;
+  gap: 3px;
+  padding: 2px 2px 6px;
+}
+
+.compras-confirm-products-head strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.compras-confirm-products-head span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.compras-confirm-product-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(95px, 0.45fr) minmax(110px, 0.55fr) minmax(105px, 0.55fr);
+  gap: 12px;
+  align-items: center;
+  padding: 13px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.compras-confirm-product-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.compras-confirm-product-info strong {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-confirm-product-info span,
+.compras-confirm-price span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.compras-confirm-product-info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-confirm-price {
+  display: grid;
+  gap: 3px;
+}
+
+.compras-confirm-price del {
+  color: #94a3b8;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.compras-confirm-price strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.compras-confirm-price.final strong {
+  color: #16a34a;
+  font-size: 17px;
+}
+
+.compras-confirm-price.discount strong {
+  color: #92400e;
+}
+
+.compras-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+@media (max-width: 1150px) {
+  .platform-choice-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .compras-flow-summary,
+  .compras-confirm-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .compras-confirm-product-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .compras-platform-card,
+  .compras-confirm-card {
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .compras-platform-head,
+  .compras-confirm-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .compras-default-pill,
+  .compras-confirm-total {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .platform-choice-grid,
+  .compras-flow-summary,
+  .compras-confirm-metrics,
+  .compras-confirm-product-row {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-choice {
+    min-height: 62px;
+  }
+
+  .compras-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .compras-confirm-actions .btn {
+    width: 100%;
+  }
+
+  .compras-confirm-total strong {
+    font-size: 26px;
+  }
+}
+
+/* =========================================================
+   ORDELY COMPRAS V8 - FIX MOBILE + RESUMEN FLOTANTE
+   ========================================================= */
+.compras-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.compras-confirm-modal {
+  position: relative;
+  width: min(1040px, 100%);
+  max-height: calc(100dvh - 36px);
+  overflow: auto;
+  margin: 0 !important;
+  border-radius: 28px;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.34);
+}
+
+.compras-modal-close {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 850;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1);
+  transition: 0.18s ease;
+}
+
+.compras-modal-close:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.compras-modal-close:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.compras-confirm-modal .compras-confirm-head {
+  align-items: flex-start;
+}
+
+@media (max-width: 800px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .compras-layout,
+  .compras-layout-v7 {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 14px !important;
+    overflow: visible !important;
+  }
+
+  .compras-pendientes-card,
+  .compras-lote-card,
+  .compras-lote-card-v7,
+  .compras-platform-card,
+  .compras-history-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden;
+    position: static !important;
+  }
+
+  .compras-wait-card {
+    min-height: auto !important;
+    padding: 18px !important;
+  }
+
+  .compras-wait-card h2 {
+    font-size: 24px;
+    line-height: 1.05;
+  }
+
+  .compras-wait-card p {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .compras-flow-summary,
+  .platform-choice-grid,
+  .compras-lote-money-grid,
+  .compras-summary-box,
+  .compras-confirm-metrics,
+  .compras-confirm-product-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .compra-product-card {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .compra-product-main strong,
+  .compra-product-main span,
+  .compras-flow-summary strong,
+  .compras-confirm-metrics strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .compras-modal-backdrop {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .compras-confirm-modal {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    border-radius: 26px 26px 18px 18px;
+    padding: 14px !important;
+  }
+
+  .compras-confirm-modal .compras-confirm-head {
+    position: relative;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding-right: 52px;
+  }
+
+  .compras-modal-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    font-size: 26px;
+  }
+
+  .compras-confirm-total {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .compras-confirm-products {
+    padding: 10px;
+  }
+
+  .compras-confirm-product-row {
+    padding: 12px;
+  }
+
+  .compras-confirm-product-info strong,
+  .compras-confirm-product-info span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 430px) {
+  .compras-platform-card,
+  .compras-pendientes-card,
+  .compras-lote-card-v7,
+  .compras-history-card {
+    padding: 14px !important;
+    border-radius: 22px !important;
+  }
+
+  .compras-header h1 {
+    font-size: 32px;
+  }
+
+  .compras-header p {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  .compras-tabs {
+    border-radius: 16px;
+  }
+
+  .compras-tabs button {
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+
+  .platform-choice {
+    min-height: 56px;
+    border-radius: 16px;
+  }
+
+  .compras-modal-backdrop {
+    padding: 8px;
+  }
+
+  .compras-confirm-modal {
+    border-radius: 24px 24px 16px 16px;
+  }
+}
+

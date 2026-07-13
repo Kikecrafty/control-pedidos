@@ -1,0 +1,628 @@
+/* PRODUCTOS MULTIPLES EN NUEVO PEDIDO */
+.products-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin: 30px 0 16px;
+}
+
+.products-section-header h2 {
+  margin: 0;
+}
+
+.products-section-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.btn-add-product {
+  white-space: nowrap;
+}
+
+.order-products-list {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.product-order-card {
+  padding: 18px;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  border-radius: 24px;
+  background: #f8fafc;
+}
+
+.product-order-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.product-order-card-header h3 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.04em;
+}
+
+.order-payment-grid {
+  max-width: 320px;
+}
+
+@media (max-width: 800px) {
+  .products-section-header {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .btn-add-product {
+    width: 100%;
+  }
+
+  .product-order-card {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .product-order-card-header {
+    align-items: stretch;
+  }
+
+  .product-order-card-header .btn {
+    width: auto;
+  }
+
+  .order-payment-grid {
+    max-width: none;
+  }
+}
+
+/* ORDELY - ESTADOS DE PAGO, REEMBOLSO Y ENTREGA */
+.btn-success {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.btn-success:hover {
+  background: #15803d;
+}
+
+.paid-status-badge,
+.refund-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 9px 13px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.paid-status-badge {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1), 0 10px 30px rgba(34, 197, 94, 0.16);
+}
+
+.paid-status-badge i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.16), 0 0 14px rgba(34, 197, 94, 0.8);
+}
+
+.refund-status-badge {
+  color: #991b1b;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+}
+
+.paid-status-badge-small,
+.refund-status-badge-small {
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.paid-status-badge-small i {
+  width: 8px;
+  height: 8px;
+}
+
+
+.payment-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 9px 13px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.payment-status-badge i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.payment-status-paid {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1), 0 10px 30px rgba(34, 197, 94, 0.16);
+}
+
+.payment-status-paid i {
+  background: #22c55e;
+  box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.16), 0 0 14px rgba(34, 197, 94, 0.8);
+}
+
+.payment-status-partial {
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.08), 0 10px 30px rgba(245, 158, 11, 0.12);
+}
+
+.payment-status-partial i {
+  background: #f59e0b;
+  box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.14), 0 0 14px rgba(245, 158, 11, 0.55);
+}
+
+.payment-status-pending {
+  color: #991b1b;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.08), 0 10px 30px rgba(220, 38, 38, 0.12);
+}
+
+.payment-status-pending i {
+  background: #ef4444;
+  box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.14), 0 0 14px rgba(239, 68, 68, 0.55);
+}
+
+.payment-status-badge-small {
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.payment-status-badge-small i {
+  width: 8px;
+  height: 8px;
+}
+
+.product-status-pills,
+.mobile-card-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.product-status-pills-mobile {
+  justify-content: flex-end;
+  max-width: 170px;
+}
+
+.mini-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.mini-status-paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.mini-status-delivered {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.product-actions-inline {
+  flex-wrap: wrap;
+}
+
+.confirm-delivery-modal {
+  display: grid;
+  gap: 16px;
+}
+
+.confirm-delivery-amount,
+.confirm-delivery-product {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.confirm-delivery-amount span,
+.confirm-delivery-product span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.confirm-delivery-amount strong {
+  font-size: 32px;
+  letter-spacing: -0.06em;
+}
+
+.confirm-delivery-product strong {
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+
+@media (max-width: 800px) {
+  .paid-status-badge,
+  .payment-status-badge,
+  .refund-status-badge {
+    width: fit-content;
+  }
+
+  .mobile-card-badges {
+    justify-content: flex-end;
+  }
+
+  .product-status-pills-mobile {
+    max-width: none;
+  }
+}
+
+/* REEMBOLSO / CANCELADO - MARCA VISUAL DE NO CUENTA EN MÉTRICAS */
+.refund-censored-row td {
+  position: relative;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(153, 27, 27, 0.08) 0,
+    rgba(153, 27, 27, 0.08) 8px,
+    rgba(255, 255, 255, 0.62) 8px,
+    rgba(255, 255, 255, 0.62) 18px
+  );
+}
+
+.refund-censored-row td:not(:last-child) {
+  color: rgba(15, 23, 42, 0.58);
+}
+
+.refund-censored-row td:nth-child(7),
+.refund-censored-row td:nth-child(8),
+.refund-censored-row td:nth-child(9),
+.refund-censored-row td:nth-child(10) {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(153, 27, 27, 0.55);
+}
+
+.refund-censored-surface,
+.refund-censored-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.refund-censored-surface::after,
+.refund-censored-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(153, 27, 27, 0.075) 0,
+    rgba(153, 27, 27, 0.075) 8px,
+    transparent 8px,
+    transparent 20px
+  );
+  z-index: 1;
+}
+
+.refund-censored-surface > *,
+.refund-censored-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+.refund-censored-surface .card strong,
+.refund-censored-card strong {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(153, 27, 27, 0.55);
+}
+
+.refund-censored-surface::before,
+.refund-censored-card::before {
+  content: attr(data-refund-label);
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(254, 226, 226, 0.94);
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+@media (max-width: 800px) {
+  .refund-censored-row td:nth-child(7),
+  .refund-censored-row td:nth-child(8),
+  .refund-censored-row td:nth-child(9),
+  .refund-censored-row td:nth-child(10) {
+    text-decoration-thickness: 1.5px;
+  }
+
+  .refund-censored-surface::before,
+  .refund-censored-card::before {
+    position: static;
+    display: inline-flex;
+    margin: 0 0 12px;
+  }
+}
+
+
+/* ORDELY PARTE 1 - OPTIMIZACIÓN Y BLOQUEOS */
+.dashboard-payment-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: -6px;
+}
+
+.dashboard-payment-mini-grid div {
+  background: #ffffff;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  border-radius: 20px;
+  padding: 16px 18px;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.05);
+}
+
+.dashboard-payment-mini-grid span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.dashboard-payment-mini-grid strong {
+  display: block;
+  font-size: 22px;
+  letter-spacing: -0.05em;
+}
+
+.refund-locked-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  box-shadow: 0 12px 34px rgba(154, 52, 18, 0.08);
+}
+
+.refund-locked-notice strong {
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.refund-locked-notice span {
+  color: #9a3412;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* Suaviza el efecto de reembolso para que no tape botones ni contenido */
+.refund-censored-surface::after,
+.refund-censored-card::after {
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.refund-censored-surface > *,
+.refund-censored-card > * {
+  z-index: 1;
+}
+
+@media (max-width: 800px) {
+  .dashboard-payment-mini-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .refund-locked-notice {
+    display: grid;
+  }
+}
+
+
+.refund-confirm-modal {
+  display: grid;
+  gap: 16px;
+}
+
+.refund-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.refund-quick-actions .btn {
+  min-height: 46px;
+  white-space: normal;
+}
+
+.refund-confirm-modal .form-field input {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+@media (max-width: 800px) {
+  .refund-quick-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   ORDELY PARTE 3 - PAGINACIÓN Y LISTAS GRANDES
+   ========================================================= */
+
+.list-toolbar-card {
+  background: #ffffff;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  border-radius: 22px;
+  padding: 16px;
+  margin: 0 0 18px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.list-page-size-field select {
+  min-width: 100px;
+}
+
+.pagination-card {
+  background: #ffffff;
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  border-radius: 22px;
+  padding: 14px;
+  margin: 0 0 24px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.pagination-card > div {
+  display: grid;
+  gap: 3px;
+  text-align: center;
+}
+
+.pagination-card strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.pagination-card span,
+.pagination-range {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pagination-card .btn {
+  min-width: 120px;
+}
+
+.mobile-list-title .pagination-range {
+  display: block;
+  margin-top: 4px;
+}
+
+@media (max-width: 800px) {
+  .list-toolbar-card {
+    grid-template-columns: 1fr;
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .pagination-card {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .pagination-card .btn {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* ORDELY - TOTALES POR PRODUCTO + BOTÓN REGRESAR */
+.detail-back-button {
+  white-space: nowrap;
+}
+
+.confirm-delivery-product-totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.confirm-delivery-product-totals div {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.confirm-delivery-product-totals span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.confirm-delivery-product-totals strong {
+  font-size: 24px;
+  letter-spacing: -0.05em;
+}
+
+.product-actions-inline .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+  .detail-back-button {
+    width: 100%;
+  }
+
+  .confirm-delivery-product-totals {
+    grid-template-columns: 1fr;
+  }
+}
+
