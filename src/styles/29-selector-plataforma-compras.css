@@ -1,0 +1,96 @@
+/* Compras agrupadas: un solo selector para elegir la plataforma del carrito. */
+.compras-platform-head-single {
+  margin-bottom: 13px;
+}
+
+.compras-platform-single-select {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+}
+
+.compras-platform-single-select > span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.compras-platform-select-control {
+  position: relative;
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 17px;
+  background: linear-gradient(135deg, #f8fafc, #f4f6ff);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.compras-platform-select-control:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.13);
+}
+
+.compras-platform-select-control select {
+  width: 100%;
+  min-height: 66px;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  padding: 13px 56px 13px 17px;
+  background: transparent;
+  color: #0f172a;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.compras-platform-select-control select:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.compras-platform-select-control > span {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: #172033;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.compras-platform-single-select > small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+@media (max-width: 800px) {
+  .compras-platform-select-control {
+    border-radius: 15px;
+  }
+
+  .compras-platform-select-control select {
+    min-height: 58px;
+    padding: 11px 50px 11px 14px;
+    font-size: 15px;
+  }
+
+  .compras-platform-select-control > span {
+    right: 11px;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+}

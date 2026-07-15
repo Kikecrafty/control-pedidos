@@ -5,8 +5,10 @@ import Layout from '../components/Layout'
 import PlanLimitNotice from '../components/PlanLimitNotice'
 import EmptyState from '../components/EmptyState'
 import PageHelp from '../components/PageHelp'
-import { cargarEstadoPlan, puedeCrearPedido } from '../lib/planes'
+import Toast from '../components/Toast'
+import { cargarEstadoPlan, estaBloqueadoPorPlan, puedeCrearPedido } from '../lib/planes'
 import { esPedidoActivo } from '../lib/calculosNegocio'
+import { agruparProductosPorPedido, productoPuedeMarcarseRecibido } from '../lib/llegadas'
 
 const obtenerIdUsuarioCache = () => {
   if (typeof window === 'undefined') return 'sin_usuario'
@@ -155,7 +157,10 @@ export default function Dashboard() {
   const [estadoPlan, setEstadoPlan] = useState(() => cacheInicial?.estadoPlan || null)
   const [cargandoPaquetes, setCargandoPaquetes] = useState(false)
   const [errorCarga, setErrorCarga] = useState('')
+  const [productoMarcando, setProductoMarcando] = useState(null)
+  const [toast, setToast] = useState(null)
   const nombreUsuario = useMemo(() => obtenerNombreUsuario(), [])
+  const llegadasPorPedido = useMemo(() => agruparProductosPorPedido(paquetes), [paquetes])
 
   useEffect(() => {
     cargarDatos()
@@ -241,6 +246,8 @@ export default function Dashboard() {
       pedido_id,
       lote_compra_id,
       nombre_producto,
+      talla,
+      color,
       cantidad,
       precio_pagina,
       estado_compra,
@@ -385,8 +392,51 @@ export default function Dashboard() {
     })
   }
 
+  const marcarProductoComoRecibido = async (producto) => {
+    if (!producto?.id || productoMarcando) return
+
+    if (estaBloqueadoPorPlan(estadoPlan)) {
+      setToast({
+        mensaje: 'Tu cuenta no permite modificaciones en este momento.',
+        tipo: 'error'
+      })
+      return
+    }
+
+    setProductoMarcando(producto.id)
+
+    try {
+      const { error } = await supabase.rpc('actualizar_estado_producto_logistica', {
+        p_producto_id: producto.id,
+        p_estado: 'Recibido'
+      })
+
+      if (error) {
+        console.log(error)
+        setToast({
+          mensaje: error.message || 'No se pudo marcar la llegada del producto.',
+          tipo: 'error'
+        })
+        return
+      }
+
+      setToast({ mensaje: 'Producto marcado como recibido.', tipo: 'success' })
+      await cargarDatos()
+    } catch (error) {
+      console.log(error)
+      setToast({ mensaje: 'No se pudo marcar la llegada del producto.', tipo: 'error' })
+    } finally {
+      setProductoMarcando(null)
+    }
+  }
+
   return (
     <Layout>
+      <Toast
+        mensaje={toast?.mensaje}
+        tipo={toast?.tipo}
+        onClose={() => setToast(null)}
+      />
       <PageHelp page="dashboard" />
 
       <div className="dashboard-priority-header">
@@ -435,7 +485,11 @@ export default function Dashboard() {
         </Link>
 
         <a href="#llegadas" className="dashboard-priority-card dashboard-priority-card-arrival">
-          <span className="dashboard-priority-icon">⌄</span>
+          <span className="dashboard-priority-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="m7 9.5 5 5 5-5" />
+            </svg>
+          </span>
           <div>
             <span>Posiblemente ya llegaron</span>
             <strong>{resumen.posiblesLlegadas} productos</strong>
@@ -467,8 +521,8 @@ export default function Dashboard() {
           <div className="dashboard-arrivals-header">
             <div>
               <span className="dashboard-arrivals-kicker">Llegadas y paquetes</span>
-              <h2>Todos los productos en proceso</h2>
-              <p>Primero aparecen los que ya llegaron o posiblemente ya llegaron; después, todo lo que sigue en camino.</p>
+              <h2>Productos por pedido y cliente</h2>
+              <p>Cada pedido reúne sus productos en proceso para que puedas abrirlo o confirmar una llegada aquí mismo.</p>
             </div>
 
             <Link to="/pedidos" className="btn btn-small btn-light-bordered dashboard-arrivals-button">
@@ -477,56 +531,92 @@ export default function Dashboard() {
           </div>
 
           <div className="dashboard-arrivals-list">
-            {paquetes.map((producto) => {
-              const avance = calcularAvance(producto)
-              const plataforma = producto.lotes_compra?.plataforma || producto.pedidos?.plataforma || 'Plataforma'
-              const cliente = producto.pedidos?.clientes?.nombre || 'Sin cliente'
+            {llegadasPorPedido.map((grupo) => {
+              const avances = grupo.productos.map(calcularAvance)
+              const estadoVisual = avances.some((avance) => avance.estadoVisual === 'warning')
+                ? 'warning'
+                : avances.every((avance) => avance.estadoVisual === 'ok') ? 'ok' : 'normal'
+              const cantidadProductos = grupo.productos.length
 
               return (
-                <article className={`dashboard-arrival-item dashboard-arrival-item-${avance.estadoVisual}`} key={producto.id}>
-                  <div className="dashboard-arrival-order-meta">
-                    <div>
-                      <span>Cliente</span>
-                      <strong>{cliente}</strong>
-                    </div>
-                    <div>
-                      <span>Pedido</span>
-                      <strong>{producto.pedidos?.codigo || 'Sin código'}</strong>
-                    </div>
-                    <div>
-                      <span>Paquete</span>
-                      <strong>{producto.lotes_compra?.codigo_lote || 'Sin paquete'}</strong>
-                    </div>
-                  </div>
-
-                  <div className="dashboard-arrival-product-row">
-                    <div className="dashboard-arrival-main">
-                      <div className="dashboard-arrival-icon">□</div>
-                      <div className="dashboard-arrival-info">
-                        <strong>{producto.nombre_producto || 'Producto sin nombre'}</strong>
-                        <span>{plataforma} · Cantidad {Number(producto.cantidad || 1)}</span>
-                        <small>{avance.detalle}</small>
-                      </div>
+                <article
+                  className={`dashboard-arrival-order-card dashboard-arrival-order-card-${estadoVisual}`}
+                  key={grupo.llave}
+                >
+                  <header className="dashboard-arrival-order-header">
+                    <div className="dashboard-arrival-order-copy">
+                      <span>Cliente · Pedido</span>
+                      <h3>{grupo.cliente}</h3>
+                      <p>
+                        {grupo.codigo} · {cantidadProductos} producto{cantidadProductos === 1 ? '' : 's'} en proceso
+                      </p>
                     </div>
 
-                    <div className="dashboard-arrival-progress-area">
-                      <div className="dashboard-arrival-progress-top">
-                        <span className={`dashboard-arrival-status dashboard-arrival-status-${avance.estadoVisual}`}>
-                          {avance.etiqueta}
-                        </span>
-                        <strong>{avance.porcentaje}%</strong>
-                      </div>
-                      <div className="dashboard-arrival-bar">
-                        <span style={{ width: `${avance.porcentaje}%` }} />
-                      </div>
-                    </div>
+                    {grupo.pedidoId && (
+                      <Link
+                        to={`/pedidos/${grupo.pedidoId}?seccion=productos`}
+                        className="btn btn-small btn-light-bordered dashboard-arrival-order-open"
+                      >
+                        Abrir pedido
+                      </Link>
+                    )}
+                  </header>
 
-                    <Link
-                      to={`/pedidos/${producto.pedido_id}?seccion=productos&producto=${producto.id}`}
-                      className="btn btn-small btn-primary dashboard-arrival-open-order"
-                    >
-                      Abrir y marcar llegada
-                    </Link>
+                  <div className="dashboard-arrival-products-compact">
+                    {grupo.productos.map((producto) => {
+                      const avance = calcularAvance(producto)
+                      const plataforma = producto.lotes_compra?.plataforma || grupo.plataforma
+                      const datosProducto = [
+                        plataforma,
+                        `Cantidad ${Number(producto.cantidad || 1)}`,
+                        producto.talla ? `Talla ${producto.talla}` : null,
+                        producto.color ? `Color ${producto.color}` : null,
+                        producto.lotes_compra?.codigo_lote || null
+                      ].filter(Boolean).join(' · ')
+                      const puedeMarcarLlegada = productoPuedeMarcarseRecibido(producto)
+                      const estaMarcando = productoMarcando === producto.id
+
+                      return (
+                        <div className="dashboard-arrival-product-compact" key={producto.id}>
+                          <div className="dashboard-arrival-main">
+                            <div className="dashboard-arrival-icon" aria-hidden="true">□</div>
+                            <div className="dashboard-arrival-info">
+                              <strong>{producto.nombre_producto || 'Producto sin nombre'}</strong>
+                              <span>{datosProducto}</span>
+                              <small>{avance.detalle}</small>
+                            </div>
+                          </div>
+
+                          <div className="dashboard-arrival-progress-area">
+                            <div className="dashboard-arrival-progress-top">
+                              <span className={`dashboard-arrival-status dashboard-arrival-status-${avance.estadoVisual}`}>
+                                {avance.etiqueta}
+                              </span>
+                              <strong>{avance.porcentaje}%</strong>
+                            </div>
+                            <div className="dashboard-arrival-bar" aria-hidden="true">
+                              <span style={{ width: `${avance.porcentaje}%` }} />
+                            </div>
+                          </div>
+
+                          {puedeMarcarLlegada ? (
+                            <button
+                              type="button"
+                              className="dashboard-arrival-mark-button"
+                              onClick={() => marcarProductoComoRecibido(producto)}
+                              disabled={Boolean(productoMarcando)}
+                              aria-label={`Marcar como recibido ${producto.nombre_producto || 'producto'}`}
+                            >
+                              {estaMarcando ? 'Marcando...' : 'Marcar llegada'}
+                            </button>
+                          ) : (
+                            <span className="dashboard-arrival-product-done">
+                              {producto.estado_compra === 'Dejado en negocio' ? 'En negocio' : 'Recibido'}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 </article>
               )

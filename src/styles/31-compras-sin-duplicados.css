@@ -1,0 +1,14 @@
+/* Compras: resumen y acciones sin controles duplicados. */
+.compras-flow-summary-v25 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.compras-order-head {
+  justify-content: flex-start;
+}
+
+@media (max-width: 720px) {
+  .compras-flow-summary-v25 {
+    grid-template-columns: 1fr;
+  }
+}

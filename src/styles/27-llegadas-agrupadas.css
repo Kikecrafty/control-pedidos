@@ -1,0 +1,278 @@
+/* Panel de inicio: llegadas compactas agrupadas por pedido y cliente. */
+.dashboard-arrivals-card.dashboard-arrivals-card-priority {
+  padding: 19px;
+  border-radius: 24px;
+}
+
+.dashboard-arrivals-card-priority .dashboard-arrivals-header {
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.dashboard-arrivals-card-priority .dashboard-arrivals-header h2 {
+  font-size: 23px;
+  letter-spacing: -0.045em;
+}
+
+.dashboard-arrivals-card-priority .dashboard-arrivals-header p {
+  max-width: 620px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dashboard-arrival-order-card {
+  overflow: hidden;
+  border: 1px solid #dbe3f0;
+  border-radius: 17px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+}
+
+.dashboard-arrival-order-card-warning {
+  border-color: #fed7aa;
+}
+
+.dashboard-arrival-order-card-ok {
+  border-color: #bbf7d0;
+}
+
+.dashboard-arrival-order-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border-bottom: 1px solid #e8edf5;
+  background: linear-gradient(135deg, #f8fafc, #f4f6ff);
+}
+
+.dashboard-arrival-order-card-warning .dashboard-arrival-order-header {
+  background: linear-gradient(135deg, #fff7ed, #ffffff);
+}
+
+.dashboard-arrival-order-card-ok .dashboard-arrival-order-header {
+  background: linear-gradient(135deg, #f0fdf4, #ffffff);
+}
+
+.dashboard-arrival-order-copy {
+  min-width: 0;
+}
+
+.dashboard-arrival-order-copy > span {
+  display: block;
+  margin-bottom: 2px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.dashboard-arrival-order-copy h3 {
+  overflow: hidden;
+  margin: 0;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-arrival-order-copy p {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.dashboard-arrival-order-open {
+  min-height: 32px;
+  padding: 7px 11px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.dashboard-arrival-products-compact {
+  display: grid;
+}
+
+.dashboard-arrival-product-compact {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(150px, 0.72fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+}
+
+.dashboard-arrival-product-compact + .dashboard-arrival-product-compact {
+  border-top: 1px solid #edf1f7;
+}
+
+.dashboard-arrival-product-compact .dashboard-arrival-main {
+  gap: 9px;
+}
+
+.dashboard-arrival-product-compact .dashboard-arrival-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 10px;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.dashboard-arrival-product-compact .dashboard-arrival-info strong {
+  font-size: 13px;
+}
+
+.dashboard-arrival-product-compact .dashboard-arrival-info span {
+  font-size: 10px;
+}
+
+.dashboard-arrival-product-compact .dashboard-arrival-info small {
+  margin-top: 2px;
+  font-size: 10px;
+  white-space: normal;
+}
+
+.dashboard-arrival-product-compact .dashboard-arrival-progress-area {
+  gap: 5px;
+}
+
+.dashboard-arrival-product-compact .dashboard-arrival-progress-top {
+  gap: 6px;
+}
+
+.dashboard-arrival-product-compact .dashboard-arrival-progress-top > strong {
+  font-size: 11px;
+}
+
+.dashboard-arrival-product-compact .dashboard-arrival-status {
+  padding: 4px 6px;
+  font-size: 8px;
+}
+
+.dashboard-arrival-product-compact .dashboard-arrival-bar {
+  height: 5px;
+}
+
+.dashboard-arrival-mark-button {
+  min-width: 112px;
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3155d7, #6d43ff);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.dashboard-arrival-mark-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.dashboard-arrival-mark-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.dashboard-arrival-product-done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112px;
+  min-height: 32px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: #166534;
+  font-size: 10px;
+  font-weight: 900;
+  text-align: center;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-arrival-product-compact {
+    grid-template-columns: minmax(0, 1fr) minmax(145px, 0.65fr) auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-arrivals-card.dashboard-arrivals-card-priority {
+    padding: 13px;
+    border-radius: 20px;
+  }
+
+  .dashboard-arrivals-card-priority .dashboard-arrivals-header h2 {
+    font-size: 20px;
+  }
+
+  .dashboard-arrival-order-header {
+    align-items: flex-start;
+    padding: 10px;
+  }
+
+  .dashboard-arrival-order-copy h3 {
+    font-size: 14px;
+  }
+
+  .dashboard-arrival-order-open {
+    min-height: 30px;
+    padding: 6px 9px;
+    font-size: 10px;
+  }
+
+  .dashboard-arrival-product-compact {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 9px 10px;
+  }
+
+  .dashboard-arrival-product-compact .dashboard-arrival-progress-area {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .dashboard-arrival-product-compact .dashboard-arrival-progress-top {
+    align-items: center;
+  }
+
+  .dashboard-arrival-mark-button,
+  .dashboard-arrival-product-done {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    min-width: 96px;
+    min-height: 30px;
+    padding: 6px 8px;
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 430px) {
+  .dashboard-arrival-order-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dashboard-arrival-product-compact {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-arrival-product-compact .dashboard-arrival-progress-area,
+  .dashboard-arrival-mark-button,
+  .dashboard-arrival-product-done {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .dashboard-arrival-mark-button,
+  .dashboard-arrival-product-done {
+    width: 100%;
+  }
+}

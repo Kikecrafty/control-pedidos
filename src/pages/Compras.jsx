@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import Layout from '../components/Layout'
 import Toast from '../components/Toast'
 import EmptyState from '../components/EmptyState'
 import PageHelp from '../components/PageHelp'
-import { PLATAFORMAS } from '../lib/plataformas'
+import { PLATAFORMAS, PLATAFORMA_PREDETERMINADA } from '../lib/plataformas'
 import { obtenerFechaLocalHoy } from '../lib/fechas'
 
 const hoyISO = () => obtenerFechaLocalHoy()
@@ -12,7 +12,20 @@ const hoyISO = () => obtenerFechaLocalHoy()
 const formatearDinero = (valor) => `$${Number(valor || 0).toFixed(2)}`
 const normalizarEstadoCompra = (estado) => estado || 'Pendiente de compra'
 
+const obtenerPlataformaConfigurada = () => {
+  if (typeof window === 'undefined') return PLATAFORMA_PREDETERMINADA
+
+  try {
+    const perfil = JSON.parse(localStorage.getItem('control_pedidos_perfil_cache') || '{}')
+    const candidata = perfil?.plataforma_predeterminada || localStorage.getItem('plataforma_predeterminada')
+    return PLATAFORMAS.includes(candidata) ? candidata : PLATAFORMA_PREDETERMINADA
+  } catch {
+    return PLATAFORMA_PREDETERMINADA
+  }
+}
+
 export default function Compras() {
+  const plataformaConfiguradaInicial = useMemo(obtenerPlataformaConfigurada, [])
   const [productos, setProductos] = useState([])
   const [lotes, setLotes] = useState([])
   const [seleccionados, setSeleccionados] = useState([])
@@ -23,14 +36,13 @@ export default function Compras() {
   const plataformaInicializadaRef = useRef(false)
   const [toast, setToast] = useState(null)
   const [lotesAbiertos, setLotesAbiertos] = useState({})
-  const [plataformaPredeterminada, setPlataformaPredeterminada] = useState('SHEIN')
-  const [plataformaSeleccionada, setPlataformaSeleccionada] = useState('SHEIN')
+  const [plataformaPredeterminada, setPlataformaPredeterminada] = useState(plataformaConfiguradaInicial)
+  const [plataformaSeleccionada, setPlataformaSeleccionada] = useState(plataformaConfiguradaInicial)
   const [resumenActivo, setResumenActivo] = useState(false)
-  const [guiaAbierta, setGuiaAbierta] = useState(false)
   const [errorCarga, setErrorCarga] = useState('')
 
   const [form, setForm] = useState({
-    plataforma: 'SHEIN',
+    plataforma: plataformaConfiguradaInicial,
     numeroOrden: '',
     cupon: '',
     descuento: '',
@@ -46,14 +58,29 @@ export default function Compras() {
   })
 
   useEffect(() => {
-    cargarDatos()
+    const actualizarPlataformaConfigurada = (evento) => {
+      const nuevaPlataforma = evento?.detail
+      if (!PLATAFORMAS.includes(nuevaPlataforma)) return
+
+      const anterior = plataformaPredeterminada
+      setPlataformaPredeterminada(nuevaPlataforma)
+      setPlataformaSeleccionada((actual) => actual === anterior ? nuevaPlataforma : actual)
+      setForm((actual) => actual.plataforma === anterior
+        ? { ...actual, plataforma: nuevaPlataforma }
+        : actual)
+      setSeleccionados([])
+      setResumenActivo(false)
+    }
+
+    window.addEventListener('plataformaPredeterminadaCambiada', actualizarPlataformaConfigurada)
+    return () => window.removeEventListener('plataformaPredeterminadaCambiada', actualizarPlataformaConfigurada)
+  }, [plataformaPredeterminada])
+
+  const mostrarToast = useCallback((mensaje, tipo = 'success') => {
+    setToast({ mensaje, tipo })
   }, [])
 
-  const mostrarToast = (mensaje, tipo = 'success') => {
-    setToast({ mensaje, tipo })
-  }
-
-  const cargarDatos = async () => {
+  const cargarDatos = useCallback(async () => {
     setCargando(true)
     setErrorCarga('')
 
@@ -71,7 +98,7 @@ export default function Compras() {
 
           const plataformaPerfil = PLATAFORMAS.includes(perfilData?.plataforma_predeterminada)
             ? perfilData.plataforma_predeterminada
-            : 'SHEIN'
+            : plataformaConfiguradaInicial
 
           setPlataformaPredeterminada(plataformaPerfil)
           setPlataformaSeleccionada(plataformaPerfil)
@@ -166,7 +193,11 @@ export default function Compras() {
     }
 
     setCargando(false)
-  }
+  }, [mostrarToast, plataformaConfiguradaInicial])
+
+  useEffect(() => {
+    cargarDatos()
+  }, [cargarDatos])
 
   const cambiarPlataforma = (plataforma) => {
     setPlataformaSeleccionada(plataforma)
@@ -324,17 +355,6 @@ export default function Compras() {
     setSeleccionados((actuales) => {
       if (actuales.includes(id)) return actuales.filter((item) => item !== id)
       return [...actuales, id]
-    })
-    setResumenActivo(false)
-  }
-
-  const seleccionarPedido = (grupo) => {
-    const idsGrupo = grupo.productos.map((producto) => producto.id)
-    const todosActivos = idsGrupo.every((id) => seleccionados.includes(id))
-
-    setSeleccionados((actuales) => {
-      if (todosActivos) return actuales.filter((id) => !idsGrupo.includes(id))
-      return Array.from(new Set([...actuales, ...idsGrupo]))
     })
     setResumenActivo(false)
   }
@@ -545,10 +565,6 @@ export default function Compras() {
         </div>
 
         <div className="compras-header-actions">
-          <button type="button" className="btn btn-light-bordered" onClick={() => setGuiaAbierta(true)}>
-            ¿Cómo funciona?
-          </button>
-
           <div className="compras-tabs">
             <button type="button" className={tab === 'pendientes' ? 'active' : ''} onClick={() => setTab('pendientes')}>
               Pendientes
@@ -560,57 +576,47 @@ export default function Compras() {
         </div>
       </div>
 
-      {guiaAbierta && (
-        <div className="compras-modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setGuiaAbierta(false) }}>
-          <section className="table-card compras-guide-modal" role="dialog" aria-modal="true">
-            <button type="button" className="compras-modal-close" onClick={() => setGuiaAbierta(false)} aria-label="Cerrar guía">×</button>
-            <span className="compras-guide-kicker">Guía rápida</span>
-            <h2>¿Qué se hace aquí?</h2>
-            <p>Usa esta pantalla cuando vas a comprar productos juntos en SHEIN, Temu, AliExpress, TikTok Shop, Mercado Libre, Amazon o catálogo.</p>
-            <div className="compras-guide-steps">
-              <div><strong>1</strong><span>Elige la plataforma.</span></div>
-              <div><strong>2</strong><span>Selecciona los productos que meterás juntos al carrito.</span></div>
-              <div><strong>3</strong><span>Escribe cupón, puntos, envío, importación, impuestos y total final en un solo formulario.</span></div>
-              <div><strong>4</strong><span>Ordely reparte el descuento y calcula costos reales.</span></div>
-            </div>
-            <p className="compras-guide-note">El cupón y los puntos se descuentan solo a productos. Envío, importación, impuestos y comisiones quedan separados para tus estadísticas.</p>
-          </section>
-        </div>
-      )}
-
       <section className="table-card compras-platform-card compras-platform-card-v25">
-        <div className="compras-platform-head">
+        <div className="compras-platform-head compras-platform-head-single">
           <div>
             <span>Paso 1</span>
             <h2>¿Dónde vas a comprar?</h2>
             <p>Solo se mostrarán productos pendientes de la plataforma elegida.</p>
           </div>
-
-          <div className="compras-default-pill">
-            Predeterminada: <strong>{plataformaPredeterminada}</strong>
-          </div>
         </div>
 
-        <div className="platform-choice-grid platform-choice-grid-v25">
-          {PLATAFORMAS.map((plataforma) => (
-            <button
-              type="button"
-              key={plataforma}
-              className={plataformaSeleccionada === plataforma ? 'platform-choice active' : 'platform-choice'}
-              onClick={() => cambiarPlataforma(plataforma)}
+        <label className="compras-platform-single-select">
+          <span>Plataforma del carrito</span>
+          <div className="compras-platform-select-control">
+            <select
+              value={plataformaSeleccionada}
+              onChange={(evento) => cambiarPlataforma(evento.target.value)}
               disabled={guardando}
+              aria-label="Seleccionar plataforma del carrito"
             >
-              <strong>{plataforma}</strong>
-              <span>{plataforma === plataformaPredeterminada ? 'Predeterminada' : 'Ver productos'}</span>
-            </button>
-          ))}
-        </div>
+              {PLATAFORMAS.map((plataforma) => (
+                <option value={plataforma} key={plataforma}>
+                  {plataforma}{plataforma === plataformaPredeterminada ? ' — Predeterminada' : ''}
+                </option>
+              ))}
+            </select>
+            <span aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="m7 9.5 5 5 5-5" />
+              </svg>
+            </span>
+          </div>
+          <small>
+            {plataformaSeleccionada === plataformaPredeterminada
+              ? 'Esta es la plataforma predeterminada en Configuración.'
+              : `Plataforma predeterminada en Configuración: ${plataformaPredeterminada}.`}
+          </small>
+        </label>
       </section>
 
       {tab === 'pendientes' && (
         <>
           <div className="compras-flow-summary compras-flow-summary-v25">
-            <div><span>Plataforma</span><strong>{plataformaSeleccionada}</strong></div>
             <div><span>Pendientes</span><strong>{productosFiltrados.length}</strong></div>
             <div><span>Seleccionados</span><strong>{productosSeleccionados.length}</strong></div>
             <div><span>Subtotal seleccionado</span><strong>{formatearDinero(subtotalSeleccionado)}</strong></div>
@@ -626,7 +632,7 @@ export default function Compras() {
                 </div>
 
                 <button type="button" className="btn btn-light-bordered" onClick={seleccionarTodos} disabled={productosFiltrados.length === 0 || guardando}>
-                  {seleccionados.length === productosFiltrados.length && productosFiltrados.length > 0 ? 'Quitar todos' : 'Seleccionar visibles'}
+                  {seleccionados.length === productosFiltrados.length && productosFiltrados.length > 0 ? 'Quitar todos' : 'Seleccionar todo'}
                 </button>
               </div>
 
@@ -653,9 +659,6 @@ export default function Compras() {
               ) : (
                 <div className="compras-order-groups">
                   {productosAgrupados.map((grupo) => {
-                    const idsGrupo = grupo.productos.map((producto) => producto.id)
-                    const todosActivos = idsGrupo.every((id) => seleccionados.includes(id))
-
                     return (
                       <article className="compras-order-group" key={grupo.pedidoId}>
                         <div className="compras-order-head">
@@ -663,9 +666,6 @@ export default function Compras() {
                             <strong>{grupo.codigo}</strong>
                             <span>{grupo.cliente}</span>
                           </div>
-                          <button type="button" onClick={() => seleccionarPedido(grupo)} disabled={guardando}>
-                            {todosActivos ? 'Quitar pedido' : 'Seleccionar pedido'}
-                          </button>
                         </div>
 
                         <div className="compras-products-list compras-products-list-v25">

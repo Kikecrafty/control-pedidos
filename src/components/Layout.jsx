@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import Modal from './Modal'
+import BienvenidaInicial from './BienvenidaInicial'
 import { supabase } from '../supabaseClient'
+import { bienvenidaFueVista, marcarBienvenidaVista } from '../lib/bienvenida'
 import { cargarEstadoPlan, nombrePlan, resumenUsoPlan } from '../lib/planes'
 import { PLATAFORMAS, PLATAFORMA_PREDETERMINADA } from '../lib/plataformas'
 
@@ -120,6 +122,14 @@ function NavIcon({ name, className = '' }) {
         <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
         <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
         <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      </svg>
+    )
+  }
+
+  if (name === 'menu') {
+    return (
+      <svg {...commonProps}>
+        <path d="M4 7h16M4 12h16M4 17h16" />
       </svg>
     )
   }
@@ -387,6 +397,7 @@ export default function Layout({ children }) {
   const [perfil, setPerfil] = useState(perfilCacheInicial)
   const [perfilCargando, setPerfilCargando] = useState(!perfilCacheInicial)
   const [plataformaPredeterminada, setPlataformaPredeterminada] = useState(obtenerPlataformaInicial)
+  const [bienvenidaAbierta, setBienvenidaAbierta] = useState(false)
   const [modalCuenta, setModalCuenta] = useState(false)
   const [confirmacionCerrarCuenta, setConfirmacionCerrarCuenta] = useState(false)
   const [nombreCuenta, setNombreCuenta] = useState('')
@@ -471,7 +482,6 @@ export default function Layout({ children }) {
     setConfigEntrega(configuracionInicial)
     setPlataformasActivas(plataformasActivasIniciales)
     setConfirmacionCerrarCuenta(false)
-    setSeccionCuenta('perfil')
     setSnapshotCuenta(serializarCuenta({
       nombre: nombreInicial,
       plataforma: plataformaPredeterminada,
@@ -488,6 +498,11 @@ export default function Layout({ children }) {
     // Se reinicia únicamente al abrir o cerrar el modal para no sobrescribir cambios en edición.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalCuenta])
+
+  useEffect(() => {
+    if (!usuario?.id || perfilCargando) return
+    setBienvenidaAbierta(!bienvenidaFueVista(usuario.id))
+  }, [usuario?.id, perfilCargando])
 
   const cargarCuenta = async () => {
     const cacheActual = leerPerfilCache()
@@ -666,6 +681,23 @@ export default function Layout({ children }) {
     setModalCuenta(true)
   }
 
+  const abrirConfiguracion = () => {
+    setNombreCuenta(perfil?.nombre || datosCuenta.nombre || '')
+    setMensajeCuenta(null)
+    setSeccionCuenta('preferencias')
+    setModalCuenta(true)
+  }
+
+  const cerrarBienvenida = () => {
+    marcarBienvenidaVista(usuario?.id)
+    setBienvenidaAbierta(false)
+  }
+
+  const configurarDesdeBienvenida = () => {
+    cerrarBienvenida()
+    abrirConfiguracion()
+  }
+
   const actualizarConfigEntrega = (campo, valor) => {
     const esBooleano = campo === 'fecha_mostrar_anio' || campo === 'pedidos_separar_por_fecha'
     const valorNormalizado = esBooleano ? valorBooleanoConfig(valor, true) : valor
@@ -836,37 +868,43 @@ export default function Layout({ children }) {
     setGuardandoCuenta(false)
   }
 
-  const MobilePlanPanel = () => (
-    <div className={`drawer-plan-card drawer-plan-card-${datosCuenta.planKey}`}>
-      <div className="drawer-plan-card-top">
-        <span>Plan actual</span>
-        <strong>{datosCuenta.plan}</strong>
+  const SidebarPlanCard = ({ movil = false }) => (
+    <aside className={`sidebar-plan-card sidebar-plan-card-${datosCuenta.planKey}${movil ? ' sidebar-plan-card-mobile' : ''}`}>
+      <div className="sidebar-plan-card-head">
+        <div>
+          <span>Plan actual</span>
+          <strong>{datosCuenta.plan}</strong>
+        </div>
       </div>
 
-      <div className="drawer-plan-card-grid">
+      <div className="sidebar-plan-card-details">
         <div>
           <span>Uso</span>
           <strong>{datosCuenta.uso}</strong>
         </div>
-
-        <div>
-          <span>Vigencia</span>
-          <strong>{datosCuenta.vigencia}</strong>
-        </div>
       </div>
 
+      <p className="sidebar-plan-card-vigencia">
+        <span>Vigencia:</span> {datosCuenta.vigencia}
+      </p>
+
       {datosCuenta.bloqueada && (
-        <div className="drawer-plan-warning">
-          Límite alcanzado
-        </div>
+        <div className="sidebar-plan-card-warning">Límite alcanzado</div>
       )}
 
-      {textoMejoraPlan && (
-        <Link to="/planes" className="account-plan-upgrade-button drawer-plan-upgrade-button" onClick={cerrarDrawer}>
-          {textoMejoraPlan}
-        </Link>
+      {datosCuenta.planKey !== 'pro' && (
+        <div className="sidebar-plan-card-actions">
+          {textoMejoraPlan && (
+            <Link to="/planes" className="sidebar-plan-button sidebar-plan-button-upgrade" onClick={movil ? cerrarDrawer : undefined}>
+              {textoMejoraPlan}
+            </Link>
+          )}
+          <Link to="/planes" className="sidebar-plan-button sidebar-plan-button-view" onClick={movil ? cerrarDrawer : undefined}>
+            Ver planes
+          </Link>
+        </div>
       )}
-    </div>
+    </aside>
   )
 
 
@@ -882,7 +920,7 @@ export default function Layout({ children }) {
     return (
       <Modal
         abierto={modalCuenta}
-        titulo="Mi cuenta y configuración"
+        titulo={seccionCuenta === 'perfil' ? 'Mi cuenta' : 'Configuración'}
         onClose={cerrarCuenta}
         className="account-settings-modal-v59"
       >
@@ -1231,6 +1269,11 @@ export default function Layout({ children }) {
 
   return (
     <div className="app-layout">
+      <BienvenidaInicial
+        abierto={bienvenidaAbierta}
+        onClose={cerrarBienvenida}
+        onConfigurar={configurarDesdeBienvenida}
+      />
       {renderCuentaModal()}
 
       <aside className="sidebar desktop-sidebar">
@@ -1242,36 +1285,42 @@ export default function Layout({ children }) {
                 <strong>Ordely</strong>
               </div>
             </div>
-            <p>{datosCuenta.nombre}</p>
+            <p>Control de pedidos</p>
           </div>
+
+          <button type="button" className="sidebar-account-top" onClick={abrirCuenta}>
+            <span className="sidebar-account-top-icon"><NavIcon name="user" /></span>
+            <span className="sidebar-account-top-copy">
+              <small>Mi cuenta</small>
+              <strong>{datosCuenta.nombre}</strong>
+            </span>
+            <span className="sidebar-account-top-arrow" aria-hidden="true">›</span>
+          </button>
 
           <Link to="/nuevo-pedido" className="sidebar-primary-action">
             <span className="sidebar-primary-icon"><NavIcon name="plus" /></span>
             Nuevo pedido
           </Link>
 
+          <span className="sidebar-section-label">Navegación</span>
           <nav className="nav nav-simple">
             <NavLink to="/panel" className={navClass}><span className="nav-symbol"><NavIcon name="home" /></span>Inicio</NavLink>
             <NavLink to="/pedidos" className={navClass}><span className="nav-symbol"><NavIcon name="orders" /></span>Pedidos</NavLink>
             <NavLink to="/compras" className={navClass}><span className="nav-symbol"><NavIcon name="shopping" /></span>Compras</NavLink>
             <NavLink to="/clientes" className={navClass}><span className="nav-symbol"><NavIcon name="users" /></span>Clientes</NavLink>
             <NavLink to="/estadisticas" className={navClass}><span className="nav-symbol"><NavIcon name="chart" /></span>Estadísticas</NavLink>
+            <button type="button" className={modalCuenta && seccionCuenta !== 'perfil' ? 'nav-link nav-action-button active' : 'nav-link nav-action-button'} onClick={abrirConfiguracion}><span className="nav-symbol"><NavIcon name="settings" /></span>Configuración</button>
             <NavLink to="/ayuda-soporte" className={navClass}><span className="nav-symbol"><NavIcon name="help" /></span>Ayuda y soporte</NavLink>
 
             {datosCuenta.esAdmin && (
               <NavLink to="/admin-control" className={navClass}><span className="nav-symbol"><NavIcon name="shield" /></span>Admin</NavLink>
             )}
           </nav>
+
         </div>
 
         <div className="sidebar-footer sidebar-footer-simple">
-          <button type="button" className="sidebar-account-summary" onClick={abrirCuenta}>
-            <span className={`sidebar-plan-dot sidebar-plan-dot-${datosCuenta.planKey}`} />
-            <span>
-              <strong>{datosCuenta.plan}</strong>
-              <small>Mi cuenta y configuración</small>
-            </span>
-          </button>
+          <SidebarPlanCard />
 
           <button type="button" onClick={cerrarSesion} className="sidebar-logout-link">
             Cerrar sesión
@@ -1286,7 +1335,7 @@ export default function Layout({ children }) {
           onClick={() => setDrawerAbierto(true)}
           aria-label="Abrir menú"
         >
-          ☰
+          <NavIcon name="menu" />
         </button>
 
         <div className="mobile-brand-account ordely-mobile-brand-account">
@@ -1331,17 +1380,27 @@ export default function Layout({ children }) {
           </button>
         </div>
 
+        <button type="button" className="drawer-account-top" onClick={() => { cerrarDrawer(); abrirCuenta() }}>
+          <span className="drawer-account-top-icon"><NavIcon name="user" /></span>
+          <span>
+            <small>Mi cuenta</small>
+            <strong>{datosCuenta.nombre}</strong>
+          </span>
+          <span className="drawer-account-top-arrow" aria-hidden="true">›</span>
+        </button>
+
         <Link to="/nuevo-pedido" className="drawer-primary-action" onClick={cerrarDrawer}>
           <NavIcon name="plus" /> Nuevo pedido
         </Link>
 
+        <span className="drawer-section-label">Navegación</span>
         <nav className="drawer-nav drawer-nav-simple">
           <NavLink to="/panel" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="home" /></span>Inicio</NavLink>
           <NavLink to="/pedidos" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="orders" /></span>Pedidos</NavLink>
           <NavLink to="/compras" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="shopping" /></span>Compras</NavLink>
           <NavLink to="/clientes" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="users" /></span>Clientes</NavLink>
           <NavLink to="/estadisticas" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="chart" /></span>Estadísticas</NavLink>
-          <NavLink to="/planes" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="diamond" /></span>Plan y precios</NavLink>
+          <button type="button" className={modalCuenta && seccionCuenta !== 'perfil' ? 'nav-link nav-action-button active' : 'nav-link nav-action-button'} onClick={() => { cerrarDrawer(); abrirConfiguracion() }}><span className="drawer-nav-icon"><NavIcon name="settings" /></span>Configuración</button>
           <NavLink to="/ayuda-soporte" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="help" /></span>Ayuda y soporte</NavLink>
 
           {datosCuenta.esAdmin && (
@@ -1349,11 +1408,7 @@ export default function Layout({ children }) {
           )}
         </nav>
 
-        <button type="button" className="drawer-settings-button" onClick={() => { cerrarDrawer(); abrirCuenta() }}>
-          <NavIcon name="settings" /> Mi cuenta y configuración
-        </button>
-
-        <MobilePlanPanel />
+        <SidebarPlanCard movil />
 
         <button type="button" onClick={cerrarSesion} className="btn btn-light drawer-logout">
           Cerrar sesión

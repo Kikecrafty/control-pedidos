@@ -1,0 +1,426 @@
+.ordely-plan-status-v4 {
+  grid-template-columns: 1.1fr .85fr 1.1fr;
+}
+
+.ordely-launch-price-banner {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: auto minmax(260px, 1fr);
+  align-items: center;
+  gap: 17px;
+  margin: 0 0 20px;
+  padding: 17px 20px;
+  border: 1px solid rgba(245, 193, 76, .72);
+  border-radius: 23px;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(255, 255, 255, .96), transparent 25%),
+    radial-gradient(circle at 3% 115%, rgba(124, 58, 237, .13), transparent 30%),
+    linear-gradient(118deg, #fffaf0, #fff0b7 48%, #f6efff);
+  box-shadow: 0 17px 42px rgba(102, 61, 0, .12);
+}
+
+.ordely-launch-price-banner::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: -45px;
+  top: -75px;
+  width: 190px;
+  height: 190px;
+  border: 25px solid rgba(124, 58, 237, .08);
+  border-radius: 50%;
+}
+
+.ordely-launch-price-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(255, 255, 255, .78);
+  border-radius: 16px;
+  background: linear-gradient(145deg, #6d3b00, #d99308 54%, #7c3aed);
+  color: #fff8ce;
+  font-size: 22px;
+  box-shadow: 0 10px 24px rgba(117, 64, 0, .22), inset 0 1px 0 rgba(255, 255, 255, .42);
+}
+
+.ordely-launch-price-copy > span {
+  display: block;
+  margin-bottom: 3px;
+  color: #8b4f00;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.ordely-launch-price-copy strong,
+.ordely-launch-price-copy p {
+  display: block;
+  margin: 0;
+}
+
+.ordely-launch-price-copy strong {
+  color: #2d1c08;
+  font-size: 17px;
+  letter-spacing: -.02em;
+}
+
+.ordely-launch-price-copy p {
+  margin-top: 2px;
+  color: #725124;
+  font-size: 13px;
+}
+
+.ordely-plan-price-numbers {
+  display: grid;
+  gap: 7px;
+}
+
+.ordely-plan-old-price {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(82, 47, 0, .18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .36);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .58);
+}
+
+.ordely-plan-old-price small {
+  color: #75501e;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.ordely-plan-old-price del {
+  position: relative;
+  color: #694612;
+  font-size: 17px;
+  font-weight: 950;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.ordely-plan-old-price del::before,
+.ordely-plan-old-price del::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  top: 50%;
+  height: 2px;
+  border-radius: 999px;
+  background: #c2410c;
+}
+
+.ordely-plan-old-price del::before {
+  transform: rotate(-7deg);
+}
+
+.ordely-plan-old-price del::after {
+  transform: rotate(7deg);
+  opacity: .72;
+}
+
+.ordely-plan-price-v4 {
+  margin-bottom: 22px;
+}
+
+.ordely-plan-card-premium-v4 .ordely-plan-price-numbers > strong {
+  text-shadow: 0 5px 20px rgba(255, 238, 163, .28);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-old-price {
+  border-color: rgba(196, 181, 253, .28);
+  background: rgba(124, 58, 237, .14);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-old-price small,
+.ordely-plan-card-pro-v4 .ordely-plan-old-price del {
+  color: #c8cfea;
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-old-price del::before,
+.ordely-plan-card-pro-v4 .ordely-plan-old-price del::after {
+  background: linear-gradient(90deg, #f472b6, #a78bfa);
+}
+
+.ordely-plan-card-pro-v4 .ordely-plan-price-numbers > strong {
+  text-shadow: 0 0 28px rgba(167, 139, 250, .26);
+}
+
+.ordely-plan-tools-compact {
+  display: grid;
+  gap: 16px;
+  margin: 18px 0 26px;
+  padding: 22px;
+  border: 1px solid rgba(220, 226, 236, .95);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(99, 102, 241, .08), transparent 26%),
+    #fff;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, .07);
+}
+
+.ordely-plan-tools-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.ordely-plan-tools-head span {
+  color: #6366f1;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.ordely-plan-tools-head h2,
+.ordely-plan-tools-head p {
+  margin: 0;
+}
+
+.ordely-plan-tools-head h2 {
+  margin-top: 3px;
+  color: #111827;
+  font-size: 22px;
+  letter-spacing: -.04em;
+}
+
+.ordely-plan-tools-head p {
+  max-width: 520px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.ordely-plan-tools-grid {
+  display: grid;
+  grid-template-columns: minmax(310px, 1.35fr) minmax(330px, 1.3fr) minmax(220px, .8fr);
+  gap: 12px;
+}
+
+.ordely-plan-tools-grid > div {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 17px;
+  background: #f8fafc;
+}
+
+.ordely-plan-tools-grid > div > strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #111827;
+  font-size: 13px;
+}
+
+.ordely-compact-redeem form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.ordely-compact-redeem input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #d9e0ea;
+  border-radius: 12px;
+  padding: 0 12px;
+  background: #fff;
+  color: #111827;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ordely-compact-redeem .btn {
+  min-height: 42px;
+  padding: 0 16px;
+}
+
+.ordely-compact-redeem .redeem-message {
+  margin-top: 9px;
+  padding: 9px 11px;
+  border-radius: 11px;
+  font-size: 12px;
+}
+
+.ordely-compact-process {
+  display: grid;
+  grid-template-columns: 1fr auto 1.35fr auto 1.25fr;
+  align-content: start;
+  align-items: center;
+  gap: 7px;
+}
+
+.ordely-compact-process > strong {
+  grid-column: 1 / -1;
+}
+
+.ordely-compact-process div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ordely-compact-process div span {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  background: #111827;
+  color: #fff;
+  font-size: 10px;
+}
+
+.ordely-compact-process i {
+  color: #94a3b8;
+  font-style: normal;
+}
+
+.ordely-compact-history > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+}
+
+.ordely-compact-history span,
+.ordely-compact-history b {
+  color: #111827;
+  font-size: 13px;
+}
+
+.ordely-compact-history small {
+  grid-column: 1 / -1;
+  color: #64748b;
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
+.ordely-compact-history p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.ordely-plan-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #e1e7f0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.ordely-plan-summary-strip span {
+  padding: 10px 13px;
+  color: #64748b;
+  font-size: 11px;
+  text-align: center;
+}
+
+.ordely-plan-summary-strip span + span {
+  border-left: 1px solid #e1e7f0;
+}
+
+.ordely-plan-summary-strip b {
+  margin-right: 5px;
+  color: #111827;
+}
+
+@media (max-width: 1120px) {
+  .ordely-plan-tools-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ordely-compact-history {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  .ordely-launch-price-banner {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .ordely-launch-price-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .ordely-launch-price-copy p {
+    line-height: 1.4;
+  }
+
+  .ordely-plan-old-price {
+    padding: 5px 9px;
+  }
+
+  .ordely-plan-old-price del {
+    font-size: 16px;
+  }
+
+  .ordely-plan-tools-compact {
+    gap: 13px;
+    padding: 15px;
+    border-radius: 20px;
+  }
+
+  .ordely-plan-tools-head {
+    display: grid;
+    gap: 7px;
+  }
+
+  .ordely-plan-tools-head p {
+    text-align: left;
+  }
+
+  .ordely-plan-tools-grid,
+  .ordely-plan-summary-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .ordely-compact-history {
+    grid-column: auto;
+  }
+
+  .ordely-compact-redeem form {
+    grid-template-columns: 1fr;
+  }
+
+  .ordely-compact-process {
+    grid-template-columns: 1fr;
+  }
+
+  .ordely-compact-process > strong {
+    grid-column: auto;
+  }
+
+  .ordely-compact-process i {
+    display: none;
+  }
+
+  .ordely-plan-summary-strip span + span {
+    border-top: 1px solid #e1e7f0;
+    border-left: 0;
+  }
+}

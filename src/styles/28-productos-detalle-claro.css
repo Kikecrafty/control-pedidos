@@ -1,0 +1,127 @@
+/* Detalle del pedido: información de producto clara y progreso coherente. */
+.detail-product-variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.detail-product-variants > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 88px;
+  padding: 6px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.detail-product-variants small {
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.detail-product-variants strong {
+  overflow: hidden;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ordely-v56-products-list .detail-product-data-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.detail-product-client-price {
+  background: linear-gradient(135deg, #eef2ff, #f5f3ff) !important;
+  border-color: #c7d2fe !important;
+}
+
+.detail-product-client-price small {
+  display: block;
+  margin-top: 4px;
+  color: #6366f1;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.detail-product-progress-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.detail-product-progress-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.detail-product-progress-copy > span {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  white-space: normal;
+}
+
+.detail-product-progress-copy > strong {
+  flex: 0 0 auto;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.detail-product-progress-row .detail-product-progress-line {
+  height: 7px;
+}
+
+@media (max-width: 800px) {
+  .ordely-v56-products-list .detail-product-data-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-product-variants {
+    gap: 6px;
+  }
+
+  .detail-product-variants > span {
+    min-width: 78px;
+    padding: 5px 8px;
+  }
+
+  .detail-product-progress-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 430px) {
+  .detail-product-variants > span {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .detail-product-variants > span:last-child {
+    flex-basis: 100%;
+  }
+
+  .detail-product-progress-copy {
+    align-items: flex-start;
+  }
+
+  .detail-product-progress-copy > span {
+    font-size: 10px;
+  }
+}

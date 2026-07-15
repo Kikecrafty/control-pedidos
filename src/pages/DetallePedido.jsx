@@ -82,16 +82,19 @@ export default function DetallePedido() {
   const [estiloMenuPedido, setEstiloMenuPedido] = useState(null)
   const botonMenuPedidoRef = useRef(null)
   const [menuProductoAbierto, setMenuProductoAbierto] = useState(null)
-  const [seccionActiva, setSeccionActiva] = useState('resumen')
+  const [seccionActiva, setSeccionActiva] = useState('productos')
 
   useEffect(() => {
     const seccionSolicitada = searchParams.get('seccion')
-    const seccionesValidas = ['resumen', 'productos', 'pagos', 'seguimiento', 'historial']
+    const seccionesValidas = ['productos', 'pagos', 'seguimiento', 'historial']
 
     if (seccionesValidas.includes(seccionSolicitada)) {
       setSeccionActiva(seccionSolicitada)
+      return
     }
-  }, [searchParams])
+
+    setSeccionActiva('productos')
+  }, [id, searchParams])
 
   useEffect(() => {
     const productoSolicitado = searchParams.get('producto')
@@ -271,8 +274,12 @@ export default function DetallePedido() {
     )
   }
 
+  const precioUnitarioCliente = (producto) => {
+    return Number(producto?.precio_venta ?? producto?.precio_pagina ?? producto?.precio_shein ?? 0)
+  }
+
   const totalProductoVenta = (producto) => {
-    return Number(producto?.precio_venta || 0) * Number(producto?.cantidad || 0)
+    return precioUnitarioCliente(producto) * Number(producto?.cantidad || 0)
   }
 
   const calcularMontoCobroProducto = (productoObjetivo, productosBase = productos, pedidoBase = pedido) => {
@@ -357,11 +364,11 @@ export default function DetallePedido() {
     }
 
     if (estadoCompra === 'Recibido') {
-      return { porcentaje: 82, texto: 'Recibido por ti', clase: 'product-progress-received' }
+      return { porcentaje: 86, texto: 'Recibido por ti', clase: 'product-progress-received' }
     }
 
     if (estadoCompra === 'Dejado en negocio') {
-      return { porcentaje: 92, texto: 'Dejado en negocio', clase: 'product-progress-shop' }
+      return { porcentaje: 94, texto: 'Dejado en negocio', clase: 'product-progress-shop' }
     }
 
     if (estadoCompra === 'Entregado') {
@@ -372,19 +379,20 @@ export default function DetallePedido() {
     const estimada = parsearFechaLocal(producto?.fecha_estimada_llegada)
 
     if (!comprado || !estimada) {
-      return { porcentaje: 42, texto: 'En camino · sin fecha estimada', clase: 'product-progress-moving' }
+      return { porcentaje: 35, texto: 'En camino · sin fecha estimada', clase: 'product-progress-moving' }
     }
 
     const ahora = new Date()
     const total = Math.max(estimada.getTime() - comprado.getTime(), 1)
     const avance = Math.max(ahora.getTime() - comprado.getTime(), 0)
-    const porcentaje = Math.min(Math.round((avance / total) * 100), 100)
+    const proporcionTrayecto = Math.min(Math.max(avance / total, 0), 1)
+    const porcentaje = Math.round(30 + (proporcionTrayecto * 42))
 
-    if (porcentaje >= 100) {
-      return { porcentaje: 100, texto: 'Posiblemente ya llegó', clase: 'product-progress-arrived' }
+    if (ahora.getTime() >= estimada.getTime()) {
+      return { porcentaje: 78, texto: 'Posiblemente llegó', clase: 'product-progress-arrived' }
     }
 
-    return { porcentaje: Math.max(porcentaje, 15), texto: `Posible llegada: ${formatearFecha(producto.fecha_estimada_llegada)}`, clase: 'product-progress-moving' }
+    return { porcentaje, texto: `En camino · llegada estimada ${formatearFecha(producto.fecha_estimada_llegada)}`, clase: 'product-progress-moving' }
   }
 
   const marcarEstadoLogisticoProducto = async (producto, estadoLogistico) => {
@@ -467,7 +475,6 @@ export default function DetallePedido() {
   }, [id, mostrarToast])
 
   useEffect(() => {
-    setSeccionActiva('resumen')
     cargarTodo()
     cargarPlan()
   }, [cargarPlan, cargarTodo])
@@ -1290,79 +1297,13 @@ Restante: ${restante}`
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
   }
 
-  const obtenerSiguienteAccion = () => {
-    if (esEstadoReembolso(pedido?.estado)) {
-      return {
-        titulo: 'Pedido cerrado',
-        descripcion: 'Está cancelado o devuelto y ya no permite cambios operativos.',
-        boton: 'Volver a pedidos',
-        accion: () => navigate('/pedidos')
-      }
-    }
-
-    const pendientesCompra = productos.filter((producto) => obtenerEstadoCompraProducto(producto) === 'Pendiente de compra').length
-    const recibidos = productos.filter((producto) => ['Recibido', 'Dejado en negocio'].includes(obtenerEstadoCompraProducto(producto)) && !productoEntregado(producto)).length
-    const pendientesEntrega = productos.filter((producto) => !productoEntregado(producto)).length
-    const estado = obtenerEstadoAutomaticoPedido()
-
-    if (pendientesCompra > 0) {
-      return {
-        titulo: 'Registrar la compra en plataforma',
-        descripcion: `${pendientesCompra} producto${pendientesCompra === 1 ? '' : 's'} todavía ${pendientesCompra === 1 ? 'está' : 'están'} pendiente${pendientesCompra === 1 ? '' : 's'} de compra.`,
-        boton: 'Ir a Compras',
-        accion: () => navigate('/compras')
-      }
-    }
-
-    if (recibidos > 0) {
-      return {
-        titulo: 'Preparar la entrega',
-        descripcion: `${recibidos} producto${recibidos === 1 ? '' : 's'} ${recibidos === 1 ? 'ya está' : 'ya están'} listo${recibidos === 1 ? '' : 's'} para avanzar.`,
-        boton: 'Ver productos',
-        accion: () => setSeccionActiva('productos')
-      }
-    }
-
-    if (Number(pedido?.restante || 0) > 0) {
-      return {
-        titulo: 'Registrar el siguiente pago',
-        descripcion: `Faltan ${formatearDinero(pedido.restante)} por cobrar a este cliente.`,
-        boton: 'Registrar pago',
-        accion: abrirAgregarPago
-      }
-    }
-
-    if (pendientesEntrega > 0 && estado === 'En camino') {
-      return {
-        titulo: 'Revisar la llegada de los productos',
-        descripcion: 'Actualiza cada producto cuando lo recibas para mantener claro el avance.',
-        boton: 'Ver productos',
-        accion: () => setSeccionActiva('productos')
-      }
-    }
-
-    if (pendientesEntrega > 0) {
-      return {
-        titulo: 'Actualizar el avance del pedido',
-        descripcion: 'Revisa los productos y marca el siguiente paso logístico.',
-        boton: 'Ver productos',
-        accion: () => setSeccionActiva('productos')
-      }
-    }
-
-    return {
-      titulo: 'Pedido completado',
-      descripcion: 'Los productos están entregados y no existe saldo pendiente.',
-      boton: 'Enviar seguimiento',
-      accion: enviarSeguimientoWhatsApp
-    }
-  }
-
-
   const renderProductoDetalle = (producto) => {
     const progreso = obtenerProgresoProducto(producto)
     const estadoCompra = obtenerEstadoCompraProducto(producto)
     const menuAbierto = menuProductoAbierto === producto.id
+    const precioPlataforma = Number(producto.precio_pagina ?? producto.precio_shein ?? 0)
+    const precioCliente = precioUnitarioCliente(producto)
+    const comisionCliente = Math.max(precioCliente - precioPlataforma, 0)
 
     return (
       <article id={`producto-${producto.id}`} key={producto.id} className={`detail-product-card ${pedidoConReembolso ? 'refund-censored-card' : ''}`} data-refund-label={pedidoConReembolso ? obtenerEtiquetaReembolso() : undefined}>
@@ -1370,7 +1311,20 @@ Restante: ${restante}`
           <div className="detail-product-title-block">
             <span className="detail-product-kicker">Producto</span>
             <h3>{producto.nombre_producto || 'Producto sin nombre'}</h3>
-            <p>{producto.talla || 'Sin talla'} · {producto.color || 'Sin color'} · Cantidad {producto.cantidad || 0}</p>
+            <div className="detail-product-variants" aria-label="Características del producto">
+              <span>
+                <small>Talla</small>
+                <strong>{producto.talla || 'Sin especificar'}</strong>
+              </span>
+              <span>
+                <small>Color</small>
+                <strong>{producto.color || 'Sin especificar'}</strong>
+              </span>
+              <span>
+                <small>Cantidad</small>
+                <strong>{Number(producto.cantidad || 0)}</strong>
+              </span>
+            </div>
           </div>
 
           <div className="detail-product-status-area">
@@ -1477,19 +1431,16 @@ Restante: ${restante}`
         <div className="detail-product-data-grid">
           <div>
             <span>Precio en plataforma</span>
-            <strong>{formatearDinero(Number(producto.precio_pagina ?? producto.precio_shein ?? 0))}</strong>
+            <strong>{formatearDinero(precioPlataforma)}</strong>
           </div>
-          <div>
-            <span>Costo real</span>
-            <strong>{
-              producto.lote_compra_id || producto.fecha_comprado
-                ? formatearDinero(Number(producto.costo_real_unitario ?? producto.precio_shein ?? producto.precio_pagina ?? 0))
-                : 'Pendiente'
-            }</strong>
-          </div>
-          <div>
+          <div className="detail-product-client-price">
             <span>Precio al cliente</span>
-            <strong>{formatearDinero(totalProductoVenta(producto))}</strong>
+            <strong>{formatearDinero(precioCliente)}</strong>
+            <small>
+              {comisionCliente > 0
+                ? `Incluye ${formatearDinero(comisionCliente)} de comisión`
+                : 'Sin comisión adicional'}
+            </small>
           </div>
           <div>
             <span>Comprado</span>
@@ -1499,15 +1450,21 @@ Restante: ${restante}`
             <span>Llegada estimada</span>
             <strong>{formatearFecha(producto.fecha_estimada_llegada)}</strong>
           </div>
-          <div>
-            <span>Link</span>
-            <strong>{producto.link_shein ? 'Disponible' : '-'}</strong>
-          </div>
         </div>
 
         <div className="detail-product-progress-row">
-          <span>{progreso.texto}</span>
-          <div className={`detail-product-progress-line ${progreso.clase}`}>
+          <div className="detail-product-progress-copy">
+            <span>{progreso.texto}</span>
+            <strong>{progreso.porcentaje}%</strong>
+          </div>
+          <div
+            className={`detail-product-progress-line ${progreso.clase}`}
+            role="progressbar"
+            aria-label={progreso.texto}
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={progreso.porcentaje}
+          >
             <i style={{ width: `${progreso.porcentaje}%` }} />
           </div>
         </div>
@@ -1544,15 +1501,10 @@ Restante: ${restante}`
 
   const pedidoConReembolso = esEstadoReembolso(pedido.estado)
   const estadoAutomaticoPedido = obtenerEstadoAutomaticoPedido(pedido, productos)
-  const estadoPagoActual = obtenerEstadoPago(pedido)
-  const siguienteAccion = obtenerSiguienteAccion()
   const historialPedido = obtenerHistorialPedido()
   const urlSeguimiento = obtenerUrlSeguimiento()
-  const productosEntregados = productos.filter((producto) => productoEntregado(producto)).length
-  const productosPendientes = productos.length - productosEntregados
 
   const secciones = [
-    { id: 'resumen', texto: 'Resumen' },
     { id: 'productos', texto: `Productos (${productos.length})` },
     { id: 'pagos', texto: `Pagos (${pagos.length})` },
     { id: 'seguimiento', texto: 'Seguimiento' },
@@ -1729,134 +1681,6 @@ Restante: ${restante}`
           </button>
         ))}
       </nav>
-
-      {seccionActiva === 'resumen' && (
-        <section className="ordely-v56-section ordely-v56-summary-section">
-          <div className="ordely-v56-next-action">
-            <div>
-              <span className="ordely-v56-section-kicker">Siguiente paso recomendado</span>
-              <h2>{siguienteAccion.titulo}</h2>
-              <p>{siguienteAccion.descripcion}</p>
-            </div>
-            <button type="button" className="btn btn-primary" onClick={siguienteAccion.accion}>
-              {siguienteAccion.boton}
-            </button>
-          </div>
-
-          <div className="ordely-v56-summary-grid">
-            <article className="ordely-v56-info-card ordely-v56-client-card">
-              <div className="ordely-v56-card-heading">
-                <div>
-                  <span className="ordely-v56-section-kicker">Cliente</span>
-                  <h3>{pedido.clientes?.nombre || 'Sin cliente'}</h3>
-                </div>
-                <span className="ordely-v56-round-icon">CL</span>
-              </div>
-
-              <dl>
-                <div>
-                  <dt>Contacto</dt>
-                  <dd>{obtenerTextoMedioContacto(pedido.clientes)}</dd>
-                </div>
-                <div>
-                  <dt>Dirección</dt>
-                  <dd>{pedido.clientes?.direccion || 'Sin dirección registrada'}</dd>
-                </div>
-              </dl>
-            </article>
-
-            <article className="ordely-v56-info-card">
-              <div className="ordely-v56-card-heading">
-                <div>
-                  <span className="ordely-v56-section-kicker">Información</span>
-                  <h3>Datos del pedido</h3>
-                </div>
-                <span className="ordely-v56-round-icon">PD</span>
-              </div>
-
-              <dl>
-                <div>
-                  <dt>Plataforma</dt>
-                  <dd>{pedido.plataforma || '-'}</dd>
-                </div>
-                <div>
-                  <dt>Fecha del pedido</dt>
-                  <dd>{formatearFecha(pedido.fecha_pedido || pedido.creado_en)}</dd>
-                </div>
-                <div>
-                  <dt>Tracking</dt>
-                  <dd>{pedido.tracking || 'Aún no registrado'}</dd>
-                </div>
-              </dl>
-            </article>
-
-            <article className="ordely-v56-info-card">
-              <div className="ordely-v56-card-heading">
-                <div>
-                  <span className="ordely-v56-section-kicker">Avance</span>
-                  <h3>Productos y entrega</h3>
-                </div>
-                <span className="ordely-v56-round-icon">PR</span>
-              </div>
-
-              <div className="ordely-v56-progress-summary">
-                <div>
-                  <strong>{productos.length}</strong>
-                  <span>Productos</span>
-                </div>
-                <div>
-                  <strong>{productosEntregados}</strong>
-                  <span>Entregados</span>
-                </div>
-                <div>
-                  <strong>{productosPendientes}</strong>
-                  <span>Pendientes</span>
-                </div>
-              </div>
-
-              <div className="ordely-v56-progress-bar">
-                <i style={{ width: `${productos.length ? Math.round((productosEntregados / productos.length) * 100) : 0}%` }} />
-              </div>
-            </article>
-
-            <article className="ordely-v56-info-card ordely-v56-payment-card">
-              <div className="ordely-v56-card-heading">
-                <div>
-                  <span className="ordely-v56-section-kicker">Cobro</span>
-                  <h3>{estadoPagoActual.texto}</h3>
-                </div>
-                <span className="ordely-v56-round-icon">$</span>
-              </div>
-
-              <div className="ordely-v56-payment-breakdown">
-                <div>
-                  <span>Total</span>
-                  <strong>{formatearDinero(pedido.total_cliente)}</strong>
-                </div>
-                <div>
-                  <span>Pagado</span>
-                  <strong>{formatearDinero(pedido.anticipo)}</strong>
-                </div>
-                <div>
-                  <span>Restante</span>
-                  <strong>{formatearDinero(pedido.restante)}</strong>
-                </div>
-              </div>
-            </article>
-          </div>
-
-          {(pedido.notas || pedido.tracking) && (
-            <article className="ordely-v56-notes-card">
-              <div>
-                <span className="ordely-v56-section-kicker">Notas y guía</span>
-                <h3>Información adicional</h3>
-              </div>
-              <p>{pedido.notas || 'Sin notas adicionales.'}</p>
-              {pedido.tracking && <code>{pedido.tracking}</code>}
-            </article>
-          )}
-        </section>
-      )}
 
       {seccionActiva === 'productos' && (
         <section className="ordely-v56-section">

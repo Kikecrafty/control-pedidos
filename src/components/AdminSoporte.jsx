@@ -36,6 +36,11 @@ export default function AdminSoporte() {
   const [prioridadEdicion, setPrioridadEdicion] = useState('Normal')
   const [notasEdicion, setNotasEdicion] = useState('')
   const [guardando, setGuardando] = useState(false)
+  const [respuestas, setRespuestas] = useState([])
+  const [respuestaNueva, setRespuestaNueva] = useState('')
+  const [canalRespuesta, setCanalRespuesta] = useState('correo')
+  const [guardandoRespuesta, setGuardandoRespuesta] = useState(false)
+  const [soporteV2, setSoporteV2] = useState(false)
   const [toast, setToast] = useState(null)
 
   const cargarComentarios = useCallback(async () => {
@@ -97,11 +102,31 @@ export default function AdminSoporte() {
     })
   }, [comentarios, busqueda, estadoFiltro, tipoFiltro])
 
+  const cargarRespuestas = async (comentarioId) => {
+    const { data, error } = await supabase
+      .from('soporte_respuestas')
+      .select('*')
+      .eq('comentario_id', comentarioId)
+      .order('creado_en', { ascending: true })
+
+    if (error) {
+      setSoporteV2(false)
+      setRespuestas([])
+      return
+    }
+
+    setSoporteV2(true)
+    setRespuestas(data || [])
+  }
+
   const abrirComentario = (comentario) => {
     setSeleccionado(comentario)
     setEstadoEdicion(comentario.estado || 'Nuevo')
     setPrioridadEdicion(comentario.prioridad || 'Normal')
     setNotasEdicion(comentario.notas_admin || '')
+    setRespuestaNueva('')
+    setCanalRespuesta('correo')
+    cargarRespuestas(comentario.id)
   }
 
   const cerrarComentario = () => {
@@ -145,7 +170,31 @@ export default function AdminSoporte() {
   const abrirCorreo = () => {
     if (!seleccionado?.correo) return
     const asunto = encodeURIComponent(`Respuesta de Ordely: ${seleccionado.asunto}`)
-    window.location.href = `mailto:${seleccionado.correo}?subject=${asunto}`
+    const cuerpo = respuestaNueva.trim() ? `&body=${encodeURIComponent(respuestaNueva.trim())}` : ''
+    window.location.href = `mailto:${seleccionado.correo}?subject=${asunto}${cuerpo}`
+  }
+
+  const registrarRespuesta = async () => {
+    if (!seleccionado || !respuestaNueva.trim() || guardandoRespuesta || !soporteV2) return
+
+    setGuardandoRespuesta(true)
+    const mensaje = respuestaNueva.trim()
+    const { error } = await supabase.rpc('admin_registrar_respuesta_soporte', {
+      p_comentario_id: seleccionado.id,
+      p_mensaje: mensaje,
+      p_canal: canalRespuesta
+    })
+    setGuardandoRespuesta(false)
+
+    if (error) {
+      console.log(error)
+      setToast({ tipo: 'error', mensaje: 'No se pudo registrar la respuesta.' })
+      return
+    }
+
+    setRespuestaNueva('')
+    await Promise.all([cargarRespuestas(seleccionado.id), cargarComentarios()])
+    setToast({ tipo: 'success', mensaje: 'Respuesta registrada en el historial.' })
   }
 
   return (
@@ -285,6 +334,40 @@ export default function AdminSoporte() {
                 maxLength="2000"
                 placeholder="Seguimiento, decisión o respuesta enviada..."
               />
+            </div>
+
+            <div className="admin-support-history">
+              <div>
+                <strong>Historial de respuestas</strong>
+                <span>{soporteV2 ? `${respuestas.length} registradas` : 'Pendiente de activar'}</span>
+              </div>
+              {respuestas.map((respuesta) => (
+                <article key={respuesta.id}>
+                  <div><b>{respuesta.canal}</b><span>{formatearFecha(respuesta.creado_en)}</span></div>
+                  <p>{respuesta.mensaje}</p>
+                </article>
+              ))}
+              {soporteV2 && respuestas.length === 0 && <p className="muted">Aún no hay respuestas registradas.</p>}
+              {!soporteV2 && <p className="admin-inline-warning">El historial estará disponible al aplicar la migración administrativa.</p>}
+            </div>
+
+            <div className="admin-support-response-box">
+              <div className="form-field">
+                <label>Respuesta enviada o por enviar</label>
+                <textarea value={respuestaNueva} onChange={(event) => setRespuestaNueva(event.target.value.slice(0, 4000))} rows="4" maxLength="4000" placeholder="Escribe la respuesta para conservarla en el expediente..." />
+              </div>
+              <div className="form-field">
+                <label>Canal</label>
+                <select value={canalRespuesta} onChange={(event) => setCanalRespuesta(event.target.value)}>
+                  <option value="correo">Correo</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="telefono">Teléfono</option>
+                  <option value="interno">Nota interna</option>
+                </select>
+              </div>
+              <button type="button" className="btn btn-light-bordered" onClick={registrarRespuesta} disabled={!soporteV2 || !respuestaNueva.trim() || guardandoRespuesta}>
+                {guardandoRespuesta ? 'Registrando...' : 'Registrar respuesta'}
+              </button>
             </div>
 
             <div className="modal-actions modal-actions-wrap">

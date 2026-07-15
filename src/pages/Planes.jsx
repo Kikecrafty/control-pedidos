@@ -4,6 +4,7 @@ import PlanLimitNotice from '../components/PlanLimitNotice'
 import PageHelp from '../components/PageHelp'
 import { supabase } from '../supabaseClient'
 import { cargarEstadoPlan, nombrePlan } from '../lib/planes'
+import '../styles/33-precios-lanzamiento.css'
 
 const WHATSAPP_ADMIN = '527122460748'
 
@@ -52,6 +53,7 @@ const planes = [
     id: 'premium',
     etiqueta: 'Recomendado',
     nombre: 'Plan Premium',
+    precioAnterior: '$79.99',
     precio: '$59.99',
     periodo: 'MXN / mes',
     descripcion: 'Para vender sin límite y usar todas las funciones principales.',
@@ -70,6 +72,7 @@ const planes = [
     id: 'pro',
     etiqueta: 'Avanzado',
     nombre: 'Plan Pro',
+    precioAnterior: '$129.00',
     precio: '$99.99',
     periodo: 'MXN / mes',
     descripcion: 'Para analizar ventas, ganancias y crecimiento del negocio.',
@@ -84,17 +87,6 @@ const planes = [
       'Reportes y cortes próximamente'
     ]
   }
-]
-
-const comparacion = [
-  { funcion: 'Pedidos', basico: '30 pedidos', premium: 'Ilimitados', pro: 'Ilimitados' },
-  { funcion: 'Clientes', basico: 'Sí', premium: 'Ilimitados', pro: 'Ilimitados' },
-  { funcion: 'Productos y pagos', basico: 'Sí', premium: 'Sí', pro: 'Sí' },
-  { funcion: 'Seguimiento público', basico: 'Sí', premium: 'Sí', pro: 'Sí' },
-  { funcion: 'WhatsApp por estado', basico: 'Sí', premium: 'Sí', pro: 'Sí' },
-  { funcion: 'Estadísticas avanzadas', basico: 'Ejemplo bloqueado', premium: 'Ejemplo bloqueado', pro: 'Sí' },
-  { funcion: 'Gráficas', basico: 'No', premium: 'No', pro: 'Sí' },
-  { funcion: 'Filtros por fecha/plataforma', basico: 'No', premium: 'No', pro: 'Sí' }
 ]
 
 const construirMensajeUpgrade = (plan, estadoPlan) => {
@@ -200,7 +192,6 @@ export default function Planes() {
   const pedidosUsados = Number(estadoPlan?.pedidos_usados || 0)
   const esBasico = planActual === 'basico'
   const restante = Math.max(limite - pedidosUsados, 0)
-  const porcentaje = esBasico ? Math.min((pedidosUsados / Math.max(limite, 1)) * 100, 100) : 100
   const cercaLimite = esBasico && restante > 0 && restante <= 5
   const limiteAlcanzado = Boolean(estadoPlan?.limite_alcanzado)
 
@@ -259,12 +250,6 @@ export default function Planes() {
           <p>{mensajeEstado}</p>
         </div>
 
-        <div className="ordely-status-progress">
-          <span>Avance</span>
-          <div className="plan-progress-bar plan-progress-bar-large">
-            <span style={{ width: `${porcentaje}%` }} />
-          </div>
-        </div>
       </section>
 
       {(cercaLimite || limiteAlcanzado) && esBasico && (
@@ -282,6 +267,15 @@ export default function Planes() {
           </button>
         </section>
       )}
+
+      <section className="ordely-launch-price-banner">
+        <span className="ordely-launch-price-icon" aria-hidden="true">✦</span>
+        <div className="ordely-launch-price-copy">
+          <span>Oferta especial de lanzamiento</span>
+          <strong>Ordely inicia con precios especiales</strong>
+          <p>Aprovecha estas tarifas mientras se mantenga vigente el lanzamiento del programa.</p>
+        </div>
+      </section>
 
       <section className="ordely-pricing-grid-v4">
         {planes.map((plan) => {
@@ -307,7 +301,15 @@ export default function Planes() {
                 <div className="ordely-plan-divider-v4" />
 
                 <div className="ordely-plan-price-v4">
-                  <strong>{plan.precio}</strong>
+                  <div className="ordely-plan-price-numbers">
+                    {plan.precioAnterior && (
+                      <div className="ordely-plan-old-price">
+                        <small>Precio regular</small>
+                        <del>{plan.precioAnterior}</del>
+                      </div>
+                    )}
+                    <strong>{plan.precio}</strong>
+                  </div>
                   <span>{plan.periodo}</span>
                 </div>
 
@@ -347,145 +349,61 @@ export default function Planes() {
 
       <p className="ordely-plans-footnote-v4">🔒 Todos los planes incluyen actualizaciones y soporte.</p>
 
-      <section className="plans-two-columns">
-        <div className="redeem-card redeem-card-active">
+      <section className="ordely-plan-tools-compact">
+        <div className="ordely-plan-tools-head">
           <div>
-            <span className="plan-kicker">Acceso especial</span>
-            <h2>Canjear código</h2>
-            <p>Ingresa un código para activar Premium o Pro. Algunos códigos pueden no vencer.</p>
+            <span>Gestiona tu plan</span>
+            <h2>Actualiza, canjea y consulta</h2>
           </div>
-
-          <form className="redeem-form" onSubmit={canjearCodigo}>
-            <input
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-              placeholder="Ejemplo: PREMIUM30, PRO90 o VIP-PRO"
-              autoComplete="off"
-            />
-            <button type="submit" className="btn btn-primary" disabled={canjeando}>
-              {canjeando ? 'Canjeando...' : 'Canjear código'}
-            </button>
-          </form>
-
-          {mensaje && (
-            <div className={tipoMensaje === 'success' ? 'redeem-message redeem-message-success' : 'redeem-message redeem-message-error'}>
-              {mensaje}
-            </div>
-          )}
+          <p>Solicita un plan por WhatsApp o usa un código especial. La activación se refleja en tu cuenta.</p>
         </div>
 
-        <div className="plan-upgrade-info-card">
-          <span className="plan-kicker">Cómo funciona</span>
-          <h2>Actualización manual por ahora</h2>
-          <p>
-            Los botones de actualización abren WhatsApp con tu correo y plan solicitado.
-            Cuando confirmes tu pago, el administrador lo registra y tu plan queda activado con fecha de vencimiento.
-          </p>
-          <div className="upgrade-mini-grid">
-            <div>
-              <strong>1</strong>
-              <span>Solicitas plan</span>
-            </div>
-            <div>
-              <strong>2</strong>
-              <span>Pagas o canjeas código</span>
-            </div>
-            <div>
-              <strong>3</strong>
-              <span>Se desbloquea</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="subscription-history-card">
-        <div className="table-title">
-          <h2>Pagos y activaciones recientes</h2>
-          <p className="muted">Aquí aparecen los últimos pagos manuales, códigos o activaciones registradas en tu cuenta.</p>
-        </div>
-
-        <div className="subscription-history-list">
-          {suscripciones.map((suscripcion) => (
-            <div className="subscription-history-item" key={suscripcion.id}>
-              <div>
-                <strong>{planNombreCorto[suscripcion.plan] || suscripcion.plan}</strong>
-                <span>{suscripcion.origen === 'manual' ? 'Pago manual' : suscripcion.origen}</span>
+        <div className="ordely-plan-tools-grid">
+          <div className="ordely-compact-redeem">
+            <strong>Canjear código</strong>
+            <form onSubmit={canjearCodigo}>
+              <input
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+                placeholder="PREMIUM30, PRO90 o VIP-PRO"
+                autoComplete="off"
+              />
+              <button type="submit" className="btn btn-primary" disabled={canjeando}>
+                {canjeando ? 'Canjeando...' : 'Canjear'}
+              </button>
+            </form>
+            {mensaje && (
+              <div className={tipoMensaje === 'success' ? 'redeem-message redeem-message-success' : 'redeem-message redeem-message-error'}>
+                {mensaje}
               </div>
+            )}
+          </div>
+
+          <div className="ordely-compact-process">
+            <strong>Cómo se activa</strong>
+            <div><span>1</span> Solicitas</div>
+            <i>→</i>
+            <div><span>2</span> Pagas o canjeas</div>
+            <i>→</i>
+            <div><span>3</span> Se desbloquea</div>
+          </div>
+
+          <div className="ordely-compact-history">
+            <strong>Última activación</strong>
+            {suscripciones[0] ? (
               <div>
-                <span>Monto</span>
-                <strong>{formatearDinero(suscripcion.monto)}</strong>
+                <span>{planNombreCorto[suscripciones[0].plan] || suscripciones[0].plan}</span>
+                <b>{formatearDinero(suscripciones[0].monto)}</b>
+                <small>{suscripciones[0].estado_pago} · Vence {formatearFecha(suscripciones[0].fecha_fin)}</small>
               </div>
-              <div>
-                <span>Estado</span>
-                <strong>{suscripcion.estado_pago}</strong>
-              </div>
-              <div>
-                <span>Vence</span>
-                <strong>{formatearFecha(suscripcion.fecha_fin)}</strong>
-              </div>
-            </div>
-          ))}
-
-          {suscripciones.length === 0 && (
-            <div className="empty-state">Aún no hay pagos o activaciones registradas en esta cuenta.</div>
-          )}
-        </div>
-      </section>
-
-      <section className="comparison-card">
-        <div className="table-title">
-          <h2>Comparación de planes</h2>
-          <p className="muted">Así el usuario entiende qué desbloquea cada nivel.</p>
+            ) : <p>Sin activaciones registradas.</p>}
+          </div>
         </div>
 
-        <div className="comparison-table-wrap">
-          <table className="comparison-table">
-            <thead>
-              <tr>
-                <th>Función</th>
-                <th>Básico</th>
-                <th>Premium</th>
-                <th>Pro</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparacion.map((fila) => (
-                <tr key={fila.funcion}>
-                  <td>{fila.funcion}</td>
-                  <td>{fila.basico}</td>
-                  <td>{fila.premium}</td>
-                  <td>{fila.pro}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="pro-preview-card">
-        <div>
-          <span className="plan-kicker">Vista Pro</span>
-          <h2>Qué desbloquean las estadísticas</h2>
-          <p>Los usuarios Básico y Premium ven este tipo de ejemplo bloqueado. Los Pro ven datos reales.</p>
-        </div>
-
-        <div className="pro-preview-grid">
-          <div>
-            <span>Ventas del mes</span>
-            <strong>{formatearDinero(18450)}</strong>
-          </div>
-          <div>
-            <span>Ganancia estimada</span>
-            <strong>{formatearDinero(5320)}</strong>
-          </div>
-          <div>
-            <span>Pedidos completados</span>
-            <strong>42</strong>
-          </div>
-          <div>
-            <span>Top plataforma</span>
-            <strong>SHEIN</strong>
-          </div>
+        <div className="ordely-plan-summary-strip">
+          <span><b>Básico</b> 30 pedidos</span>
+          <span><b>Premium</b> Pedidos ilimitados</span>
+          <span><b>Pro</b> Estadísticas, gráficas y filtros</span>
         </div>
       </section>
     </Layout>

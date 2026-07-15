@@ -11,6 +11,13 @@ ese identificador interno para coincidir con las migraciones ya registradas.
 El frontend administra clientes, pedidos, productos, pagos, lotes,
 suscripciones, códigos promocionales y soporte.
 
+La versión de aplicación `1.0.2` reúne la bienvenida inicial, la navegación
+adaptable, las llegadas agrupadas, el detalle de productos, las compras
+agrupadas, el nuevo panel administrativo y la presentación comercial de
+planes. La migración `20260714230000_admin_registro_real.sql` forma parte del
+repositorio, pero debe considerarse pendiente hasta aplicarla expresamente en
+Supabase y completar sus comprobaciones posteriores.
+
 ## Tablas del esquema `public`
 
 Hay 14 tablas con RLS activado:
