@@ -8,7 +8,7 @@ import PlanLimitNotice from '../components/PlanLimitNotice'
 import PageHelp from '../components/PageHelp'
 import { cargarEstadoPlan, estaBloqueadoPorPlan, puedeCrearPedido } from '../lib/planes'
 import { PLATAFORMAS } from '../lib/plataformas'
-import { METODOS_PAGO, METODO_PAGO_PREDETERMINADO, convertirFechaPagoAISO } from '../lib/metodosPago'
+import { METODOS_PAGO, METODO_PAGO_PREDETERMINADO } from '../lib/metodosPago'
 
 const MEDIOS_CONTACTO = [
   'WhatsApp',
@@ -39,30 +39,6 @@ const obtenerFechaLocalHoy = () => {
   const ahora = new Date()
   const local = new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000))
   return local.toISOString().slice(0, 10)
-}
-
-const esErrorCampoPedidosUsados = (error) => {
-  const mensaje = String(error?.message || '').toLowerCase()
-
-  return (
-    mensaje.includes('pedidos_usados') &&
-    mensaje.includes('record') &&
-    mensaje.includes('has no field')
-  )
-}
-
-const crearCodigoLocal = (plataforma) => {
-  const prefijo = String(plataforma || 'ORD')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]/gi, '')
-    .slice(0, 3)
-    .toUpperCase() || 'ORD'
-
-  const fecha = Date.now().toString(36).toUpperCase()
-  const aleatorio = Math.random().toString(36).slice(2, 6).toUpperCase()
-
-  return `${prefijo}-${fecha}-${aleatorio}`
 }
 
 export default function NuevoPedido() {
@@ -135,7 +111,7 @@ export default function NuevoPedido() {
 
   const bloquearSiNoPuede = () => {
     if (!bloqueado) return false
-    mostrarToast('Tu Plan Básico llegó al límite. Actualiza a Premium para modificar información.', 'error')
+    mostrarToast('Tu cuenta no permite modificaciones en este momento.', 'error')
     return true
   }
 
@@ -379,109 +355,6 @@ export default function NuevoPedido() {
     return productosListos
   }
 
-  const limpiarPedidoIncompleto = async (pedidoId) => {
-    if (!pedidoId) return
-
-    await supabase.from('pagos').delete().eq('pedido_id', pedidoId)
-    await supabase.from('productos_pedido').delete().eq('pedido_id', pedidoId)
-    await supabase.from('pedidos').delete().eq('id', pedidoId)
-  }
-
-  const generarCodigoPedido = async () => {
-    const { data, error } = await supabase.rpc('generar_codigo_pedido', {
-      p_plataforma: plataforma
-    })
-
-    if (!error && data) {
-      const resultado = Array.isArray(data) ? data[0] : data
-      const codigo = typeof resultado === 'string'
-        ? resultado
-        : resultado?.codigo
-
-      if (codigo) return codigo
-    }
-
-    if (error) console.log('No se pudo generar el código desde Supabase:', error)
-    return crearCodigoLocal(plataforma)
-  }
-
-  const crearPedidoDirectamente = async ({
-    productosParaGuardar,
-    pagoInicial,
-    totalCliente,
-    totalShein
-  }) => {
-    const codigo = await generarCodigoPedido()
-    const restante = totalCliente - pagoInicial
-    const ganancia = totalCliente - totalShein
-    let pedidoCreado = null
-
-    try {
-      const { data, error } = await supabase
-        .from('pedidos')
-        .insert([
-          {
-            cliente_id: clienteId,
-            codigo,
-            plataforma,
-            estado: 'Cotizado',
-            total_shein: totalShein,
-            total_cliente: totalCliente,
-            anticipo: pagoInicial,
-            restante,
-            ganancia,
-            tracking: tracking.trim(),
-            notas: notas.trim(),
-            fecha_pedido: fechaPedido || obtenerFechaLocalHoy()
-          }
-        ])
-        .select()
-        .single()
-
-      if (error) throw new Error(error.message || 'No se pudo guardar el pedido')
-      pedidoCreado = data
-
-      const productosConPedido = productosParaGuardar.map((producto) => ({
-        ...producto,
-        pedido_id: pedidoCreado.id
-      }))
-
-      const { error: errorProductos } = await supabase
-        .from('productos_pedido')
-        .insert(productosConPedido)
-
-      if (errorProductos) {
-        throw new Error(errorProductos.message || 'No se pudieron guardar los productos')
-      }
-
-      if (pagoInicial > 0) {
-        const { error: errorPago } = await supabase
-          .from('pagos')
-          .insert([
-            {
-              pedido_id: pedidoCreado.id,
-              monto: pagoInicial,
-              metodo_pago: metodoAnticipo,
-              fecha_pago: convertirFechaPagoAISO(fechaAnticipo),
-              notas: 'Pago inicial'
-            }
-          ])
-
-        if (errorPago) {
-          throw new Error(errorPago.message || 'No se pudo guardar el anticipo')
-        }
-      }
-
-      return pedidoCreado
-    } catch (error) {
-      if (pedidoCreado?.id) {
-        await limpiarPedidoIncompleto(pedidoCreado.id)
-      }
-
-      throw error
-    }
-  }
-
   const guardarPedido = async (e) => {
     e.preventDefault()
 
@@ -509,10 +382,6 @@ export default function NuevoPedido() {
 
     const totalCliente = productosParaGuardar.reduce((total, producto) => {
       return total + (Number(producto.precio_venta || producto.precio_pagina || 0) * Number(producto.cantidad || 0))
-    }, 0)
-
-    const totalShein = productosParaGuardar.reduce((total, producto) => {
-      return total + (Number(producto.precio_shein || producto.precio_pagina || 0) * Number(producto.cantidad || 0))
     }, 0)
 
     const pagoInicial = Number(anticipo || 0)
@@ -554,59 +423,21 @@ export default function NuevoPedido() {
         p_notas: notas.trim(),
         p_productos: productosParaGuardar,
         p_anticipo: pagoInicial,
-        p_fecha_creacion: fechaPedido || obtenerFechaLocalHoy()
+        p_fecha_creacion: fechaPedido || obtenerFechaLocalHoy(),
+        p_metodo_anticipo: metodoAnticipo,
+        p_fecha_anticipo: fechaAnticipo || fechaPedido || obtenerFechaLocalHoy()
       })
-
-      let pedidoResultado = Array.isArray(pedidoCreado) ? pedidoCreado[0] : pedidoCreado
-      let creadoConRespaldo = false
 
       if (errorPedidoCompleto) {
         console.log(errorPedidoCompleto)
-
-        if (esErrorCampoPedidosUsados(errorPedidoCompleto)) {
-          try {
-            pedidoResultado = await crearPedidoDirectamente({
-              productosParaGuardar,
-              pagoInicial,
-              totalCliente,
-              totalShein
-            })
-            creadoConRespaldo = true
-          } catch (errorRespaldo) {
-            console.log(errorRespaldo)
-            const mensajeRespaldo = esErrorCampoPedidosUsados(errorRespaldo)
-              ? 'La función de Supabase está desactualizada. Ejecuta el archivo SQL_CORRECCION_PEDIDOS_USADOS.sql incluido en el proyecto.'
-              : errorRespaldo.message || 'No se pudo crear el pedido'
-            mostrarToast(mensajeRespaldo, 'error')
-            return
-          }
-        } else {
-          const mensaje = errorPedidoCompleto.message?.includes('function crear_pedido_completo')
-            ? 'Primero ejecuta el SQL de configuración de pedidos en Supabase.'
-            : errorPedidoCompleto.message || 'No se pudo crear el pedido completo'
-          mostrarToast(mensaje, 'error')
-          return
-        }
+        const mensaje = errorPedidoCompleto.message?.includes('function crear_pedido_completo')
+          ? 'La actualización de integridad de Supabase aún no está aplicada.'
+          : errorPedidoCompleto.message || 'No se pudo crear el pedido completo'
+        mostrarToast(mensaje, 'error')
+        return
       }
 
-      if (!creadoConRespaldo && pagoInicial > 0 && fechaAnticipo && pedidoResultado?.id) {
-        const { data: pagosIniciales, error: errorPagosIniciales } = await supabase
-          .from('pagos')
-          .select('id')
-          .eq('pedido_id', pedidoResultado.id)
-          .order('creado_en', { ascending: true })
-          .limit(1)
-
-        if (!errorPagosIniciales && pagosIniciales?.[0]?.id) {
-          await supabase
-            .from('pagos')
-            .update({
-              metodo_pago: metodoAnticipo,
-              fecha_pago: convertirFechaPagoAISO(fechaAnticipo)
-            })
-            .eq('id', pagosIniciales[0].id)
-        }
-      }
+      const pedidoResultado = Array.isArray(pedidoCreado) ? pedidoCreado[0] : pedidoCreado
 
       await cargarPlan()
       window.dispatchEvent(new CustomEvent('planActualizado'))

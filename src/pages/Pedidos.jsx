@@ -12,6 +12,8 @@ import PageHelp from '../components/PageHelp'
 import { cargarEstadoPlan, estaBloqueadoPorPlan, puedeCrearPedido } from '../lib/planes'
 import { PLATAFORMAS } from '../lib/plataformas'
 import { formatearProductosParaMensaje } from '../lib/mensajesProductos'
+import { METODOS_PAGO, METODO_PAGO_PREDETERMINADO, obtenerFechaLocalHoy } from '../lib/metodosPago'
+import { parsearFechaLocal } from '../lib/fechas'
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100]
 const PEDIDOS_CACHE_LIMIT = 50
@@ -168,6 +170,8 @@ export default function Pedidos() {
   const [modalFiltros, setModalFiltros] = useState(false)
   const [modalConfirmarEntrega, setModalConfirmarEntrega] = useState(false)
   const [entregaPendiente, setEntregaPendiente] = useState(null)
+  const [metodoPagoEntrega, setMetodoPagoEntrega] = useState(METODO_PAGO_PREDETERMINADO)
+  const [fechaPagoEntrega, setFechaPagoEntrega] = useState(obtenerFechaLocalHoy())
   const [modalConfirmarReembolso, setModalConfirmarReembolso] = useState(false)
   const [reembolsoPendiente, setReembolsoPendiente] = useState(null)
   const [montoReembolso, setMontoReembolso] = useState('')
@@ -274,7 +278,7 @@ export default function Pedidos() {
 
   const bloquearSiNoPuede = () => {
     if (!bloqueado) return false
-    mostrarToast('Tu Plan Básico llegó al límite. Actualiza a Premium para modificar información.', 'error')
+    mostrarToast('Tu cuenta no permite modificaciones en este momento.', 'error')
     return true
   }
 
@@ -443,11 +447,11 @@ export default function Pedidos() {
       return { porcentaje: 45, texto: 'Comprado', tipo: 'moving' }
     }
 
-    const inicio = new Date(producto.fecha_comprado)
-    const estimada = producto?.fecha_estimada_llegada ? new Date(producto.fecha_estimada_llegada) : null
+    const inicio = parsearFechaLocal(producto.fecha_comprado)
+    const estimada = parsearFechaLocal(producto?.fecha_estimada_llegada)
     const hoy = new Date()
 
-    if (!estimada || Number.isNaN(estimada.getTime()) || Number.isNaN(inicio.getTime())) {
+    if (!inicio || !estimada) {
       return { porcentaje: 45, texto: 'En camino', tipo: 'moving' }
     }
 
@@ -648,7 +652,6 @@ export default function Pedidos() {
       .from('pedidos')
       .select('*, clientes(nombre, telefono, medio_contacto, usuario_contacto), productos_pedido(id, lote_compra_id, nombre_producto, cantidad, entregado, estado_compra, fecha_comprado, fecha_estimada_llegada, fecha_recibido, fecha_dejado_negocio, fecha_entregado_cliente)')
       .order('creado_en', { ascending: false })
-      .limit(500)
 
     setCargandoPedidos(false)
 
@@ -853,13 +856,8 @@ ${url}`
         return false
       }
 
-      const payload = {
-        estado: estadoNuevo,
-        reembolso: false,
-        reembolso_monto: 0
-      }
-
       const montoRestante = Math.max(Number(pedidoActual?.restante || pedido.restante || 0), 0)
+      let pedidoGuardado = null
 
       if (estadoNuevo === 'Entregado') {
         if (montoRestante > 0 && opciones.registrarRestante !== true) {
@@ -867,70 +865,61 @@ ${url}`
           return false
         }
 
-        if (montoRestante > 0) {
-          const etiquetaPago = `[entrega-pedido:${pedido.id}]`
-          const { data: pagoExistente } = await supabase
-            .from('pagos')
-            .select('id')
-            .eq('pedido_id', pedido.id)
-            .ilike('notas', `%${etiquetaPago}%`)
-            .limit(1)
+        const { data, error } = await supabase.rpc('entregar_pedido_completo', {
+          p_pedido_id: pedido.id,
+          p_metodo: opciones.metodoPago || metodoPagoEntrega || METODO_PAGO_PREDETERMINADO,
+          p_fecha: opciones.fechaPago || fechaPagoEntrega || obtenerFechaLocalHoy()
+        })
 
-          if (!pagoExistente?.length) {
-            const { error: errorPago } = await supabase
-              .from('pagos')
-              .insert([
-                {
-                  pedido_id: pedido.id,
-                  monto: montoRestante,
-                  metodo_pago: 'Entrega',
-                  notas: `Pago restante al entregar pedido ${etiquetaPago}`,
-                  tipo: 'pago'
-                }
-              ])
-
-            if (errorPago) {
-              console.log(errorPago)
-              mostrarToast('No se pudo registrar el pago restante', 'error')
-              return false
-            }
-          }
-
-          payload.anticipo = Number(pedidoActual?.anticipo || pedido.anticipo || 0) + montoRestante
-          payload.restante = 0
+        if (error) {
+          console.log(error)
+          mostrarToast(error.message || 'No se pudo confirmar la entrega', 'error')
+          return false
         }
 
-        const ahora = new Date().toISOString()
-        await supabase
-          .from('productos_pedido')
-          .update({
-            entregado: true,
-            entregado_en: ahora,
-            pagado_cliente: true,
-            pagado_en: ahora
-          })
-          .eq('pedido_id', pedido.id)
-      }
+        pedidoGuardado = Array.isArray(data) ? data[0] : data
+      } else if (esEstadoReembolso(estadoNuevo)) {
+        const montoReembolsoFinal = Number(opciones.montoReembolso || 0)
+        const montoPagado = Math.max(Number(pedidoActual?.anticipo || 0), 0)
 
-      if (esEstadoReembolso(estadoNuevo)) {
-        payload.reembolso = true
-        payload.reembolso_monto = Math.max(Number(opciones.montoReembolso || 0), 0)
-      }
+        if (!Number.isFinite(montoReembolsoFinal) || montoReembolsoFinal < 0 || montoReembolsoFinal > montoPagado) {
+          mostrarToast('El reembolso debe estar entre $0.00 y lo pagado por el cliente.', 'error')
+          return false
+        }
 
-      const { error } = await supabase
-        .from('pedidos')
-        .update(payload)
-        .eq('id', pedido.id)
+        const { data, error } = await supabase.rpc('registrar_reembolso_pedido', {
+          p_pedido_id: pedido.id,
+          p_estado: estadoNuevo,
+          p_monto: montoReembolsoFinal
+        })
 
-      if (error) {
-        console.log(error)
-        mostrarToast('Error al cambiar estado', 'error')
-        return false
+        if (error) {
+          console.log(error)
+          mostrarToast(error.message || 'No se pudo guardar el reembolso', 'error')
+          return false
+        }
+
+        pedidoGuardado = Array.isArray(data) ? data[0] : data
+      } else {
+        const { data, error } = await supabase
+          .from('pedidos')
+          .update({ estado: estadoNuevo, reembolso: false, reembolso_monto: 0 })
+          .eq('id', pedido.id)
+          .select()
+          .single()
+
+        if (error) {
+          console.log(error)
+          mostrarToast('Error al cambiar estado', 'error')
+          return false
+        }
+
+        pedidoGuardado = data
       }
 
       const pedidoActualizado = {
         ...pedido,
-        ...payload
+        ...pedidoGuardado
       }
 
       setTodosPedidos((actuales) =>
@@ -962,6 +951,8 @@ ${url}`
 
     if (estadoNuevo === 'Entregado' && montoRestante > 0) {
       setEntregaPendiente({ pedido, estadoNuevo, montoRestante })
+      setMetodoPagoEntrega(METODO_PAGO_PREDETERMINADO)
+      setFechaPagoEntrega(obtenerFechaLocalHoy())
       setModalConfirmarEntrega(true)
       return
     }
@@ -979,7 +970,11 @@ ${url}`
 
   const confirmarEntregaPedidoLista = async () => {
     if (!entregaPendiente?.pedido) return
-    const listo = await aplicarCambioEstado(entregaPendiente.pedido, 'Entregado', { registrarRestante: true })
+    const listo = await aplicarCambioEstado(entregaPendiente.pedido, 'Entregado', {
+      registrarRestante: true,
+      metodoPago: metodoPagoEntrega,
+      fechaPago: fechaPagoEntrega
+    })
     if (listo) {
       setModalConfirmarEntrega(false)
       setEntregaPendiente(null)
@@ -1145,6 +1140,10 @@ ${url}`
     setEstiloMenuAcciones(null)
     setEstiloMenuEstado(null)
     if (bloquearSiNoPuede()) return
+    if ((pedido?.productos_pedido || []).some((producto) => producto.lote_compra_id)) {
+      mostrarToast('Este pedido ya forma parte del historial de compras y no se puede eliminar.', 'error')
+      return
+    }
     setPedidoAEliminar(pedido)
   }
 
@@ -1162,7 +1161,7 @@ ${url}`
 
       if (error) {
         console.log(error)
-        mostrarToast('No se pudo eliminar el pedido. Intenta nuevamente.', 'error')
+        mostrarToast(error.message || 'No se pudo eliminar el pedido. Intenta nuevamente.', 'error')
         return
       }
 
@@ -1225,7 +1224,11 @@ ${url}`
 
     const pendientes = coincidencias
       .filter((pedido) => !pedidoEstaComprado(pedido))
-      .sort((a, b) => new Date(b.fecha_pedido || b.creado_en || 0) - new Date(a.fecha_pedido || a.creado_en || 0))
+      .sort((a, b) => {
+        const fechaB = parsearFechaLocal(b.fecha_pedido || b.creado_en)?.getTime() || 0
+        const fechaA = parsearFechaLocal(a.fecha_pedido || a.creado_en)?.getTime() || 0
+        return fechaB - fechaA
+      })
 
     let comprados = coincidencias.filter(pedidoEstaComprado)
 
@@ -1240,7 +1243,11 @@ ${url}`
       })
     }
 
-    comprados.sort((a, b) => new Date(obtenerFechaCompraPedido(b) || 0) - new Date(obtenerFechaCompraPedido(a) || 0))
+    comprados.sort((a, b) => {
+      const fechaB = parsearFechaLocal(obtenerFechaCompraPedido(b))?.getTime() || 0
+      const fechaA = parsearFechaLocal(obtenerFechaCompraPedido(a))?.getTime() || 0
+      return fechaB - fechaA
+    })
 
     return {
       pendientes,
@@ -1884,6 +1891,33 @@ ${url}`
               <strong>{formatearDinero(entregaPendiente.montoRestante)}</strong>
             </div>
 
+            <div className="modal-form-grid">
+              <label className="form-field">
+                <span>Método del pago*</span>
+                <select
+                  value={metodoPagoEntrega}
+                  onChange={(event) => setMetodoPagoEntrega(event.target.value)}
+                  disabled={estaProcesando}
+                  required
+                >
+                  {METODOS_PAGO.map((metodo) => (
+                    <option value={metodo} key={metodo}>{metodo}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="form-field">
+                <span>Fecha del pago*</span>
+                <input
+                  type="date"
+                  value={fechaPagoEntrega}
+                  onChange={(event) => setFechaPagoEntrega(event.target.value)}
+                  disabled={estaProcesando}
+                  required
+                />
+              </label>
+            </div>
+
             <div className="modal-actions">
               <button
                 type="button"
@@ -1901,7 +1935,7 @@ ${url}`
                 type="button"
                 className="btn btn-primary"
                 onClick={confirmarEntregaPedidoLista}
-                disabled={bloqueado || estaProcesando}
+                disabled={bloqueado || estaProcesando || !metodoPagoEntrega || !fechaPagoEntrega}
               >
                 {accionEnProceso || 'Confirmar pago y entrega'}
               </button>
@@ -1948,6 +1982,7 @@ ${url}`
               <input
                 type="number"
                 min="0"
+                max={Math.max(Number(reembolsoPendiente?.montoPagado || 0), 0)}
                 step="0.01"
                 value={montoReembolso}
                 onChange={(e) => setMontoReembolso(e.target.value)}

@@ -4,7 +4,10 @@ Actualizado: 14 de julio de 2026.
 
 ## Estado general
 
-Ordely/MiOrdely trabaja actualmente sobre la versión `1.0.0`. El frontend se conecta a Supabase y administra clientes, pedidos, productos, pagos, lotes, suscripciones, códigos promocionales y soporte.
+El respaldo estable anterior corresponde a la versión `1.0.0`. La rama local
+`codex/integridad-pedidos-v1-1` prepara la versión candidata `1.1.0`, todavía
+sin desplegar en Supabase, GitHub ni Cloudflare. El frontend administra clientes,
+pedidos, productos, pagos, lotes, suscripciones, códigos promocionales y soporte.
 
 ## Tablas del esquema `public`
 

@@ -6,6 +6,7 @@ import PlanLimitNotice from '../components/PlanLimitNotice'
 import EmptyState from '../components/EmptyState'
 import PageHelp from '../components/PageHelp'
 import { cargarEstadoPlan, puedeCrearPedido } from '../lib/planes'
+import { esPedidoActivo } from '../lib/calculosNegocio'
 
 const obtenerIdUsuarioCache = () => {
   if (typeof window === 'undefined') return 'sin_usuario'
@@ -159,11 +160,6 @@ export default function Dashboard() {
   useEffect(() => {
     cargarDatos()
   }, [])
-
-  const esPedidoActivo = (pedido) => {
-    const estado = normalizarEstado(pedido.estado)
-    return !['Cancelado', 'Devuelto'].includes(estado)
-  }
 
   const calcularResumen = (pedidos, lotesTotal, posiblesLlegadas = 0) => {
     const pedidosActivos = pedidos.filter(esPedidoActivo)

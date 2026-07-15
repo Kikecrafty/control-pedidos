@@ -30,7 +30,7 @@ export const prefijoPlataforma = (valor) => {
     'Mercado Libre': 'ML',
     Amazon: 'AMZ',
     Catálogo: 'CAT',
-    Otro: 'ORD'
+    Otro: 'OTR'
   }
 
   return prefijos[plataforma] || 'ORD'

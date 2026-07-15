@@ -414,7 +414,9 @@ export default function Layout({ children }) {
     cargarCuenta()
 
     const { data } = supabase.auth.onAuthStateChange(() => {
-      cargarCuenta()
+      setTimeout(() => {
+        cargarCuenta()
+      }, 0)
     })
 
     const actualizarPlan = () => cargarCuenta()
@@ -552,7 +554,7 @@ export default function Layout({ children }) {
       plan: hayPerfil ? nombrePlan(perfil?.plan_actual) : 'Cargando...',
       planKey: hayPerfil ? normalizarPlanKey(perfil?.plan_actual) : 'basico',
       esAdmin: perfil?.es_admin === true,
-      bloqueada: perfil?.cuenta_bloqueada === true || perfil?.limite_alcanzado === true || perfil?.plan_vencido === true,
+      bloqueada: perfil?.cuenta_bloqueada === true || (perfil?.puede_modificar === false && perfil?.limite_alcanzado !== true),
       uso: hayPerfil ? resumenUsoPlan(perfil) : 'Cargando plan...',
       vigencia: hayPerfil ? calcularVigenciaPlan(perfil) : 'Sincronizando...',
       fechaExpira: hayPerfil ? formatearFechaCorta(perfil?.plan_expira_en) : '',
@@ -563,11 +565,16 @@ export default function Layout({ children }) {
   const cerrarSesion = async () => {
     borrarPerfilCache()
     localStorage.removeItem('plataforma_predeterminada')
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('control_pedidos_'))
+      .forEach((key) => localStorage.removeItem(key))
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
 
   const cambiarPlataformaPredeterminada = async (valor) => {
+    const valorAnterior = plataformaPredeterminada
+    const perfilAnterior = perfil
     setPlataformaPredeterminada(valor)
     localStorage.setItem('plataforma_predeterminada', valor)
 
@@ -593,6 +600,17 @@ export default function Layout({ children }) {
 
     if (error) {
       console.log(error)
+      setPlataformaPredeterminada(valorAnterior)
+      localStorage.setItem('plataforma_predeterminada', valorAnterior)
+      if (perfilAnterior) {
+        setPerfil(perfilAnterior)
+        guardarPerfilCache(perfilAnterior)
+      }
+      window.dispatchEvent(
+        new CustomEvent('plataformaPredeterminadaCambiada', {
+          detail: valorAnterior
+        })
+      )
       return
     }
   }

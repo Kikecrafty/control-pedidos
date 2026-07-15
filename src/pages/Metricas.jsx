@@ -5,12 +5,22 @@ import { supabase } from '../supabaseClient'
 import { PLATAFORMAS } from '../lib/plataformas'
 import EmptyState from '../components/EmptyState'
 import PageHelp from '../components/PageHelp'
+import { parsearFechaLocal } from '../lib/fechas'
+import {
+  normalizarEstadoPedido as normalizarEstado,
+  pedidoCuentaComoVenta,
+  obtenerCostosExtraAsignados,
+  obtenerCostosExtraCompra,
+  obtenerDescuentoCompra
+} from '../lib/calculosNegocio'
 
 const ESTADOS = [
   'Cotizado',
+  'Pendiente de compra',
   'Comprado en plataforma',
   'En camino',
   'Recibido',
+  'Dejado en negocio',
   'Entregado',
   'Cancelado',
   'Devuelto'
@@ -35,23 +45,14 @@ const money = (valor) => Number(valor || 0).toLocaleString('es-MX', {
 
 const number = (valor) => Number(valor || 0).toLocaleString('es-MX')
 
-const normalizarEstado = (estado) => {
-  if (estado === 'Comprado en SHEIN') return 'Comprado en plataforma'
-  if (estado === 'Pendiente de pago') return 'Cotizado'
-  if (estado === 'Pagado por cliente') return 'Cotizado'
-  return estado || 'Cotizado'
-}
-
 const fechaPedido = (pedido) => {
   const raw = pedido?.fecha_pedido || pedido?.creado_en
-  const fecha = raw ? new Date(raw) : new Date()
-  return Number.isNaN(fecha.getTime()) ? new Date() : fecha
+  return parsearFechaLocal(raw)
 }
 
 const fechaCompra = (compra) => {
   const raw = compra?.fecha_compra || compra?.creado_en
-  const fecha = raw ? new Date(raw) : new Date()
-  return Number.isNaN(fecha.getTime()) ? new Date() : fecha
+  return parsearFechaLocal(raw)
 }
 
 const inicioDia = (fecha) => {
@@ -104,10 +105,6 @@ const rangoLabel = (inicio, fin) => {
   return `Hasta ${fin.toLocaleDateString('es-MX')}`
 }
 
-const pedidoCuentaComoVenta = (pedido) => {
-  return !['Cancelado', 'Devuelto'].includes(normalizarEstado(pedido?.estado))
-}
-
 const sumarCompras = (compras, campo) => {
   return compras.reduce((suma, compra) => suma + Number(compra?.[campo] || 0), 0)
 }
@@ -115,7 +112,8 @@ const sumarCompras = (compras, campo) => {
 function agruparVentasPorRango(pedidos, inicio, fin) {
   if (!pedidos.length) return [{ label: 'Sin datos', valor: 0 }]
 
-  const fechas = pedidos.map(fechaPedido).sort((a, b) => a - b)
+  const fechas = pedidos.map(fechaPedido).filter(Boolean).sort((a, b) => a - b)
+  if (!fechas.length) return [{ label: 'Sin datos', valor: 0 }]
   const inicioReal = inicio || inicioDia(fechas[0])
   const finReal = fin || finDia(fechas[fechas.length - 1])
   const dias = Math.max(1, Math.ceil((finReal - inicioReal) / 86400000) + 1)
@@ -344,9 +342,8 @@ export default function Metricas() {
 
       const { data: comprasData, error: comprasError } = await supabase
         .from('lotes_compra')
-        .select('id, codigo_lote, plataforma, fecha_compra, subtotal_pagina, descuento_cupon, puntos_total, descuento_total, envio, importacion, impuestos, comisiones, total_productos_con_descuento, costos_extra_total, total_pagado, ahorro_total, cupon_usado, numero_orden_plataforma, creado_en')
+        .select('id, codigo_lote, plataforma, fecha_compra, subtotal_pagina, descuento_cupon, puntos_total, descuento_total, envio, importacion, impuestos, comisiones, total_productos_con_descuento, costos_extra_total, total_pagado, ahorro_total, cupon_usado, numero_orden_plataforma, creado_en, lote_productos(pedido_id, envio_asignado, importacion_asignada, impuesto_asignado, comision_asignada)')
         .order('fecha_compra', { ascending: false })
-        .limit(500)
 
       if (comprasError) console.log('Error cargando compras para estadísticas:', comprasError)
       setCompras(comprasData || [])
@@ -390,6 +387,7 @@ export default function Metricas() {
 
     const pedidosFiltrados = pedidos.filter((pedido) => {
       const fecha = fechaPedido(pedido)
+      if (!fecha) return false
       const plataforma = pedido.plataforma || 'SHEIN'
       const coincidePlataforma = plataformaFiltro === 'Todas' || plataforma === plataformaFiltro
       return coincidePlataforma && (!inicio || fecha >= inicio) && (!fin || fecha <= fin)
@@ -405,26 +403,27 @@ export default function Metricas() {
 
     const activos = pedidosFiltrados.filter((pedido) => !['Entregado', 'Cancelado', 'Devuelto'].includes(normalizarEstado(pedido.estado))).length
     const enCamino = pedidosFiltrados.filter((pedido) => normalizarEstado(pedido.estado) === 'En camino').length
-    const listosEntrega = pedidosFiltrados.filter((pedido) => normalizarEstado(pedido.estado) === 'Recibido').length
+    const listosEntrega = pedidosFiltrados.filter((pedido) => ['Recibido', 'Dejado en negocio'].includes(normalizarEstado(pedido.estado))).length
     const porCobrar = ventasValidas.filter((pedido) => Number(pedido.restante || 0) > 0).length
     const entregados = pedidosFiltrados.filter((pedido) => normalizarEstado(pedido.estado) === 'Entregado').length
     const cancelados = pedidosFiltrados.filter((pedido) => ['Cancelado', 'Devuelto'].includes(normalizarEstado(pedido.estado))).length
 
     const comprasFiltradas = compras.filter((compra) => {
       const fecha = fechaCompra(compra)
+      if (!fecha) return false
       const plataforma = compra.plataforma || 'SHEIN'
       const coincidePlataforma = plataformaFiltro === 'Todas' || plataforma === plataformaFiltro
       return coincidePlataforma && (!inicio || fecha >= inicio) && (!fin || fecha <= fin)
     })
 
     const totalPagadoPlataforma = sumarCompras(comprasFiltradas, 'total_pagado')
-    const descuentos = sumarCompras(comprasFiltradas, 'descuento_total') || sumarCompras(comprasFiltradas, 'ahorro_total')
-    const envio = sumarCompras(comprasFiltradas, 'envio')
-    const importacion = sumarCompras(comprasFiltradas, 'importacion')
-    const impuestos = sumarCompras(comprasFiltradas, 'impuestos')
-    const comisiones = sumarCompras(comprasFiltradas, 'comisiones')
-    const costosExtra = sumarCompras(comprasFiltradas, 'costos_extra_total') || (envio + importacion + impuestos + comisiones)
-    const gananciaEstimada = gananciaBruta - costosExtra
+    const descuentos = comprasFiltradas.reduce((total, compra) => total + obtenerDescuentoCompra(compra), 0)
+    const costosExtra = comprasFiltradas.reduce((total, compra) => total + obtenerCostosExtraCompra(compra), 0)
+    const pedidosVentaIds = new Set(ventasValidas.map((pedido) => pedido.id))
+    const costosExtraDePedidos = compras.reduce((total, compra) => {
+      return total + obtenerCostosExtraAsignados(compra.lote_productos, pedidosVentaIds)
+    }, 0)
+    const gananciaEstimada = gananciaBruta - costosExtraDePedidos
 
     const ventasPorFecha = agruparVentasPorRango(ventasValidas, inicio, fin)
 
@@ -640,7 +639,7 @@ export default function Metricas() {
         <TarjetaPrincipal
           etiqueta="Ganancia estimada"
           valor={money(resumen.gananciaEstimada)}
-          detalle="Después de costos extra registrados"
+          detalle="Después de costos extra asignados a esos pedidos"
           tono="morado"
         />
       </section>

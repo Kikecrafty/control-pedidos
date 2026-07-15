@@ -44,56 +44,6 @@ export default function Login() {
 
   const limpiarTexto = (valor) => String(valor || '').trim()
 
-  const interpretarEstadoCorreo = (data) => {
-    const fila = Array.isArray(data) ? data[0] : data
-
-    if (!fila) return null
-
-    return {
-      existe: fila.existe === true,
-      confirmado: fila.confirmado === true
-    }
-  }
-
-  const verificarEstadoCorreo = async (correo) => {
-    // Función recomendada incluida en el ZIP: estado_correo_registro.
-    // Esta función permite saber si el correo existe y si ya fue confirmado.
-    const { data: estadoData, error: errorEstado } = await supabase.rpc('estado_correo_registro', {
-      p_correo: correo
-    })
-
-    if (!errorEstado) {
-      return interpretarEstadoCorreo(estadoData)
-    }
-
-    // Respaldo si todavía no ejecutaste el nuevo SQL:
-    // usamos la función anterior correo_ya_registrado, pero ahí no se puede saber si confirmó o no.
-    const { data: existePorFuncion, error: errorFuncion } = await supabase.rpc('correo_ya_registrado', {
-      p_correo: correo
-    })
-
-    if (!errorFuncion) {
-      return {
-        existe: existePorFuncion === true,
-        confirmado: null
-      }
-    }
-
-    // Último respaldo: si RLS lo permite, revisamos perfiles.
-    const { data: perfilExistente, error: errorPerfil } = await supabase
-      .from('perfiles')
-      .select('user_id')
-      .eq('correo', correo)
-      .maybeSingle()
-
-    if (errorPerfil) return null
-
-    return {
-      existe: Boolean(perfilExistente),
-      confirmado: null
-    }
-  }
-
   const esErrorCorreoSinConfirmar = (error) => {
     const mensajeError = String(error?.message || '').toLowerCase()
     const codigoError = String(error?.code || error?.status || '').toLowerCase()
@@ -160,20 +110,6 @@ export default function Login() {
 
     setRecuperandoPassword(true)
 
-    const estadoCorreo = await verificarEstadoCorreo(emailLimpio)
-
-    if (estadoCorreo?.existe === false) {
-      setError('No existe una cuenta con ese correo.')
-      setRecuperandoPassword(false)
-      return
-    }
-
-    if (estadoCorreo?.existe === true && estadoCorreo?.confirmado === false) {
-      mostrarCorreoSinConfirmar()
-      setRecuperandoPassword(false)
-      return
-    }
-
     const { error } = await supabase.auth.resetPasswordForEmail(emailLimpio, {
       redirectTo: `${window.location.origin}/actualizar-password`
     })
@@ -184,7 +120,7 @@ export default function Login() {
       return
     }
 
-    setMensaje('Te enviamos un enlace para cambiar tu contraseña.')
+    setMensaje('Si existe una cuenta con ese correo, recibirás un enlace para cambiar tu contraseña.')
     setRecuperandoPassword(false)
   }
 
@@ -203,22 +139,6 @@ export default function Login() {
 
     if (!emailLimpio) {
       setError('Escribe tu correo')
-      loginEnProceso.current = false
-      setCargando(false)
-      return
-    }
-
-    const estadoCorreo = await verificarEstadoCorreo(emailLimpio)
-
-    if (estadoCorreo?.existe === false) {
-      setError('No existe una cuenta con ese correo. Crea una cuenta primero.')
-      loginEnProceso.current = false
-      setCargando(false)
-      return
-    }
-
-    if (estadoCorreo?.existe === true && estadoCorreo?.confirmado === false) {
-      mostrarCorreoSinConfirmar()
       loginEnProceso.current = false
       setCargando(false)
       return
@@ -287,22 +207,6 @@ export default function Login() {
       return
     }
 
-    const estadoCorreo = await verificarEstadoCorreo(emailLimpio)
-
-    if (estadoCorreo?.existe === true && estadoCorreo?.confirmado === false) {
-      mostrarCorreoSinConfirmar()
-      registroEnProceso.current = false
-      setCargando(false)
-      return
-    }
-
-    if (estadoCorreo?.existe === true) {
-      setError('Ese correo ya está registrado. Inicia sesión con esa cuenta.')
-      registroEnProceso.current = false
-      setCargando(false)
-      return
-    }
-
     const { data, error } = await supabase.auth.signUp({
       email: emailLimpio,
       password,
@@ -323,7 +227,8 @@ export default function Login() {
         mensajeError.includes('exists') ||
         mensajeError.includes('duplicate')
       ) {
-        setError('Ese correo ya está registrado. Inicia sesión con esa cuenta.')
+        setRegistroCompletado(true)
+        setMensaje('Si el correo puede registrarse, recibirás un mensaje de confirmación. Revisa también spam.')
       } else {
         if (mensajeError.includes('rate limit')) {
           setError('Se enviaron muchos correos. Intenta más tarde.')
@@ -337,12 +242,14 @@ export default function Login() {
       return
     }
 
-    // Supabase puede responder sin error cuando el correo ya existe, pero con identities vacío.
+    // Supabase puede ocultar si el correo ya existe devolviendo identities vacío.
+    // Conservamos una respuesta genérica para no revelar cuentas registradas.
     const identidades = data?.user?.identities
     const respuestaIndicaCorreoExistente = Array.isArray(identidades) && identidades.length === 0
 
     if (respuestaIndicaCorreoExistente) {
-      setError('Ese correo ya está registrado. Inicia sesión con esa cuenta.')
+      setRegistroCompletado(true)
+      setMensaje('Si el correo puede registrarse, recibirás un mensaje de confirmación. Revisa también spam.')
       registroEnProceso.current = false
       setCargando(false)
       return

@@ -5,20 +5,9 @@ import Toast from '../components/Toast'
 import EmptyState from '../components/EmptyState'
 import PageHelp from '../components/PageHelp'
 import { PLATAFORMAS } from '../lib/plataformas'
+import { obtenerFechaLocalHoy } from '../lib/fechas'
 
-const hoyISO = () => new Date().toISOString().slice(0, 10)
-
-
-const prefijosPlataforma = {
-  SHEIN: 'SHE',
-  Temu: 'TEM',
-  AliExpress: 'ALI',
-  'TikTok Shop': 'TTS',
-  'Mercado Libre': 'ML',
-  Amazon: 'AMZ',
-  Catálogo: 'CAT',
-  Otro: 'OTR'
-}
+const hoyISO = () => obtenerFechaLocalHoy()
 
 const formatearDinero = (valor) => `$${Number(valor || 0).toFixed(2)}`
 const normalizarEstadoCompra = (estado) => estado || 'Pendiente de compra'
@@ -42,6 +31,7 @@ export default function Compras() {
 
   const [form, setForm] = useState({
     plataforma: 'SHEIN',
+    numeroOrden: '',
     cupon: '',
     descuento: '',
     descuentoTipo: 'valor',
@@ -152,7 +142,6 @@ export default function Compras() {
         )
       `)
       .order('fecha_compra', { ascending: false })
-      .limit(60)
 
     let lotesData = respuestaLotes.data
     let errorLotes = respuestaLotes.error
@@ -165,7 +154,6 @@ export default function Compras() {
         .from('lotes_compra')
         .select('*')
         .order('fecha_compra', { ascending: false })
-        .limit(60)
 
       lotesData = respaldoLotes.data
       errorLotes = respaldoLotes.error
@@ -204,12 +192,6 @@ export default function Compras() {
   const lotesFiltrados = useMemo(() => {
     return lotes.filter((lote) => lote.plataforma === plataformaSeleccionada)
   }, [lotes, plataformaSeleccionada])
-
-  const numeroLoteSugerido = useMemo(() => {
-    const prefijo = prefijosPlataforma[plataformaSeleccionada] || 'LOT'
-    const siguiente = lotesFiltrados.length + 1
-    return `${prefijo}-${String(siguiente).padStart(4, '0')}`
-  }, [plataformaSeleccionada, lotesFiltrados.length])
 
   const productosSeleccionados = useMemo(() => {
     const ids = new Set(seleccionados)
@@ -416,6 +398,11 @@ export default function Compras() {
       return false
     }
 
+    if (form.totalPagado !== '' && Math.abs(diferenciaTotal) > 0.009) {
+      mostrarToast('El total final no coincide con el desglose. Corrige la diferencia antes de guardar.', 'error')
+      return false
+    }
+
     return true
   }
 
@@ -446,7 +433,7 @@ export default function Compras() {
 
     const { error } = await supabase.rpc('crear_lote_compra', {
       p_plataforma: plataformaSeleccionada,
-      p_numero_orden: '',
+      p_numero_orden: form.numeroOrden.trim(),
       p_cupon: referenciaCupon,
       p_descuento_cupon: descuentoCuponAplicado,
       p_puntos: puntosAplicados,
@@ -467,31 +454,14 @@ export default function Compras() {
       return
     }
 
-    // Algunas instalaciones antiguas de la función crear_lote_compra vinculan el lote,
-    // pero no actualizan el estado y la fecha del producto. Lo sincronizamos aquí para
-    // que el detalle, Pedidos y el seguimiento muestren la compra inmediatamente.
-    const fechaCompraISO = new Date(`${fechaCompra}T12:00:00`).toISOString()
-    const { error: errorSincronizacion } = await supabase
-      .from('productos_pedido')
-      .update({
-        estado_compra: 'Comprado',
-        fecha_comprado: fechaCompraISO
-      })
-      .in('id', seleccionados)
-
     guardandoRef.current = false
     setGuardando(false)
-
-    if (errorSincronizacion) {
-      console.log('La compra se guardó, pero no se sincronizó el estado:', errorSincronizacion)
-      mostrarToast('La compra se guardó, pero algunos productos necesitan recargar su estado.', 'warning')
-    } else {
-      mostrarToast('Compra registrada. Los productos ya aparecen como comprados.')
-    }
+    mostrarToast('Compra registrada. Los productos ya aparecen como comprados.')
     setSeleccionados([])
     setResumenActivo(false)
     setForm({
       plataforma: plataformaSeleccionada,
+      numeroOrden: '',
       cupon: '',
       descuento: '',
       descuentoTipo: form.descuentoTipo || 'valor',
@@ -762,6 +732,17 @@ export default function Compras() {
                       <small>Día en que pagarás o pagaste esta compra. Sirve para calcular la posible llegada.</small>
                     </div>
 
+                    <div className="form-field compras-help-field">
+                      <label>Número de orden de la plataforma</label>
+                      <input
+                        value={form.numeroOrden}
+                        onChange={(e) => actualizarForm('numeroOrden', e.target.value)}
+                        placeholder="Ej. GSH123456789"
+                        maxLength={120}
+                      />
+                      <small>Opcional. Facilita localizar esta compra en la plataforma.</small>
+                    </div>
+
                     <div className="compras-easy-panel compras-unified-panel">
                       <div className="form-field compras-help-field">
                         <label>Cupón utilizado</label>
@@ -883,7 +864,8 @@ export default function Compras() {
 
                 <div className="compras-confirm-metrics compras-confirm-metrics-v25">
                   <div><span>Plataforma</span><strong>{plataformaSeleccionada}</strong></div>
-                  <div><span>Código de compra</span><strong>{numeroLoteSugerido}</strong></div>
+                  <div><span>Código de compra</span><strong>Se asignará automáticamente</strong></div>
+                  <div><span>Orden de plataforma</span><strong>{form.numeroOrden || '-'}</strong></div>
                   <div><span>Fecha</span><strong>{form.fechaCompra || hoyISO()}</strong></div>
                   <div><span>Cupón</span><strong>{form.cupon || '-'}</strong></div>
                   <div><span>Subtotal productos</span><strong>{formatearDinero(subtotalSeleccionado)}</strong></div>

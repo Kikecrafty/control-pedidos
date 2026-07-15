@@ -47,13 +47,17 @@ export default function App() {
 
     iniciar()
 
-    const { data } = supabase.auth.onAuthStateChange(async (_event, nuevaSesion) => {
-      if (nuevaSesion) {
-        await procesarMiPlanVencido()
-        window.dispatchEvent(new Event('planActualizado'))
-      }
-
+    const { data } = supabase.auth.onAuthStateChange((_event, nuevaSesion) => {
+      // Supabase recomienda no esperar otras llamadas de Auth/API dentro de
+      // este callback. Diferir el trabajo evita un bloqueo interno de sesión.
       setSession(nuevaSesion)
+
+      if (nuevaSesion) {
+        setTimeout(async () => {
+          await procesarMiPlanVencido()
+          window.dispatchEvent(new Event('planActualizado'))
+        }, 0)
+      }
     })
 
     return () => {

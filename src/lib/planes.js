@@ -38,7 +38,11 @@ export async function cargarEstadoPlan() {
 
 export function estaBloqueadoPorPlan(estadoPlan) {
   if (!estadoPlan) return false
-  return estadoPlan.puede_modificar === false
+  if (estadoPlan.cuenta_bloqueada === true) return true
+
+  // Alcanzar el limite Basico solo impide crear otro pedido. Los clientes,
+  // pagos y pedidos existentes deben seguir siendo editables.
+  return estadoPlan.puede_modificar === false && estadoPlan.limite_alcanzado !== true
 }
 
 export function puedeCrearPedido(estadoPlan) {

@@ -197,7 +197,7 @@ export default function Clientes() {
 
   const bloquearSiNoPuede = () => {
     if (!bloqueado) return false
-    mostrarToast('Tu Plan Básico llegó al límite. Actualiza a Premium para modificar información.', 'error')
+    mostrarToast('Tu cuenta no permite modificaciones en este momento.', 'error')
     return true
   }
 
