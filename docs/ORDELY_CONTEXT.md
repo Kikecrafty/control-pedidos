@@ -4,10 +4,12 @@ Actualizado: 14 de julio de 2026.
 
 ## Estado general
 
-El respaldo estable anterior corresponde a la versión `1.0.0`. La rama local
-`codex/integridad-pedidos-v1-1` prepara la versión candidata `1.1.0`, todavía
-sin desplegar en Supabase, GitHub ni Cloudflare. El frontend administra clientes,
-pedidos, productos, pagos, lotes, suscripciones, códigos promocionales y soporte.
+El respaldo estable anterior corresponde a la versión `1.0.0`. La versión
+`1.0.1` se desplegó el 14 de julio de 2026 en Supabase, GitHub y Cloudflare.
+La rama `codex/integridad-pedidos-v1-1` fue la rama de preparación y conserva
+ese identificador interno para coincidir con las migraciones ya registradas.
+El frontend administra clientes, pedidos, productos, pagos, lotes,
+suscripciones, códigos promocionales y soporte.
 
 ## Tablas del esquema `public`
 
