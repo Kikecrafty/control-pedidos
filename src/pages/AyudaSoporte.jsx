@@ -3,6 +3,7 @@ import Layout from '../components/Layout'
 import PageHelp from '../components/PageHelp'
 import Toast from '../components/Toast'
 import { supabase } from '../supabaseClient'
+import { version as versionAplicacion } from '../../package.json'
 
 const TIPOS_COMENTARIO = [
   { value: 'Sugerencia', label: 'Sugerencia' },
@@ -81,7 +82,7 @@ export default function AyudaSoporte() {
     []
   )
 
-  const version = import.meta.env.VITE_APP_VERSION || '1.1.0'
+  const version = versionAplicacion
 
   const cargarDatos = useCallback(async () => {
     setCargando(true)
