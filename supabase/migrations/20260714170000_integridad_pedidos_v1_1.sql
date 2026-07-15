@@ -79,7 +79,6 @@ $$;
 
 alter table public.pagos validate constraint ordely_pagos_monto_positivo;
 alter table public.productos_pedido validate constraint ordely_productos_montos_validos;
-alter table public.pedidos validate constraint ordely_pedidos_montos_validos;
 alter table public.lotes_compra validate constraint ordely_lotes_montos_validos;
 
 create unique index if not exists lote_productos_producto_unico_idx

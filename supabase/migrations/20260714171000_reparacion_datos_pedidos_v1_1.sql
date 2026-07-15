@@ -90,6 +90,12 @@ begin
 end;
 $$;
 
+-- La restriccion se agrega como NOT VALID en la migracion de integridad para
+-- proteger escrituras nuevas sin bloquear saldos negativos heredados. Una vez
+-- recalculados todos los pedidos, el historial completo ya puede validarse.
+alter table public.pedidos
+  validate constraint ordely_pedidos_montos_validos;
+
 -- pedidos_usados representa ahora los intentos del periodo vigente.
 update public.perfiles p
 set pedidos_usados = public.contar_intentos_pedidos(p.user_id),
