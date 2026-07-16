@@ -4,15 +4,14 @@ Actualizado: 15 de julio de 2026.
 
 ## Estado general
 
-El programa `Recomienda y gana` está preparado localmente. Usa códigos por
+El programa `Recomienda y gana` está activo. Usa códigos por
 cuenta y 30 días de validación. El acceso requiere una solicitud del usuario y
 aprobación administrativa antes de mostrar el enlace personal. Cada referido válido entrega 15 días Premium
 del 1 al 9; 30 días Premium del 10 al 49; 15 días Pro del 50 al 74; 30 días Pro
 del 75 al 99; y Pro ilimitado al llegar a 100. Las comisiones comienzan en 20%,
 suben de diez en diez y se detienen en 60%, siempre sobre los precios base de
 $79 Premium y $129 Pro. La migración
-`20260715010000_programa_referidos.sql` permanece pendiente y no debe
-considerarse activa hasta aplicarla expresamente en Supabase.
+`20260715010000_programa_referidos.sql` ya fue aplicada en Supabase.
 
 El respaldo estable anterior corresponde a la versión `1.0.0`. La versión
 `1.0.1` se desplegó el 14 de julio de 2026 en Supabase, GitHub y Cloudflare.
@@ -27,20 +26,44 @@ costo real escrito para cada producto del negocio y evita repartir sobre ellos
 el cupón correspondiente al carrito completo. Los costos se editan en la
 revisión final de la compra, junto al precio anterior y al ahorro calculado.
 
-La versión local `1.1.0` parte de la aplicación `1.0.2` y reúne la bienvenida inicial, la navegación
+La versión `1.1.0`, publicada el 15 de julio de 2026, parte de la aplicación `1.0.2` y reúne la bienvenida inicial, la navegación
 adaptable, las llegadas agrupadas, el detalle de productos, las compras
 agrupadas, el nuevo panel administrativo y la presentación comercial de
 planes. También incorpora el programa de referidos con validación previa de
 códigos y cancelación de recompensas pendientes ante cancelaciones o
-reembolsos. La migración `20260714230000_admin_registro_real.sql` forma parte del
-repositorio, pero debe considerarse pendiente hasta aplicarla expresamente en
-Supabase y completar sus comprobaciones posteriores.
+reembolsos. La migración `20260714230000_admin_registro_real.sql` ya fue aplicada
+en Supabase y pasó sus comprobaciones posteriores.
 
 La bienvenida se identifica por versión y, con la migración
 `20260715020000_bienvenida_por_cuenta.sql`, su estado queda guardado por cuenta
 en `perfiles`. El navegador se conserva como respaldo temporal y permite
 migrar silenciosamente las cuentas que ya habían completado la guía. Esta
-migración también permanece pendiente hasta aplicarla expresamente en Supabase.
+migración ya fue aplicada en Supabase.
+
+Después de cada actualización pública, Ordely puede mostrar una ventana de
+novedades con agregados, funciones modificadas, elementos removidos y
+correcciones visibles para el usuario. Se identifica por versión y se guarda de
+forma independiente para cada cuenta. La migración local
+`20260715180000_novedades_por_cuenta.sql` debe aplicarse en Supabase antes de
+publicar este nuevo comportamiento; mientras tanto, el navegador funciona como
+respaldo y evita repetir el aviso en el mismo dispositivo.
+
+Inicio muestra la versión pública actual en la esquina superior derecha y abre
+esa misma ventana al pulsarla. Ayuda y soporte conserva al final un historial
+desplegable desde `1.0.0`, alimentado por `src/lib/novedades.js`; al publicar una
+versión nueva se debe actualizar ese archivo y `package.json` en el mismo cambio.
+
+El Plan Básico muestra un aviso preventivo únicamente en Inicio y Pedidos cuando
+quedan entre uno y cinco pedidos. Al llegar a cero conserva el aviso de límite
+alcanzado y bloquea solo la creación de un pedido nuevo; la consulta y edición
+permitida de la información existente no deben bloquearse.
+
+La migración local `20260715190000_notificaciones_soporte.sql` añade mensajes
+internos desde Soporte. El administrador envía el mensaje únicamente mediante
+una RPC que valida sus permisos y el comentario de origen. Cada cuenta solo
+puede consultar y marcar como leídas sus propias notificaciones mediante RLS y
+RPCs con `auth.uid()`. Esta migración también debe aplicarse antes de publicar
+la campana de notificaciones.
 
 ## Tablas del esquema `public`
 

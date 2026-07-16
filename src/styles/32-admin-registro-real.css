@@ -418,6 +418,67 @@
   margin: 0;
 }
 
+.admin-support-notification-box {
+  display: grid;
+  gap: 11px;
+  padding: 14px;
+  border: 1px solid #c7d2fe;
+  border-radius: 17px;
+  background: linear-gradient(145deg, #eef2ff, #fff);
+}
+
+.admin-support-notification-heading {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+}
+
+.admin-support-notification-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #312e81;
+  font-size: 20px;
+}
+
+.admin-support-notification-heading strong,
+.admin-support-notification-heading p {
+  display: block;
+  margin: 0;
+}
+
+.admin-support-notification-heading strong {
+  color: #1e1b4b;
+  font-size: 13px;
+}
+
+.admin-support-notification-heading p {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.admin-support-notification-box .form-field {
+  margin: 0;
+}
+
+.admin-support-notification-box .form-field small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 9px;
+  text-align: right;
+}
+
+.admin-support-notification-box > .btn {
+  justify-self: end;
+  min-width: 190px;
+}
+
 .modal-card.admin-support-modal {
   width: min(760px, calc(100vw - 36px));
   max-width: 760px;
@@ -432,7 +493,8 @@
 .admin-support-detail-head > div,
 .admin-support-message,
 .admin-support-history,
-.admin-support-response-box {
+.admin-support-response-box,
+.admin-support-notification-box {
   min-width: 0;
   max-width: 100%;
 }
@@ -488,6 +550,11 @@
     bottom: -20px;
     margin: 0 -20px -20px;
     padding: 12px 20px 20px;
+  }
+
+  .admin-support-notification-box > .btn {
+    width: 100%;
+    min-width: 0;
   }
 
   .admin-data-status,

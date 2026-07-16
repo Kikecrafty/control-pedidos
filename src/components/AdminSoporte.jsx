@@ -41,6 +41,8 @@ export default function AdminSoporte() {
   const [respuestaNueva, setRespuestaNueva] = useState('')
   const [canalRespuesta, setCanalRespuesta] = useState('correo')
   const [guardandoRespuesta, setGuardandoRespuesta] = useState(false)
+  const [notificacionNueva, setNotificacionNueva] = useState('')
+  const [enviandoNotificacion, setEnviandoNotificacion] = useState(false)
   const [soporteV2, setSoporteV2] = useState(false)
   const [toast, setToast] = useState(null)
   const solicitudRespuestasRef = useRef(0)
@@ -136,6 +138,7 @@ export default function AdminSoporte() {
     setNotasEdicion(comentario.notas_admin || '')
     setRespuestaNueva('')
     setCanalRespuesta('correo')
+    setNotificacionNueva('')
     setRespuestas([])
     setSoporteV2(false)
     cargarRespuestas(comentario.id)
@@ -209,6 +212,32 @@ export default function AdminSoporte() {
     setRespuestaNueva('')
     await Promise.all([cargarRespuestas(seleccionado.id), cargarComentarios()])
     setToast({ tipo: 'success', mensaje: 'Respuesta registrada en el historial.' })
+  }
+
+  const enviarNotificacion = async () => {
+    if (!seleccionado || !notificacionNueva.trim() || enviandoNotificacion) return
+
+    setEnviandoNotificacion(true)
+    const { error } = await supabase.rpc('admin_enviar_notificacion_soporte_v1', {
+      p_comentario_id: seleccionado.id,
+      p_mensaje: notificacionNueva.trim()
+    })
+    setEnviandoNotificacion(false)
+
+    if (error) {
+      console.log(error)
+      const migracionPendiente = error.code === 'PGRST202' || error.code === '42883'
+      setToast({
+        tipo: 'error',
+        mensaje: migracionPendiente
+          ? 'Falta aplicar la migración de notificaciones en Supabase.'
+          : 'No se pudo enviar la notificación al cliente.'
+      })
+      return
+    }
+
+    setNotificacionNueva('')
+    setToast({ tipo: 'success', mensaje: 'Notificación enviada a la cuenta del cliente.' })
   }
 
   return (
@@ -382,6 +411,38 @@ export default function AdminSoporte() {
               </div>
               <button type="button" className="btn btn-light-bordered" onClick={registrarRespuesta} disabled={!soporteV2 || !respuestaNueva.trim() || guardandoRespuesta}>
                 {guardandoRespuesta ? 'Registrando...' : 'Registrar respuesta'}
+              </button>
+            </div>
+
+            <div className="admin-support-notification-box">
+              <div className="admin-support-notification-heading">
+                <span className="admin-support-notification-icon" aria-hidden="true">🔔</span>
+                <div>
+                  <strong>Enviar notificación en Ordely</strong>
+                  <p>El cliente verá una campana con este mensaje dentro de su cuenta.</p>
+                </div>
+              </div>
+              <div className="form-field">
+                <label>Mensaje para el cliente</label>
+                <textarea
+                  value={notificacionNueva}
+                  onChange={(event) => setNotificacionNueva(event.target.value.slice(0, 1500))}
+                  rows="3"
+                  maxLength="1500"
+                  placeholder="Ej. Ya revisamos tu solicitud. Puedes consultar la respuesta y continuar usando Ordely."
+                />
+                <small>{notificacionNueva.length}/1500 caracteres</small>
+              </div>
+              {!seleccionado.user_id && (
+                <p className="admin-inline-warning">Este comentario no está vinculado a una cuenta y no puede recibir notificaciones internas.</p>
+              )}
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={enviarNotificacion}
+                disabled={!seleccionado.user_id || !notificacionNueva.trim() || enviandoNotificacion}
+              >
+                {enviandoNotificacion ? 'Enviando...' : 'Enviar notificación'}
               </button>
             </div>
 

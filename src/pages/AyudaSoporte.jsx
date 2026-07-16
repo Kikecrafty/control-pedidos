@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Layout from '../components/Layout'
 import PageHelp from '../components/PageHelp'
 import Toast from '../components/Toast'
+import HistorialVersiones from '../components/HistorialVersiones'
 import { supabase } from '../supabaseClient'
 import { version as versionAplicacion } from '../../package.json'
 
@@ -395,6 +396,8 @@ export default function AyudaSoporte() {
             )}
           </div>
         </section>
+
+        <HistorialVersiones />
       </div>
 
       {toast && (

@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+export { estaCercaDelLimiteBasico, pedidosRestantesPlanBasico } from './limitesPlan'
 
 export const planTexto = {
   basico: 'Plan Básico',

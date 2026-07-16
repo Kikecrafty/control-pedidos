@@ -1417,7 +1417,7 @@ ${url}`
         </div>
       </div>
 
-      <PlanLimitNotice estadoPlan={estadoPlan} compacto />
+      <PlanLimitNotice estadoPlan={estadoPlan} compacto avisarCercaDelLimite />
 
       <section className="order-purchase-view-tabs" aria-label="Estado de compra de los pedidos">
         <button

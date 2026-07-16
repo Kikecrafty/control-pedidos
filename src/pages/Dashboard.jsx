@@ -5,6 +5,7 @@ import Layout from '../components/Layout'
 import PlanLimitNotice from '../components/PlanLimitNotice'
 import EmptyState from '../components/EmptyState'
 import PageHelp from '../components/PageHelp'
+import BotonVersion from '../components/BotonVersion'
 import Toast from '../components/Toast'
 import { cargarEstadoPlan, estaBloqueadoPorPlan, puedeCrearPedido } from '../lib/planes'
 import { esPedidoActivo } from '../lib/calculosNegocio'
@@ -437,7 +438,10 @@ export default function Dashboard() {
         tipo={toast?.tipo}
         onClose={() => setToast(null)}
       />
-      <PageHelp page="dashboard" />
+      <div className="dashboard-top-tools">
+        <PageHelp page="dashboard" />
+        <BotonVersion />
+      </div>
 
       <div className="dashboard-priority-header">
         <div>
@@ -457,7 +461,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <PlanLimitNotice estadoPlan={estadoPlan} compacto />
+      <PlanLimitNotice estadoPlan={estadoPlan} compacto avisarCercaDelLimite />
 
       {errorCarga && (
         <EmptyState

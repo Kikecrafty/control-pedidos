@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import Modal from './Modal'
 import BienvenidaInicial from './BienvenidaInicial'
+import NovedadesVersion from './NovedadesVersion'
+import NotificacionesUsuario from './NotificacionesUsuario'
 import { supabase } from '../supabaseClient'
 import {
   BIENVENIDA_FLUJO_ID,
@@ -9,6 +11,12 @@ import {
   bienvenidaRemotaFueVista,
   marcarBienvenidaVista
 } from '../lib/bienvenida'
+import {
+  NOVEDADES_VERSION_ACTUAL,
+  marcarNovedadesVistas,
+  novedadesFueronVistas,
+  novedadesRemotasFueronVistas
+} from '../lib/novedades'
 import { cargarEstadoPlan, nombrePlan, resumenUsoPlan } from '../lib/planes'
 import { PLATAFORMAS, PLATAFORMA_PREDETERMINADA } from '../lib/plataformas'
 
@@ -32,6 +40,26 @@ const SECCIONES_CUENTA = [
   { id: 'preferencias', titulo: 'Preferencias', descripcion: 'Plataforma, fechas y organización', icono: 'settings' },
   { id: 'plan', titulo: 'Plan', descripcion: 'Vigencia y opciones', icono: 'diamond' }
 ]
+
+const ESTRELLAS_PLAN_PRO = Array.from({ length: 38 }, (_, index) => ({
+  x: (index * 37 + 7) % 100,
+  y: (index * 53 + 11) % 100,
+  delay: -(((index * 47) % 73) / 10),
+  duration: 2.9 + (((index * 19) % 47) / 10),
+  size: [0.9, 1.2, 1.5, 1.9, 2.4][(index * 7) % 5],
+  minOpacity: 0.16 + (((index * 13) % 22) / 100),
+  maxOpacity: 0.58 + (((index * 17) % 39) / 100),
+  tipo: index % 9 === 0 ? 'is-bright' : index % 3 === 0 ? 'is-distant' : ''
+}))
+
+const ESTRELLAS_PLAN_PRO_CAYENDO = Array.from({ length: 17 }, (_, index) => ({
+  x: (index * 41 + 5) % 100,
+  delay: -(((index * 61) % 89) / 10),
+  duration: 4.8 + (((index * 23) % 38) / 10),
+  size: [1.1, 1.4, 1.8, 2.2][(index * 5) % 4],
+  drift: ((index * 29) % 31) - 15,
+  opacity: 0.58 + (((index * 7) % 38) / 100)
+}))
 
 function NavIcon({ name, className = '' }) {
   const commonProps = {
@@ -414,6 +442,9 @@ export default function Layout({ children }) {
   const [perfilCargando, setPerfilCargando] = useState(!perfilCacheInicial)
   const [plataformaPredeterminada, setPlataformaPredeterminada] = useState(obtenerPlataformaInicial)
   const [bienvenidaAbierta, setBienvenidaAbierta] = useState(false)
+  const [bienvenidaRevisadaPara, setBienvenidaRevisadaPara] = useState('')
+  const [novedadesAbiertas, setNovedadesAbiertas] = useState(false)
+  const [novedadesRevisadasPara, setNovedadesRevisadasPara] = useState('')
   const [modalCuenta, setModalCuenta] = useState(false)
   const [confirmacionCerrarCuenta, setConfirmacionCerrarCuenta] = useState(false)
   const [nombreCuenta, setNombreCuenta] = useState('')
@@ -516,6 +547,11 @@ export default function Layout({ children }) {
   }, [modalCuenta])
 
   useEffect(() => {
+    setBienvenidaAbierta(false)
+    setNovedadesAbiertas(false)
+  }, [usuario?.id])
+
+  useEffect(() => {
     if (!usuario?.id || perfilCargando) return
 
     let efectoCancelado = false
@@ -531,6 +567,7 @@ export default function Layout({ children }) {
         // Mantiene la aplicación funcional mientras la migración esté pendiente
         // o si la conexión no está disponible.
         setBienvenidaAbierta(!vistaLocal)
+        setBienvenidaRevisadaPara(userId)
         return
       }
 
@@ -548,6 +585,7 @@ export default function Layout({ children }) {
       }
 
       setBienvenidaAbierta(!(vistaRemota || vistaLocal))
+      setBienvenidaRevisadaPara(userId)
     }
 
     void revisarBienvenida()
@@ -556,6 +594,62 @@ export default function Layout({ children }) {
       efectoCancelado = true
     }
   }, [usuario?.id, perfilCargando])
+
+  useEffect(() => {
+    if (
+      !usuario?.id ||
+      perfilCargando ||
+      bienvenidaRevisadaPara !== usuario.id ||
+      bienvenidaAbierta ||
+      novedadesRevisadasPara === usuario.id
+    ) return
+
+    let efectoCancelado = false
+    const userId = usuario.id
+
+    const revisarNovedades = async () => {
+      const vistasLocalmente = novedadesFueronVistas(userId)
+      const { data, error } = await supabase.rpc('mi_estado_novedades_v1')
+
+      if (efectoCancelado) return
+
+      if (error) {
+        // La marca local evita repetir el aviso mientras la migración todavía
+        // no esté disponible o exista una interrupción temporal de red.
+        setNovedadesAbiertas(!vistasLocalmente)
+        setNovedadesRevisadasPara(userId)
+        return
+      }
+
+      const estado = Array.isArray(data) ? data[0] : data
+      const vistasRemotamente = novedadesRemotasFueronVistas(estado?.version_vista)
+
+      if (vistasRemotamente) {
+        marcarNovedadesVistas(userId)
+      } else if (vistasLocalmente) {
+        // Sincroniza cuentas que cerraron el aviso antes de que la preferencia
+        // pudiera guardarse en Supabase.
+        void supabase.rpc('marcar_mis_novedades_vistas_v1', {
+          p_version: NOVEDADES_VERSION_ACTUAL
+        })
+      }
+
+      setNovedadesAbiertas(!(vistasRemotamente || vistasLocalmente))
+      setNovedadesRevisadasPara(userId)
+    }
+
+    void revisarNovedades()
+
+    return () => {
+      efectoCancelado = true
+    }
+  }, [
+    usuario?.id,
+    perfilCargando,
+    bienvenidaRevisadaPara,
+    bienvenidaAbierta,
+    novedadesRevisadasPara
+  ])
 
   const cargarCuenta = async () => {
     const cacheActual = leerPerfilCache()
@@ -758,6 +852,18 @@ export default function Layout({ children }) {
     abrirConfiguracion()
   }
 
+  const cerrarNovedades = () => {
+    const userId = usuario?.id
+    marcarNovedadesVistas(userId)
+    setNovedadesAbiertas(false)
+
+    if (userId) {
+      void supabase.rpc('marcar_mis_novedades_vistas_v1', {
+        p_version: NOVEDADES_VERSION_ACTUAL
+      })
+    }
+  }
+
   const actualizarConfigEntrega = (campo, valor) => {
     const esBooleano = campo === 'fecha_mostrar_anio' || campo === 'pedidos_separar_por_fecha'
     const valorNormalizado = esBooleano ? valorBooleanoConfig(valor, true) : valor
@@ -930,6 +1036,41 @@ export default function Layout({ children }) {
 
   const SidebarPlanCard = ({ movil = false }) => (
     <aside className={`sidebar-plan-card sidebar-plan-card-${datosCuenta.planKey}${movil ? ' sidebar-plan-card-mobile' : ''}`}>
+      {datosCuenta.planKey === 'pro' && (
+        <span className="sidebar-plan-pro-space" aria-hidden="true">
+          <b className="sidebar-plan-pro-galaxy" />
+          {ESTRELLAS_PLAN_PRO.map((estrella, index) => (
+            <i
+              className={`sidebar-plan-pro-star ${estrella.tipo}`.trim()}
+              key={index}
+              style={{
+                '--star-x': `${estrella.x}%`,
+                '--star-y': `${estrella.y}%`,
+                '--star-delay': `${estrella.delay}s`,
+                '--star-duration': `${estrella.duration}s`,
+                '--star-size': `${estrella.size}px`,
+                '--star-min-opacity': estrella.minOpacity,
+                '--star-max-opacity': estrella.maxOpacity
+              }}
+            />
+          ))}
+          {ESTRELLAS_PLAN_PRO_CAYENDO.map((estrella, index) => (
+            <i
+              className="sidebar-plan-pro-falling-star"
+              key={`falling-${index}`}
+              style={{
+                '--falling-x': `${estrella.x}%`,
+                '--falling-delay': `${estrella.delay}s`,
+                '--falling-duration': `${estrella.duration}s`,
+                '--falling-size': `${estrella.size}px`,
+                '--falling-drift': `${estrella.drift}px`,
+                '--falling-opacity': estrella.opacity
+              }}
+            />
+          ))}
+        </span>
+      )}
+
       <div className="sidebar-plan-card-head">
         <div>
           <span>Plan actual</span>
@@ -1334,6 +1475,11 @@ export default function Layout({ children }) {
         onClose={cerrarBienvenida}
         onConfigurar={configurarDesdeBienvenida}
       />
+      <NovedadesVersion
+        abierto={novedadesAbiertas && !bienvenidaAbierta}
+        onClose={cerrarNovedades}
+      />
+      <NotificacionesUsuario usuarioId={usuario?.id} />
       {renderCuentaModal()}
 
       <aside className="sidebar desktop-sidebar">
