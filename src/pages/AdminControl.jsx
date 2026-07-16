@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import AdminSoporte from '../components/AdminSoporte'
+import AdminReferidos from '../components/AdminReferidos'
 import { supabase } from '../supabaseClient'
 import '../styles/32-admin-registro-real.css'
 import {
@@ -777,6 +778,7 @@ export default function AdminControl() {
         <button type="button" className={tab === 'pagos' ? 'active' : ''} onClick={() => setTab('pagos')}>Pagos</button>
         <button type="button" className={tab === 'suscripciones' ? 'active' : ''} onClick={() => setTab('suscripciones')}>Suscripciones</button>
         <button type="button" className={tab === 'codigos' ? 'active' : ''} onClick={() => setTab('codigos')}>Códigos</button>
+        <button type="button" className={tab === 'referidos' ? 'active' : ''} onClick={() => setTab('referidos')}>Referidos</button>
         <button type="button" className={tab === 'alertas' ? 'active' : ''} onClick={() => setTab('alertas')}>Alertas</button>
         <button type="button" className={tab === 'soporte' ? 'active' : ''} onClick={() => setTab('soporte')}>Soporte</button>
         <button type="button" className={tab === 'auditoria' ? 'active' : ''} onClick={() => setTab('auditoria')}>Auditoría</button>
@@ -1134,6 +1136,8 @@ export default function AdminControl() {
           </div>
         </div>
       )}
+
+      {tab === 'referidos' && <AdminReferidos />}
 
       {tab === 'alertas' && (
         <div className="table-card">

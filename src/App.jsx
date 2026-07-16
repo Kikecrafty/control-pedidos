@@ -17,6 +17,7 @@ import Planes from './pages/Planes'
 import Metricas from './pages/Metricas'
 import AdminControl from './pages/AdminControl'
 import AyudaSoporte from './pages/AyudaSoporte'
+import Referidos from './pages/Referidos'
 
 function ProtectedRoute({ session, children }) {
   if (!session) return <Navigate to="/login" replace />
@@ -166,6 +167,15 @@ export default function App() {
           element={
             <ProtectedRoute session={session}>
               <Metricas />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/referidos"
+          element={
+            <ProtectedRoute session={session}>
+              <Referidos />
             </ProtectedRoute>
           }
         />

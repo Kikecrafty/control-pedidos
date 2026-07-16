@@ -3,7 +3,12 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import Modal from './Modal'
 import BienvenidaInicial from './BienvenidaInicial'
 import { supabase } from '../supabaseClient'
-import { bienvenidaFueVista, marcarBienvenidaVista } from '../lib/bienvenida'
+import {
+  BIENVENIDA_FLUJO_ID,
+  bienvenidaFueVista,
+  bienvenidaRemotaFueVista,
+  marcarBienvenidaVista
+} from '../lib/bienvenida'
 import { cargarEstadoPlan, nombrePlan, resumenUsoPlan } from '../lib/planes'
 import { PLATAFORMAS, PLATAFORMA_PREDETERMINADA } from '../lib/plataformas'
 
@@ -74,6 +79,17 @@ function NavIcon({ name, className = '' }) {
         <circle cx="9" cy="8" r="3" />
         <path d="M3.8 19a5.2 5.2 0 0 1 10.4 0" />
         <path d="M15.2 6.2a3 3 0 0 1 0 5.6M16.5 14.2A5 5 0 0 1 20.2 19" />
+      </svg>
+    )
+  }
+
+  if (name === 'referrals') {
+    return (
+      <svg {...commonProps}>
+        <circle cx="8" cy="8" r="3" />
+        <path d="M2.8 19a5.2 5.2 0 0 1 10.4 0" />
+        <path d="M15 7h6M18 4v6" />
+        <path d="M15.5 14.5h5v5h-5zM14 16l-2-1.5" />
       </svg>
     )
   }
@@ -501,7 +517,44 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     if (!usuario?.id || perfilCargando) return
-    setBienvenidaAbierta(!bienvenidaFueVista(usuario.id))
+
+    let efectoCancelado = false
+    const userId = usuario.id
+
+    const revisarBienvenida = async () => {
+      const vistaLocal = bienvenidaFueVista(userId)
+      const { data, error } = await supabase.rpc('mi_estado_bienvenida_v1')
+
+      if (efectoCancelado) return
+
+      if (error) {
+        // Mantiene la aplicación funcional mientras la migración esté pendiente
+        // o si la conexión no está disponible.
+        setBienvenidaAbierta(!vistaLocal)
+        return
+      }
+
+      const estado = Array.isArray(data) ? data[0] : data
+      const vistaRemota = bienvenidaRemotaFueVista(estado?.flujo_id)
+
+      if (vistaRemota) {
+        marcarBienvenidaVista(userId)
+      } else if (vistaLocal) {
+        // Migra silenciosamente las cuentas que ya habían visto la guía antes
+        // de guardar esta preferencia en Supabase.
+        void supabase.rpc('marcar_mi_bienvenida_vista_v1', {
+          p_flujo_id: BIENVENIDA_FLUJO_ID
+        })
+      }
+
+      setBienvenidaAbierta(!(vistaRemota || vistaLocal))
+    }
+
+    void revisarBienvenida()
+
+    return () => {
+      efectoCancelado = true
+    }
   }, [usuario?.id, perfilCargando])
 
   const cargarCuenta = async () => {
@@ -638,7 +691,7 @@ export default function Layout({ children }) {
     return isActive ? 'bottom-nav-link active' : 'bottom-nav-link'
   }
 
-  const rutasDentroDeMas = ['/clientes', '/estadisticas', '/planes', '/ayuda-soporte', '/admin-control']
+  const rutasDentroDeMas = ['/clientes', '/estadisticas', '/referidos', '/planes', '/ayuda-soporte', '/admin-control']
   const masSeleccionado = drawerAbierto || rutasDentroDeMas.some((ruta) => location.pathname.startsWith(ruta))
 
   const cerrarDrawer = () => setDrawerAbierto(false)
@@ -689,8 +742,15 @@ export default function Layout({ children }) {
   }
 
   const cerrarBienvenida = () => {
-    marcarBienvenidaVista(usuario?.id)
+    const userId = usuario?.id
+    marcarBienvenidaVista(userId)
     setBienvenidaAbierta(false)
+
+    if (userId) {
+      void supabase.rpc('marcar_mi_bienvenida_vista_v1', {
+        p_flujo_id: BIENVENIDA_FLUJO_ID
+      })
+    }
   }
 
   const configurarDesdeBienvenida = () => {
@@ -1309,6 +1369,7 @@ export default function Layout({ children }) {
             <NavLink to="/compras" className={navClass}><span className="nav-symbol"><NavIcon name="shopping" /></span>Compras</NavLink>
             <NavLink to="/clientes" className={navClass}><span className="nav-symbol"><NavIcon name="users" /></span>Clientes</NavLink>
             <NavLink to="/estadisticas" className={navClass}><span className="nav-symbol"><NavIcon name="chart" /></span>Estadísticas</NavLink>
+            <NavLink to="/referidos" className={navClass}><span className="nav-symbol"><NavIcon name="referrals" /></span>Recomienda y gana</NavLink>
             <button type="button" className={modalCuenta && seccionCuenta !== 'perfil' ? 'nav-link nav-action-button active' : 'nav-link nav-action-button'} onClick={abrirConfiguracion}><span className="nav-symbol"><NavIcon name="settings" /></span>Configuración</button>
             <NavLink to="/ayuda-soporte" className={navClass}><span className="nav-symbol"><NavIcon name="help" /></span>Ayuda y soporte</NavLink>
 
@@ -1400,6 +1461,7 @@ export default function Layout({ children }) {
           <NavLink to="/compras" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="shopping" /></span>Compras</NavLink>
           <NavLink to="/clientes" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="users" /></span>Clientes</NavLink>
           <NavLink to="/estadisticas" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="chart" /></span>Estadísticas</NavLink>
+          <NavLink to="/referidos" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="referrals" /></span>Recomienda y gana</NavLink>
           <button type="button" className={modalCuenta && seccionCuenta !== 'perfil' ? 'nav-link nav-action-button active' : 'nav-link nav-action-button'} onClick={() => { cerrarDrawer(); abrirConfiguracion() }}><span className="drawer-nav-icon"><NavIcon name="settings" /></span>Configuración</button>
           <NavLink to="/ayuda-soporte" className={navClass} onClick={cerrarDrawer}><span className="drawer-nav-icon"><NavIcon name="help" /></span>Ayuda y soporte</NavLink>
 

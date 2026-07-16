@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { normalizarCodigoReferido } from '../lib/referidos'
 
 const ocultarImagenRota = (event) => {
   event.currentTarget.style.display = 'none'
@@ -16,6 +17,7 @@ export default function Login() {
 
   const [modo, setModo] = useState(modoInicial)
   const [nombre, setNombre] = useState('')
+  const [codigoReferido, setCodigoReferido] = useState(() => normalizarCodigoReferido(searchParams.get('ref')))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -29,6 +31,8 @@ export default function Login() {
 
   useEffect(() => {
     setModo(searchParams.get('modo') === 'registro' ? 'registro' : 'login')
+    const codigoEnEnlace = normalizarCodigoReferido(searchParams.get('ref'))
+    if (codigoEnEnlace) setCodigoReferido(codigoEnEnlace)
   }, [searchParams])
 
   const cambiarModo = (nuevoModo) => {
@@ -39,7 +43,10 @@ export default function Login() {
     setMensaje('')
     setMostrarReenviarConfirmacion(false)
     setRegistroCompletado(false)
-    setSearchParams(nuevoModo === 'registro' ? { modo: 'registro' } : {})
+    const nuevosParametros = {}
+    if (nuevoModo === 'registro') nuevosParametros.modo = 'registro'
+    if (normalizarCodigoReferido(codigoReferido)) nuevosParametros.ref = normalizarCodigoReferido(codigoReferido)
+    setSearchParams(nuevosParametros)
   }
 
   const limpiarTexto = (valor) => String(valor || '').trim()
@@ -178,6 +185,7 @@ export default function Login() {
 
     const nombreLimpio = limpiarTexto(nombre)
     const emailLimpio = limpiarTexto(email).toLowerCase()
+    const codigoReferidoLimpio = normalizarCodigoReferido(codigoReferido)
 
     if (!nombreLimpio) {
       setError('Escribe tu nombre o el nombre de tu negocio')
@@ -188,6 +196,13 @@ export default function Login() {
 
     if (!emailLimpio) {
       setError('Escribe tu correo')
+      registroEnProceso.current = false
+      setCargando(false)
+      return
+    }
+
+    if (limpiarTexto(codigoReferido) && !codigoReferidoLimpio) {
+      setError('El código de invitación no tiene un formato válido')
       registroEnProceso.current = false
       setCargando(false)
       return
@@ -207,12 +222,33 @@ export default function Login() {
       return
     }
 
+    if (codigoReferidoLimpio) {
+      const { data: codigoActivo, error: errorCodigo } = await supabase.rpc('validar_codigo_referido_v1', {
+        p_codigo: codigoReferidoLimpio
+      })
+
+      if (errorCodigo) {
+        setError('No pudimos comprobar el código de invitación. Inténtalo nuevamente.')
+        registroEnProceso.current = false
+        setCargando(false)
+        return
+      }
+
+      if (!codigoActivo) {
+        setError('El código de invitación no existe o ya no está activo.')
+        registroEnProceso.current = false
+        setCargando(false)
+        return
+      }
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email: emailLimpio,
       password,
       options: {
         data: {
-          nombre: nombreLimpio
+          nombre: nombreLimpio,
+          ...(codigoReferidoLimpio ? { codigo_referido: codigoReferidoLimpio } : {})
         },
         emailRedirectTo: `${window.location.origin}/panel`
       }
@@ -335,6 +371,22 @@ export default function Login() {
                 required
                 disabled={formularioBloqueado}
               />
+            </label>
+          )}
+
+          {esRegistro && (
+            <label className="form-field ordely-referral-code-field">
+              <span>Código de invitación <small>(opcional)</small></span>
+              <input
+                type="text"
+                value={codigoReferido}
+                onChange={(e) => setCodigoReferido(e.target.value.toUpperCase())}
+                placeholder="ORD-XXXXXXXX"
+                maxLength="20"
+                autoComplete="off"
+                disabled={formularioBloqueado}
+              />
+              {normalizarCodigoReferido(codigoReferido) && <small>Comprobaremos el código antes de crear la cuenta.</small>}
             </label>
           )}
 

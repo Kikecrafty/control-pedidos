@@ -1,5 +1,9 @@
 export const BIENVENIDA_FLUJO_ID = 'flujo-principal-v1'
 
+export const bienvenidaRemotaFueVista = (flujoId) => {
+  return String(flujoId || '').trim() === BIENVENIDA_FLUJO_ID
+}
+
 export const crearLlaveBienvenida = (userId) => {
   const id = String(userId || '').trim()
   return id ? `ordely_bienvenida:${id}` : ''

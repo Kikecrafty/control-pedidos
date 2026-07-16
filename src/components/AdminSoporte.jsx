@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import EmptyState from './EmptyState'
 import Modal from './Modal'
 import Toast from './Toast'
@@ -37,11 +37,13 @@ export default function AdminSoporte() {
   const [notasEdicion, setNotasEdicion] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [respuestas, setRespuestas] = useState([])
+  const [cargandoRespuestas, setCargandoRespuestas] = useState(false)
   const [respuestaNueva, setRespuestaNueva] = useState('')
   const [canalRespuesta, setCanalRespuesta] = useState('correo')
   const [guardandoRespuesta, setGuardandoRespuesta] = useState(false)
   const [soporteV2, setSoporteV2] = useState(false)
   const [toast, setToast] = useState(null)
+  const solicitudRespuestasRef = useRef(0)
 
   const cargarComentarios = useCallback(async () => {
     setCargando(true)
@@ -103,11 +105,19 @@ export default function AdminSoporte() {
   }, [comentarios, busqueda, estadoFiltro, tipoFiltro])
 
   const cargarRespuestas = async (comentarioId) => {
+    const solicitud = solicitudRespuestasRef.current + 1
+    solicitudRespuestasRef.current = solicitud
+    setCargandoRespuestas(true)
+
     const { data, error } = await supabase
       .from('soporte_respuestas')
       .select('*')
       .eq('comentario_id', comentarioId)
       .order('creado_en', { ascending: true })
+
+    if (solicitud !== solicitudRespuestasRef.current) return
+
+    setCargandoRespuestas(false)
 
     if (error) {
       setSoporteV2(false)
@@ -126,11 +136,15 @@ export default function AdminSoporte() {
     setNotasEdicion(comentario.notas_admin || '')
     setRespuestaNueva('')
     setCanalRespuesta('correo')
+    setRespuestas([])
+    setSoporteV2(false)
     cargarRespuestas(comentario.id)
   }
 
   const cerrarComentario = () => {
     if (guardando) return
+    solicitudRespuestasRef.current += 1
+    setCargandoRespuestas(false)
     setSeleccionado(null)
   }
 
@@ -339,16 +353,17 @@ export default function AdminSoporte() {
             <div className="admin-support-history">
               <div>
                 <strong>Historial de respuestas</strong>
-                <span>{soporteV2 ? `${respuestas.length} registradas` : 'Pendiente de activar'}</span>
+                <span>{cargandoRespuestas ? 'Cargando...' : soporteV2 ? `${respuestas.length} registradas` : 'Pendiente de activar'}</span>
               </div>
+              {cargandoRespuestas && <p className="muted">Cargando el expediente de este comentario...</p>}
               {respuestas.map((respuesta) => (
                 <article key={respuesta.id}>
                   <div><b>{respuesta.canal}</b><span>{formatearFecha(respuesta.creado_en)}</span></div>
                   <p>{respuesta.mensaje}</p>
                 </article>
               ))}
-              {soporteV2 && respuestas.length === 0 && <p className="muted">Aún no hay respuestas registradas.</p>}
-              {!soporteV2 && <p className="admin-inline-warning">El historial estará disponible al aplicar la migración administrativa.</p>}
+              {!cargandoRespuestas && soporteV2 && respuestas.length === 0 && <p className="muted">Aún no hay respuestas registradas.</p>}
+              {!cargandoRespuestas && !soporteV2 && <p className="admin-inline-warning">El historial estará disponible al aplicar la migración administrativa.</p>}
             </div>
 
             <div className="admin-support-response-box">

@@ -12,9 +12,19 @@
 @media (min-width: 801px) {
   .sidebar.desktop-sidebar {
     width: 260px;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
     grid-template-columns: minmax(0, 1fr);
     padding: 18px 14px 14px;
     gap: 10px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     border-right: 1px solid rgba(148, 163, 184, 0.13);
     background:
       radial-gradient(circle at 8% 2%, rgba(59, 130, 246, 0.12), transparent 22%),
@@ -27,9 +37,18 @@
   }
 
   .sidebar-main-area {
+    min-height: auto;
     display: flex;
+    flex: 0 0 auto;
     flex-direction: column;
     padding: 2px 4px 10px;
+    overflow: visible;
+  }
+
+  .sidebar.desktop-sidebar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   .ordely-sidebar-brand {
@@ -213,6 +232,7 @@
 
   .sidebar-footer.sidebar-footer-simple {
     gap: 7px;
+    margin-top: auto;
     padding: 12px 4px 0;
     border-top: 1px solid rgba(148, 163, 184, 0.13);
     background: transparent;

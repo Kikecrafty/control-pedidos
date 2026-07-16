@@ -6,6 +6,10 @@ import EmptyState from '../components/EmptyState'
 import PageHelp from '../components/PageHelp'
 import { PLATAFORMAS, PLATAFORMA_PREDETERMINADA } from '../lib/plataformas'
 import { obtenerFechaLocalHoy } from '../lib/fechas'
+import {
+  calcularResumenCostosManuales,
+  inicializarCostosManuales
+} from '../lib/comprasCostos'
 
 const hoyISO = () => obtenerFechaLocalHoy()
 
@@ -40,6 +44,7 @@ export default function Compras() {
   const [plataformaSeleccionada, setPlataformaSeleccionada] = useState(plataformaConfiguradaInicial)
   const [resumenActivo, setResumenActivo] = useState(false)
   const [errorCarga, setErrorCarga] = useState('')
+  const [costosManuales, setCostosManuales] = useState({})
 
   const [form, setForm] = useState({
     plataforma: plataformaConfiguradaInicial,
@@ -54,6 +59,7 @@ export default function Compras() {
     impuestos: '',
     comisiones: '',
     totalPagado: '',
+    usarCostosManuales: false,
     fechaCompra: hoyISO()
   })
 
@@ -69,6 +75,7 @@ export default function Compras() {
         ? { ...actual, plataforma: nuevaPlataforma }
         : actual)
       setSeleccionados([])
+      setCostosManuales({})
       setResumenActivo(false)
     }
 
@@ -202,6 +209,7 @@ export default function Compras() {
   const cambiarPlataforma = (plataforma) => {
     setPlataformaSeleccionada(plataforma)
     setSeleccionados([])
+    setCostosManuales({})
     setResumenActivo(false)
     setForm((actual) => ({ ...actual, plataforma }))
   }
@@ -306,9 +314,18 @@ export default function Compras() {
     return Math.min(descuentoCuponAplicado + puntosAplicados, subtotalSeleccionado)
   }, [descuentoCuponAplicado, puntosAplicados, subtotalSeleccionado])
 
+  const resumenCostosManuales = useMemo(() => {
+    return calcularResumenCostosManuales(productosSeleccionados, costosManuales, cargosExtra)
+  }, [productosSeleccionados, costosManuales, cargosExtra])
+
+  const descuentoEfectivoProductos = form.usarCostosManuales
+    ? resumenCostosManuales.ahorroProductos
+    : descuentoAplicado
+
   const totalEstimado = useMemo(() => {
+    if (form.usarCostosManuales) return resumenCostosManuales.totalEstimado
     return Math.max(subtotalSeleccionado - descuentoAplicado + cargosExtra, 0)
-  }, [subtotalSeleccionado, descuentoAplicado, cargosExtra])
+  }, [form.usarCostosManuales, resumenCostosManuales.totalEstimado, subtotalSeleccionado, descuentoAplicado, cargosExtra])
 
   const totalPagadoFinal = useMemo(() => {
     const total = form.totalPagado === '' ? totalEstimado : Number(form.totalPagado)
@@ -325,13 +342,20 @@ export default function Compras() {
       const cantidad = Number(producto.cantidad || 0)
       const subtotal = precioPagina * cantidad
       const factorTotal = subtotalSeleccionado > 0 ? subtotal / subtotalSeleccionado : 0
-      const descuentoProducto = subtotalSeleccionado > 0
-        ? Number((descuentoAplicado * factorTotal).toFixed(2))
-        : 0
-      const precioConDescuento = Math.max(subtotal - descuentoProducto, 0)
+      const costoManual = resumenCostosManuales.lineas.find((linea) => linea.id === producto.id)
+      const descuentoProducto = form.usarCostosManuales
+        ? Number(costoManual?.ahorro || 0)
+        : subtotalSeleccionado > 0
+          ? Number((descuentoAplicado * factorTotal).toFixed(2))
+          : 0
+      const precioConDescuento = form.usarCostosManuales
+        ? Number(costoManual?.costoTotal || 0)
+        : Math.max(subtotal - descuentoProducto, 0)
       // Importante: los cargos extra NO se meten al producto.
       // Se guardan separados en el lote para que Estadísticas los pueda sumar aparte.
-      const costoReal = precioConDescuento
+      const costoReal = form.usarCostosManuales
+        ? Number(costoManual?.costoTotal || 0)
+        : precioConDescuento
       const precioVentaTotal = Number(producto.precio_venta || precioPagina || 0) * cantidad
       const ganancia = precioVentaTotal - costoReal
 
@@ -349,7 +373,22 @@ export default function Compras() {
         ganancia
       }
     })
-  }, [productosSeleccionados, subtotalSeleccionado, descuentoAplicado])
+  }, [productosSeleccionados, subtotalSeleccionado, descuentoAplicado, form.usarCostosManuales, resumenCostosManuales.lineas])
+
+  useEffect(() => {
+    if (!form.usarCostosManuales) return
+
+    const sugeridos = inicializarCostosManuales(productosSeleccionados, descuentoAplicado)
+    setCostosManuales((actuales) => {
+      const siguientes = {}
+      productosSeleccionados.forEach((producto) => {
+        siguientes[producto.id] = Object.prototype.hasOwnProperty.call(actuales, producto.id)
+          ? actuales[producto.id]
+          : sugeridos[producto.id]
+      })
+      return siguientes
+    })
+  }, [form.usarCostosManuales, productosSeleccionados, descuentoAplicado])
 
   const alternarProducto = (id) => {
     setSeleccionados((actuales) => {
@@ -379,9 +418,27 @@ export default function Compras() {
     setResumenActivo(false)
   }
 
+  const alternarCostosManuales = () => {
+    const activar = !form.usarCostosManuales
+    if (activar) {
+      setCostosManuales(inicializarCostosManuales(productosSeleccionados, descuentoAplicado))
+    }
+    setForm((actual) => ({ ...actual, usarCostosManuales: activar }))
+    setResumenActivo(false)
+  }
+
+  const actualizarCostoManual = (productoId, valor) => {
+    setCostosManuales((actuales) => ({ ...actuales, [productoId]: valor }))
+  }
+
   const validarLote = () => {
     if (seleccionados.length === 0) {
       mostrarToast('Selecciona al menos un producto para registrar la compra.', 'error')
+      return false
+    }
+
+    if (form.usarCostosManuales && !resumenCostosManuales.valido) {
+      mostrarToast('Escribe el costo real total de cada producto seleccionado.', 'error')
       return false
     }
 
@@ -403,17 +460,17 @@ export default function Compras() {
       return false
     }
 
-    if (form.descuentoTipo === 'valor' && valorDescuento > subtotalSeleccionado) {
+    if (!form.usarCostosManuales && form.descuentoTipo === 'valor' && valorDescuento > subtotalSeleccionado) {
       mostrarToast('El descuento en pesos no puede ser mayor al subtotal seleccionado.', 'error')
       return false
     }
 
-    if (form.usarPuntos && puntos > subtotalSeleccionado) {
+    if (!form.usarCostosManuales && form.usarPuntos && puntos > subtotalSeleccionado) {
       mostrarToast('Los puntos o saldo usado no pueden ser mayores al subtotal seleccionado.', 'error')
       return false
     }
 
-    if (descuentoAplicado > subtotalSeleccionado) {
+    if (!form.usarCostosManuales && descuentoAplicado > subtotalSeleccionado) {
       mostrarToast('El descuento total de cupón y puntos no puede ser mayor al subtotal seleccionado.', 'error')
       return false
     }
@@ -443,6 +500,9 @@ export default function Compras() {
     const totalPagado = totalPagadoFinal
     const referenciaCupon = [
       form.cupon.trim(),
+      form.usarCostosManuales && Number(form.descuento || 0) > 0
+        ? `Cupón indicado: ${form.descuentoTipo === 'porcentaje' ? `${Number(form.descuento)}%` : formatearDinero(form.descuento)}`
+        : '',
       puntosAplicados > 0 ? `Puntos/saldo: ${formatearDinero(puntosAplicados)}` : ''
     ].filter(Boolean).join(' · ')
 
@@ -451,20 +511,41 @@ export default function Compras() {
 
     const fechaCompra = form.fechaCompra || hoyISO()
 
-    const { error } = await supabase.rpc('crear_lote_compra', {
-      p_plataforma: plataformaSeleccionada,
-      p_numero_orden: form.numeroOrden.trim(),
-      p_cupon: referenciaCupon,
-      p_descuento_cupon: descuentoCuponAplicado,
-      p_puntos: puntosAplicados,
-      p_envio: envio,
-      p_importacion: importacion,
-      p_impuestos: impuestos,
-      p_comisiones: comisiones,
-      p_total_pagado: totalPagado,
-      p_fecha_compra: fechaCompra,
-      p_productos: seleccionados
-    })
+    const funcionCompra = form.usarCostosManuales
+      ? 'crear_lote_compra_costos_manuales_v1'
+      : 'crear_lote_compra'
+    const parametrosCompra = form.usarCostosManuales
+      ? {
+          p_plataforma: plataformaSeleccionada,
+          p_numero_orden: form.numeroOrden.trim(),
+          p_cupon: referenciaCupon,
+          p_envio: envio,
+          p_importacion: importacion,
+          p_impuestos: impuestos,
+          p_comisiones: comisiones,
+          p_total_pagado: totalPagado,
+          p_fecha_compra: fechaCompra,
+          p_productos: resumenCostosManuales.lineas.map((linea) => ({
+            producto_id: linea.id,
+            costo_total: linea.costoTotal
+          }))
+        }
+      : {
+          p_plataforma: plataformaSeleccionada,
+          p_numero_orden: form.numeroOrden.trim(),
+          p_cupon: referenciaCupon,
+          p_descuento_cupon: descuentoCuponAplicado,
+          p_puntos: puntosAplicados,
+          p_envio: envio,
+          p_importacion: importacion,
+          p_impuestos: impuestos,
+          p_comisiones: comisiones,
+          p_total_pagado: totalPagado,
+          p_fecha_compra: fechaCompra,
+          p_productos: seleccionados
+        }
+
+    const { error } = await supabase.rpc(funcionCompra, parametrosCompra)
 
     if (error) {
       guardandoRef.current = false
@@ -478,6 +559,7 @@ export default function Compras() {
     setGuardando(false)
     mostrarToast('Compra registrada. Los productos ya aparecen como comprados.')
     setSeleccionados([])
+    setCostosManuales({})
     setResumenActivo(false)
     setForm({
       plataforma: plataformaSeleccionada,
@@ -492,6 +574,7 @@ export default function Compras() {
       impuestos: '',
       comisiones: '',
       totalPagado: '',
+      usarCostosManuales: false,
       fechaCompra: hoyISO()
     })
     setTab('historial')
@@ -726,6 +809,32 @@ export default function Compras() {
                       <span>El cupón y los puntos bajan solo el costo de los productos. Envío, importación, impuestos y comisiones quedan separados.</span>
                     </div>
 
+                    <section className={form.usarCostosManuales ? 'compras-manual-costs active' : 'compras-manual-costs'}>
+                      <div className="compras-switch-row compras-manual-costs-head">
+                        <div>
+                          <strong>Asignar el costo de cada producto manualmente</strong>
+                          <span>Úsalo cuando el carrito incluya artículos que no pertenecen a pedidos y el cupón no pueda repartirse correctamente.</span>
+                        </div>
+                        <button
+                          type="button"
+                          className={form.usarCostosManuales ? 'compras-switch active' : 'compras-switch'}
+                          onClick={alternarCostosManuales}
+                          aria-pressed={form.usarCostosManuales}
+                        >
+                          <span />
+                        </button>
+                      </div>
+
+                      {form.usarCostosManuales && (
+                        <div className="compras-manual-costs-body compras-manual-costs-next">
+                          <strong>Los costos se capturan en la revisión</strong>
+                          <p>
+                            Completa los datos de la compra y pulsa “Revisar resumen”. Ahí podrás escribir el costo real de cada producto antes de confirmar.
+                          </p>
+                        </div>
+                      )}
+                    </section>
+
                     <div className="form-field compras-help-field">
                       <label>Fecha de compra*</label>
                       <input type="date" value={form.fechaCompra} onChange={(e) => actualizarForm('fechaCompra', e.target.value)} required />
@@ -799,17 +908,25 @@ export default function Compras() {
                           <small>Seguro, manejo o comisión bancaria. Se guarda separado.</small>
                         </div>
                         <div className="form-field compras-help-field compras-total-full">
-                          <label>Total final pagado</label>
+                          <label>{form.usarCostosManuales ? 'Total de productos del pedido y sus cargos' : 'Total final pagado'}</label>
                           <input type="number" min="0" step="0.01" value={form.totalPagado} onChange={(e) => actualizarForm('totalPagado', e.target.value)} placeholder="Ej. 3859.40" />
-                          <small>Copia el total final de la plataforma para comparar si todo coincide.</small>
+                          <small>
+                            {form.usarCostosManuales
+                              ? 'No copies el total completo del carrito si también compraste artículos ajenos a pedidos.'
+                              : 'Copia el total final de la plataforma para comparar si todo coincide.'}
+                          </small>
                         </div>
                       </div>
                     </div>
 
                     <div className="compras-discount-preview compras-discount-preview-v25 compras-product-discount-total">
-                      <span>Descuento aplicado solo a productos</span>
-                      <strong>{formatearDinero(descuentoAplicado)}</strong>
-                      <p>Incluye cupón {formatearDinero(descuentoCuponAplicado)}{puntosAplicados > 0 ? ` y puntos/saldo ${formatearDinero(puntosAplicados)}` : ''}. Este monto se reparte proporcionalmente entre los productos seleccionados.</p>
+                      <span>{form.usarCostosManuales ? 'Ahorro reflejado en costos manuales' : 'Descuento aplicado solo a productos'}</span>
+                      <strong>{formatearDinero(descuentoEfectivoProductos)}</strong>
+                      <p>
+                        {form.usarCostosManuales
+                          ? 'Ordely usará exactamente los costos que escribiste; el cupón y los puntos quedan como referencia y no se descuentan otra vez.'
+                          : `Incluye cupón ${formatearDinero(descuentoCuponAplicado)}${puntosAplicados > 0 ? ` y puntos/saldo ${formatearDinero(puntosAplicados)}` : ''}. Este monto se reparte proporcionalmente entre los productos seleccionados.`}
+                      </p>
                     </div>
 
                     <div className="compras-summary-box compras-summary-box-v25 compras-summary-box-unified">
@@ -821,6 +938,7 @@ export default function Compras() {
                       <div><span>Importación</span><strong>{formatearDinero(importacionValor)}</strong></div>
                       <div><span>Impuestos</span><strong>{formatearDinero(impuestosValor)}</strong></div>
                       <div><span>Comisiones</span><strong>{formatearDinero(comisionesValor)}</strong></div>
+                      {form.usarCostosManuales && <div><span>Costo manual productos</span><strong>{formatearDinero(resumenCostosManuales.costoProductos)}</strong></div>}
                       <div><span>Total calculado</span><strong>{formatearDinero(totalEstimado)}</strong></div>
                     </div>
 
@@ -855,10 +973,12 @@ export default function Compras() {
                   <strong>{form.totalPagado === '' ? 'Listo para revisar' : Math.abs(diferenciaTotal) <= 0.01 ? 'Todo coincide' : 'Revisa el total'}</strong>
                   <span>
                     {form.totalPagado === ''
-                      ? 'No escribiste total final. Ordely guardará el total calculado con cupón, puntos, envío, importación, impuestos y comisiones.'
+                      ? form.usarCostosManuales
+                        ? 'Ordely guardará la suma de los costos manuales y los cargos indicados, sin incluir artículos ajenos a pedidos.'
+                        : 'No escribiste total final. Ordely guardará el total calculado con cupón, puntos, envío, importación, impuestos y comisiones.'
                       : Math.abs(diferenciaTotal) <= 0.01
                         ? 'El total calculado coincide con el total final que escribiste.'
-                        : `Hay una diferencia de ${formatearDinero(Math.abs(diferenciaTotal))}. Revisa cupón, puntos, envío, importación, impuestos o comisiones.`}
+                        : `Hay una diferencia de ${formatearDinero(Math.abs(diferenciaTotal))}. Revisa ${form.usarCostosManuales ? 'los costos manuales y los cargos' : 'cupón, puntos, envío, importación, impuestos o comisiones'}.`}
                   </span>
                 </div>
 
@@ -869,8 +989,8 @@ export default function Compras() {
                   <div><span>Fecha</span><strong>{form.fechaCompra || hoyISO()}</strong></div>
                   <div><span>Cupón</span><strong>{form.cupon || '-'}</strong></div>
                   <div><span>Subtotal productos</span><strong>{formatearDinero(subtotalSeleccionado)}</strong></div>
-                  <div><span>Descuento cupón</span><strong>-{formatearDinero(descuentoCuponAplicado)}</strong></div>
-                  <div><span>Puntos/saldo</span><strong>-{formatearDinero(puntosAplicados)}</strong></div>
+                  <div><span>{form.usarCostosManuales ? 'Ahorro en productos' : 'Descuento cupón'}</span><strong>-{formatearDinero(form.usarCostosManuales ? descuentoEfectivoProductos : descuentoCuponAplicado)}</strong></div>
+                  <div><span>{form.usarCostosManuales ? 'Puntos indicados' : 'Puntos/saldo'}</span><strong>{form.usarCostosManuales ? formatearDinero(puntosAplicados) : `-${formatearDinero(puntosAplicados)}`}</strong></div>
                   <div><span>Envío</span><strong>{formatearDinero(envioValor)}</strong></div>
                   <div><span>Importación</span><strong>{formatearDinero(importacionValor)}</strong></div>
                   <div><span>Impuestos</span><strong>{formatearDinero(impuestosValor)}</strong></div>
@@ -881,11 +1001,14 @@ export default function Compras() {
                 <div className="compras-confirm-products">
                   <div className="compras-confirm-products-head">
                     <strong>Productos seleccionados</strong>
-                    <span>Precio de página vs. precio después de cupón y puntos.</span>
+                    <span>{form.usarCostosManuales ? 'Precio de página vs. costo real escrito manualmente.' : 'Precio de página vs. precio después de cupón y puntos.'}</span>
                   </div>
 
                   {vistaPreviaProductos.map((producto) => (
-                    <div className="compras-confirm-product-row" key={producto.id}>
+                    <div
+                      className={form.usarCostosManuales ? 'compras-confirm-product-row manual-cost' : 'compras-confirm-product-row'}
+                      key={producto.id}
+                    >
                       <div className="compras-confirm-product-info">
                         <strong>{producto.nombre}</strong>
                         <span>{producto.pedido} · {producto.cliente} · {producto.cantidad} pza.</span>
@@ -896,10 +1019,29 @@ export default function Compras() {
                         <del>{formatearDinero(producto.subtotal)}</del>
                       </div>
 
-                      <div className="compras-confirm-price final">
-                        <span>Con descuento</span>
-                        <strong>{formatearDinero(producto.precioConDescuento)}</strong>
-                      </div>
+                      {form.usarCostosManuales ? (
+                        <label className="compras-confirm-price final compras-confirm-manual-editor">
+                          <span>Costo real total</span>
+                          <span className="compras-confirm-manual-input">
+                            <span aria-hidden="true">$</span>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              step="0.01"
+                              value={costosManuales[producto.id] ?? ''}
+                              onChange={(event) => actualizarCostoManual(producto.id, event.target.value)}
+                              aria-label={`Costo real total de ${producto.nombre}`}
+                              required
+                            />
+                          </span>
+                        </label>
+                      ) : (
+                        <div className="compras-confirm-price final">
+                          <span>Con descuento</span>
+                          <strong>{formatearDinero(producto.precioConDescuento)}</strong>
+                        </div>
+                      )}
 
                       <div className="compras-confirm-price discount">
                         <span>Ahorro</span>
@@ -907,6 +1049,13 @@ export default function Compras() {
                       </div>
                     </div>
                   ))}
+
+                  {form.usarCostosManuales && (
+                    <div className="compras-confirm-manual-total">
+                      <span>Costo manual de productos</span>
+                      <strong>{formatearDinero(resumenCostosManuales.costoProductos)}</strong>
+                    </div>
+                  )}
                 </div>
 
                 <div className="compras-confirm-actions">

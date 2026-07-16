@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   BIENVENIDA_FLUJO_ID,
   bienvenidaFueVista,
+  bienvenidaRemotaFueVista,
   crearLlaveBienvenida,
   marcarBienvenidaVista
 } from '../src/lib/bienvenida.js'
@@ -41,4 +42,10 @@ test('un identificador vacío no abre ni guarda la bienvenida', () => {
 
   assert.equal(bienvenidaFueVista('', storage), true)
   assert.equal(marcarBienvenidaVista('', storage), false)
+})
+
+test('el estado remoto solo reconoce la versión actual de la guía', () => {
+  assert.equal(bienvenidaRemotaFueVista(BIENVENIDA_FLUJO_ID), true)
+  assert.equal(bienvenidaRemotaFueVista('flujo-anterior'), false)
+  assert.equal(bienvenidaRemotaFueVista(null), false)
 })
