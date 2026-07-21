@@ -2088,7 +2088,6 @@ Restante: ${restante}`
                 type="number"
                 step="0.01"
                 min="0.01"
-                max={Math.max(Number(pedido?.restante || 0) + Number(pagoEditando?.monto || 0), 0)}
                 value={precioPagina}
                 onChange={(e) => setPrecioPagina(e.target.value)}
                 required
