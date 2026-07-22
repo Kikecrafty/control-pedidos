@@ -130,19 +130,54 @@ const guardarPedidosCache = (pedidos) => {
   }
 }
 
+const estadoListaPedidosKey = () => `ordely_pedidos_estado_lista_${obtenerIdUsuarioCache()}`
+
+const leerEstadoListaPedidos = () => {
+  if (typeof window === 'undefined') return {}
+
+  try {
+    const guardado = localStorage.getItem(estadoListaPedidosKey())
+    if (!guardado) return {}
+
+    const estado = JSON.parse(guardado)
+    const guardadoEn = new Date(estado?.guardado_en || 0).getTime()
+    const sigueVigente = Date.now() - guardadoEn < 1000 * 60 * 60 * 6
+    return sigueVigente ? estado : {}
+  } catch (error) {
+    console.log(error)
+    return {}
+  }
+}
+
+const guardarEstadoListaPedidos = (estado) => {
+  if (typeof window === 'undefined') return
+
+  try {
+    localStorage.setItem(estadoListaPedidosKey(), JSON.stringify({
+      ...estado,
+      guardado_en: new Date().toISOString()
+    }))
+  } catch (error) {
+    console.log(error)
+  }
+}
+
 
 export default function Pedidos() {
+  const estadoListaInicialRef = useRef(leerEstadoListaPedidos())
+  const ignorarResetInicialRef = useRef(true)
   const [todosPedidos, setTodosPedidos] = useState(() => leerPedidosCache())
-  const [pagina, setPagina] = useState(1)
-  const [tamanoPagina, setTamanoPagina] = useState(25)
+  const [pagina, setPagina] = useState(() => Math.max(Number(estadoListaInicialRef.current.pagina || 1), 1))
+  const [tamanoPagina, setTamanoPagina] = useState(() => Number(estadoListaInicialRef.current.tamanoPagina || 25))
   const [cargandoPedidos, setCargandoPedidos] = useState(false)
   const [estadoPlan, setEstadoPlan] = useState(null)
-  const [busqueda, setBusqueda] = useState('')
-  const [vistaCompra, setVistaCompra] = useState('pendientes')
-  const [agruparComprados, setAgruparComprados] = useState(true)
-  const [filtroPlataforma, setFiltroPlataforma] = useState('Todas')
-  const [fechaDesde, setFechaDesde] = useState('')
-  const [fechaHasta, setFechaHasta] = useState('')
+  const [busqueda, setBusqueda] = useState(() => estadoListaInicialRef.current.busqueda || '')
+  const [vistaCompra, setVistaCompra] = useState(() => estadoListaInicialRef.current.vistaCompra || 'pendientes')
+  const [agruparComprados, setAgruparComprados] = useState(() => normalizarBooleanoLocal(estadoListaInicialRef.current.agruparComprados, true))
+  const [ordenComprados, setOrdenComprados] = useState(() => estadoListaInicialRef.current.ordenComprados || 'llegada_primero')
+  const [filtroPlataforma, setFiltroPlataforma] = useState(() => estadoListaInicialRef.current.filtroPlataforma || 'Todas')
+  const [fechaDesde, setFechaDesde] = useState(() => estadoListaInicialRef.current.fechaDesde || '')
+  const [fechaHasta, setFechaHasta] = useState(() => estadoListaInicialRef.current.fechaHasta || '')
   const [configFechaPedidos, setConfigFechaPedidos] = useState(() => obtenerConfigFechaLocal())
   const [toast, setToast] = useState(null)
   const accionEnProcesoRef = useRef(false)
@@ -198,8 +233,40 @@ export default function Pedidos() {
   }, [])
 
   useEffect(() => {
+    if (ignorarResetInicialRef.current) {
+      ignorarResetInicialRef.current = false
+      return
+    }
+
     setPagina(1)
-  }, [busqueda, filtroPlataforma, fechaDesde, fechaHasta, tamanoPagina, vistaCompra])
+  }, [busqueda, filtroPlataforma, fechaDesde, fechaHasta, tamanoPagina, vistaCompra, ordenComprados])
+
+  useEffect(() => {
+    guardarEstadoListaPedidos({
+      vistaCompra,
+      pagina,
+      tamanoPagina,
+      busqueda,
+      filtroPlataforma,
+      fechaDesde,
+      fechaHasta,
+      agruparComprados,
+      ordenComprados,
+      scrollY: typeof window !== 'undefined' ? window.scrollY : 0
+    })
+  }, [vistaCompra, pagina, tamanoPagina, busqueda, filtroPlataforma, fechaDesde, fechaHasta, agruparComprados, ordenComprados])
+
+  useEffect(() => {
+    const estadoGuardado = estadoListaInicialRef.current
+    if (!estadoGuardado?.scrollY || cargandoPedidos) return undefined
+
+    const temporizador = window.setTimeout(() => {
+      window.scrollTo({ top: Number(estadoGuardado.scrollY || 0), behavior: 'auto' })
+      estadoListaInicialRef.current = { ...estadoGuardado, scrollY: 0 }
+    }, 80)
+
+    return () => window.clearTimeout(temporizador)
+  }, [cargandoPedidos, todosPedidos.length])
 
   useEffect(() => {
     if (!menuAccionesAbierto && !menuEstadoAbierto) return undefined
@@ -235,6 +302,22 @@ export default function Pedidos() {
 
   const mostrarToast = (mensaje, tipo = 'success') => {
     setToast({ mensaje, tipo })
+  }
+
+  const guardarPosicionListaActual = (pedidoId = null) => {
+    guardarEstadoListaPedidos({
+      vistaCompra,
+      pagina,
+      tamanoPagina,
+      busqueda,
+      filtroPlataforma,
+      fechaDesde,
+      fechaHasta,
+      agruparComprados,
+      ordenComprados,
+      pedidoId,
+      scrollY: typeof window !== 'undefined' ? window.scrollY : 0
+    })
   }
 
   const cargarPlan = async () => {
@@ -469,6 +552,40 @@ export default function Pedidos() {
       texto: diasFaltantes === 1 ? 'Falta 1 día' : `Faltan ${diasFaltantes} días`,
       tipo: 'moving'
     }
+  }
+
+  const obtenerResumenLlegadaPedido = (pedido) => {
+    const productos = obtenerProductosPedido(pedido)
+    const estimadas = productos
+      .map((producto) => parsearFechaLocal(producto?.fecha_estimada_llegada))
+      .filter((fecha) => fecha && !Number.isNaN(fecha.getTime()))
+      .map((fecha) => fecha.getTime())
+
+    return {
+      posiblementeLlego: productos.some((producto) => calcularProgresoProducto(producto).tipo === 'arrival'),
+      fechaEstimada: estimadas.length ? Math.min(...estimadas) : Number.POSITIVE_INFINITY
+    }
+  }
+
+  const compararPorLlegadaEstimada = (a, b) => {
+    const llegadaA = obtenerResumenLlegadaPedido(a)
+    const llegadaB = obtenerResumenLlegadaPedido(b)
+    const prioridadA = llegadaA.posiblementeLlego ? 0 : 1
+    const prioridadB = llegadaB.posiblementeLlego ? 0 : 1
+
+    if (prioridadA !== prioridadB) {
+      return ordenComprados === 'llegada_primero'
+        ? prioridadA - prioridadB
+        : prioridadB - prioridadA
+    }
+
+    if (llegadaA.posiblementeLlego && llegadaB.posiblementeLlego && llegadaA.fechaEstimada !== llegadaB.fechaEstimada) {
+      return llegadaA.fechaEstimada - llegadaB.fechaEstimada
+    }
+
+    const fechaB = parsearFechaLocal(obtenerFechaCompraPedido(b))?.getTime() || 0
+    const fechaA = parsearFechaLocal(obtenerFechaCompraPedido(a))?.getTime() || 0
+    return fechaB - fechaA
   }
 
 
@@ -1243,11 +1360,7 @@ ${url}`
       })
     }
 
-    comprados.sort((a, b) => {
-      const fechaB = parsearFechaLocal(obtenerFechaCompraPedido(b))?.getTime() || 0
-      const fechaA = parsearFechaLocal(obtenerFechaCompraPedido(a))?.getTime() || 0
-      return fechaB - fechaA
-    })
+    comprados.sort(compararPorLlegadaEstimada)
 
     return {
       pendientes,
@@ -1442,6 +1555,26 @@ ${url}`
         </button>
       </section>
 
+      {vistaCompra === 'comprados' && (
+        <div className="order-arrival-sort-bar">
+          <div>
+            <span>Orden de llegada</span>
+            <strong>
+              {ordenComprados === 'llegada_primero'
+                ? 'Posiblemente llegaron arriba'
+                : 'Posiblemente llegaron abajo'}
+            </strong>
+          </div>
+          <button
+            type="button"
+            className="btn btn-light-bordered"
+            onClick={() => setOrdenComprados((actual) => actual === 'llegada_primero' ? 'llegada_ultimo' : 'llegada_primero')}
+          >
+            {ordenComprados === 'llegada_primero' ? 'Invertir orden' : 'Llegados primero'}
+          </button>
+        </div>
+      )}
+
       {vistaCompra === 'pendientes' && (
         <div className="order-purchase-guidance">
           <div>
@@ -1635,7 +1768,11 @@ ${url}`
 
                         <td className="actions-menu-cell">
                           <div className="actions-compact order-actions-inline">
-                            <Link to={`/pedidos/${pedido.id}`} className="btn btn-small btn-action-view">
+                            <Link
+                              to={`/pedidos/${pedido.id}`}
+                              className="btn btn-small btn-action-view"
+                              onClick={() => guardarPosicionListaActual(pedido.id)}
+                            >
                               Ver pedido
                             </Link>
 
@@ -1780,7 +1917,11 @@ ${url}`
                   {renderProgresoProductos(pedido, true)}
 
                   <div className="mobile-card-actions mobile-order-actions-simple">
-                    <Link to={`/pedidos/${pedido.id}`} className="btn btn-primary">
+                    <Link
+                      to={`/pedidos/${pedido.id}`}
+                      className="btn btn-primary"
+                      onClick={() => guardarPosicionListaActual(pedido.id)}
+                    >
                       Ver pedido
                     </Link>
 

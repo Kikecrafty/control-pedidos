@@ -43,11 +43,12 @@ export const diasEstimadosPlataforma = (plataforma, configuracion = {}) => {
     SHEIN: Number(configuracion.tiempo_shein_dias || 10),
     Temu: Number(configuracion.tiempo_temu_dias || 14),
     AliExpress: Number(configuracion.tiempo_aliexpress_dias || 25),
+    'TikTok Shop': Number(configuracion.tiempo_tiktok_shop_dias || 12),
+    'Mercado Libre': Number(configuracion.tiempo_mercado_libre_dias || 5),
+    Amazon: Number(configuracion.tiempo_amazon_dias || 7),
     Catálogo: Number(configuracion.tiempo_catalogo_dias || 7),
     Otro: Number(configuracion.tiempo_otro_dias || 15)
   }
 
-  // Las plataformas nuevas usan temporalmente el tiempo general de "Otro".
-  // Así funcionan sin requerir columnas nuevas en Supabase.
   return dias[normalizada] || dias.Otro
 }

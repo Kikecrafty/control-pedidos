@@ -273,6 +273,13 @@ const leerPlataformasActivas = (metadata = null) => {
   return ['SHEIN', 'Temu', 'AliExpress', 'Catálogo']
 }
 
+const normalizarPlataformasActivas = (valor, respaldo = null) => {
+  if (!Array.isArray(valor)) return respaldo
+
+  const validas = valor.filter((item) => PLATAFORMAS.includes(item))
+  return validas.length > 0 ? validas : respaldo
+}
+
 const leerTiemposExtra = (metadata = null) => {
   const guardadosCuenta = metadata?.ordely_tiempos_extra || {}
   const guardadosLocales = leerJsonLocal(TIEMPOS_EXTRA_KEY, {})
@@ -505,24 +512,29 @@ export default function Layout({ children }) {
 
     const nombreInicial = perfil?.nombre || datosCuenta.nombre || ''
     const tiemposExtra = leerTiemposExtra(usuario?.user_metadata)
-    const plataformasActivasIniciales = leerPlataformasActivas(usuario?.user_metadata)
+    const plataformasActivasIniciales = normalizarPlataformasActivas(
+      perfil?.plataformas_activas,
+      leerPlataformasActivas(usuario?.user_metadata)
+    )
     const configuracionInicial = {
       tiempo_shein_dias: Number(perfil?.tiempo_shein_dias || 10),
       tiempo_temu_dias: Number(perfil?.tiempo_temu_dias || 14),
       tiempo_aliexpress_dias: Number(perfil?.tiempo_aliexpress_dias || 25),
       tiempo_catalogo_dias: Number(perfil?.tiempo_catalogo_dias || 7),
-      ...tiemposExtra,
+      tiempo_tiktok_shop_dias: Number(perfil?.tiempo_tiktok_shop_dias || tiemposExtra.tiempo_tiktok_shop_dias || TIEMPOS_PREDETERMINADOS['TikTok Shop']),
+      tiempo_mercado_libre_dias: Number(perfil?.tiempo_mercado_libre_dias || tiemposExtra.tiempo_mercado_libre_dias || TIEMPOS_PREDETERMINADOS['Mercado Libre']),
+      tiempo_amazon_dias: Number(perfil?.tiempo_amazon_dias || tiemposExtra.tiempo_amazon_dias || TIEMPOS_PREDETERMINADOS.Amazon),
       tiempo_otro_dias: Number(perfil?.tiempo_otro_dias || 15),
       negocio_nombre: perfil?.negocio_nombre || '',
       negocio_direccion: perfil?.negocio_direccion || '',
       negocio_horario: perfil?.negocio_horario || '',
-      fecha_formato: normalizarFormatoFecha(leerPreferenciaLocal('ordely_fecha_formato') || perfil?.fecha_formato),
-      fecha_mostrar_anio: leerPreferenciaLocal('ordely_fecha_mostrar_anio') !== null
-        ? leerBooleanoPreferencia(leerPreferenciaLocal('ordely_fecha_mostrar_anio'), true)
-        : (typeof perfil?.fecha_mostrar_anio === 'boolean' ? perfil.fecha_mostrar_anio : true),
-      pedidos_separar_por_fecha: leerPreferenciaLocal('ordely_pedidos_separar_fecha') !== null
-        ? leerBooleanoPreferencia(leerPreferenciaLocal('ordely_pedidos_separar_fecha'), true)
-        : (typeof perfil?.pedidos_separar_por_fecha === 'boolean' ? perfil.pedidos_separar_por_fecha : true)
+      fecha_formato: normalizarFormatoFecha(perfil?.fecha_formato || leerPreferenciaLocal('ordely_fecha_formato')),
+      fecha_mostrar_anio: typeof perfil?.fecha_mostrar_anio === 'boolean'
+        ? perfil.fecha_mostrar_anio
+        : leerBooleanoPreferencia(leerPreferenciaLocal('ordely_fecha_mostrar_anio'), true),
+      pedidos_separar_por_fecha: typeof perfil?.pedidos_separar_por_fecha === 'boolean'
+        ? perfil.pedidos_separar_por_fecha
+        : leerBooleanoPreferencia(leerPreferenciaLocal('ordely_pedidos_separar_fecha'), true)
     }
 
     setNombreCuenta(nombreInicial)
@@ -680,23 +692,37 @@ export default function Layout({ children }) {
     }
 
     const perfilData = await cargarEstadoPlan()
+    const { data: perfilCuenta } = await supabase
+      .from('perfiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle()
 
-    if (perfilData) {
-      setPerfil(perfilData)
-      guardarPerfilCache(perfilData)
+    const perfilCompleto = perfilData
+      ? { ...(perfilCuenta || {}), ...perfilData }
+      : perfilCuenta
 
-      if (perfilData.plataforma_predeterminada) {
-        setPlataformaPredeterminada(perfilData.plataforma_predeterminada)
-        localStorage.setItem('plataforma_predeterminada', perfilData.plataforma_predeterminada)
+    if (perfilCompleto) {
+      setPerfil(perfilCompleto)
+      guardarPerfilCache(perfilCompleto)
+
+      if (perfilCompleto.plataforma_predeterminada) {
+        setPlataformaPredeterminada(perfilCompleto.plataforma_predeterminada)
+        localStorage.setItem('plataforma_predeterminada', perfilCompleto.plataforma_predeterminada)
+      }
+
+      const plataformasRemotas = normalizarPlataformasActivas(perfilCompleto.plataformas_activas, null)
+      if (plataformasRemotas) {
+        localStorage.setItem(PLATAFORMAS_ACTIVAS_KEY, JSON.stringify(plataformasRemotas))
       }
 
       guardarPreferenciasFechaLocal({
-        formato: normalizarFormatoFecha(perfilData.fecha_formato || leerPreferenciaLocal('ordely_fecha_formato')),
-        mostrarAnio: typeof perfilData.fecha_mostrar_anio === 'boolean'
-          ? perfilData.fecha_mostrar_anio
+        formato: normalizarFormatoFecha(perfilCompleto.fecha_formato || leerPreferenciaLocal('ordely_fecha_formato')),
+        mostrarAnio: typeof perfilCompleto.fecha_mostrar_anio === 'boolean'
+          ? perfilCompleto.fecha_mostrar_anio
           : leerBooleanoPreferencia(leerPreferenciaLocal('ordely_fecha_mostrar_anio'), true),
-        separarPorFecha: typeof perfilData.pedidos_separar_por_fecha === 'boolean'
-          ? perfilData.pedidos_separar_por_fecha
+        separarPorFecha: typeof perfilCompleto.pedidos_separar_por_fecha === 'boolean'
+          ? perfilCompleto.pedidos_separar_por_fecha
           : leerBooleanoPreferencia(leerPreferenciaLocal('ordely_pedidos_separar_fecha'), true)
       })
     }
@@ -937,40 +963,17 @@ export default function Layout({ children }) {
       tiempo_amazon_dias: normalizarDiasConfig(configEntrega.tiempo_amazon_dias, TIEMPOS_PREDETERMINADOS.Amazon)
     }
 
-    const { error } = await supabase
-      .from('perfiles')
-      .update({
-        nombre: nombreLimpio,
-        tiempo_shein_dias: normalizarDiasConfig(configEntrega.tiempo_shein_dias, 10),
-        tiempo_temu_dias: normalizarDiasConfig(configEntrega.tiempo_temu_dias, 14),
-        tiempo_aliexpress_dias: normalizarDiasConfig(configEntrega.tiempo_aliexpress_dias, 25),
-        tiempo_catalogo_dias: normalizarDiasConfig(configEntrega.tiempo_catalogo_dias, 7),
-        tiempo_otro_dias: normalizarDiasConfig(configEntrega.tiempo_otro_dias, 15),
-        negocio_nombre: String(configEntrega.negocio_nombre || '').trim(),
-        negocio_direccion: String(configEntrega.negocio_direccion || '').trim(),
-        negocio_horario: String(configEntrega.negocio_horario || '').trim(),
-        fecha_formato: normalizarFormatoFecha(configEntrega.fecha_formato),
-        fecha_mostrar_anio: valorBooleanoConfig(configEntrega.fecha_mostrar_anio, true),
-        pedidos_separar_por_fecha: valorBooleanoConfig(configEntrega.pedidos_separar_por_fecha, true),
-        actualizado_en: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-
-    if (error) {
-      console.log(error)
-      setMensajeCuenta({ tipo: 'error', texto: 'No se pudo guardar el nombre.' })
-      setGuardandoCuenta(false)
-      return
-    }
-
-    const perfilActualizado = perfil ? {
-      ...perfil,
+    const perfilPayload = {
       nombre: nombreLimpio,
       tiempo_shein_dias: normalizarDiasConfig(configEntrega.tiempo_shein_dias, 10),
       tiempo_temu_dias: normalizarDiasConfig(configEntrega.tiempo_temu_dias, 14),
       tiempo_aliexpress_dias: normalizarDiasConfig(configEntrega.tiempo_aliexpress_dias, 25),
       tiempo_catalogo_dias: normalizarDiasConfig(configEntrega.tiempo_catalogo_dias, 7),
       tiempo_otro_dias: normalizarDiasConfig(configEntrega.tiempo_otro_dias, 15),
+      tiempo_tiktok_shop_dias: tiemposExtraNormalizados.tiempo_tiktok_shop_dias,
+      tiempo_mercado_libre_dias: tiemposExtraNormalizados.tiempo_mercado_libre_dias,
+      tiempo_amazon_dias: tiemposExtraNormalizados.tiempo_amazon_dias,
+      plataformas_activas: plataformasActivas,
       negocio_nombre: String(configEntrega.negocio_nombre || '').trim(),
       negocio_direccion: String(configEntrega.negocio_direccion || '').trim(),
       negocio_horario: String(configEntrega.negocio_horario || '').trim(),
@@ -978,6 +981,23 @@ export default function Layout({ children }) {
       fecha_mostrar_anio: valorBooleanoConfig(configEntrega.fecha_mostrar_anio, true),
       pedidos_separar_por_fecha: valorBooleanoConfig(configEntrega.pedidos_separar_por_fecha, true),
       actualizado_en: new Date().toISOString()
+    }
+
+    const { error } = await supabase
+      .from('perfiles')
+      .update(perfilPayload)
+      .eq('user_id', userId)
+
+    if (error) {
+      console.log(error)
+      setMensajeCuenta({ tipo: 'error', texto: 'No se pudo guardar la configuraciÃ³n.' })
+      setGuardandoCuenta(false)
+      return
+    }
+
+    const perfilActualizado = perfil ? {
+      ...perfil,
+      ...perfilPayload
     } : perfil
 
     if (perfilActualizado) {
